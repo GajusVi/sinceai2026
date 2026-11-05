@@ -3,6 +3,7 @@
 SinceAI 2026 (Turku, 6-8 Nov). Build window Fri 19:30 to Sun 10:00. Submission must win without a pitch.
 
 Event rules, timeline, prizes and credits: docs/sinceai/EVENT_FACTS.md. Slash commands /pick /brief /eval /warm /judge-qa /ship-check live in claude-setup/ until installed (see its README).
+Shortlist and planned builds per challenge: docs/sinceai/TOP4.md. Real briefs and company data go in data/brief/ (read them first on Friday).
 
 ## Rules for working in this repo
 - Read NOTES.md before starting; append a line to NOTES.md after every decision.

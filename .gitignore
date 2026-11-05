@@ -12,3 +12,5 @@ wheelhouse/
 # demo/cache/ IS committed: it is the stage replay
 .env.*
 !.env.example
+# company material: share per the challenge data rules, not via git
+data/brief/
