@@ -8,6 +8,17 @@ cd ~/SinceAI2026 && ./setup_mac.sh --all
 ```
 Then add one API key to `.env` and run `make ping`.
 
+## Windows teammates
+```powershell
+winget install --id Git.Git -e; winget install --id GitHub.cli -e   # then reopen PowerShell
+gh auth login
+cd $HOME; gh repo clone GajusVi/sinceai2026 SinceAI2026; cd SinceAI2026
+powershell -ExecutionPolicy Bypass -File .\setup_windows.ps1
+notepad .env        # paste your own GEMINI_API_KEY, save
+.\run.ps1 ping; .\run.ps1 ui
+```
+`run.ps1` replaces `make` on Windows: `.\run.ps1 ui | demo | api | eval | ping | models | test`.
+
 ## Daily commands
 | Command | What |
 | --- | --- |
