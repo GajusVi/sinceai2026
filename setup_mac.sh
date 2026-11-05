@@ -136,6 +136,8 @@ if [[ ! -d .git ]]; then
     ok "repo initialised, prior work tagged 'pre-event'"
   else warn "set git user.name/user.email, then: git add -A && git commit -m 'Pre-event scaffold' && git tag pre-event"; fi
 else ok "repo exists"; fi
+git config core.hooksPath .githooks && ok "team pre-commit hook on (OWNERS)"
+git config user.name >/dev/null || warn "set your name: git config --global user.name \"Firstname\""
 gh auth status >/dev/null 2>&1 && ok "gh logged in" || warn "run: gh auth login   (to push the team repo)"
 
 # ---------------------------------------------------------------- verify

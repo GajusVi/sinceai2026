@@ -1,0 +1,19 @@
+#!/bin/sh
+# Refuses a commit that touches files another teammate owns (see OWNERS).
+# Agreed with the owner? Commit anyway with:  git commit --no-verify -m "..."
+me=$(git config user.name | awk '{print tolower($1)}')
+if [ -z "$me" ]; then
+  echo "pre-commit: set your name first:  git config --global user.name \"Firstname\""; exit 1
+fi
+root=$(git rev-parse --show-toplevel)
+bad=$(git diff --cached --name-only | while IFS= read -r f; do
+  owner=$(awk -v f="$f" '!/^#/ && NF>=2 && index(f,$1)==1 && length($1)>best {best=length($1); o=$2} END{print o}' "$root/OWNERS")
+  if [ -n "$owner" ] && [ "$owner" != "$me" ]; then echo "  $f  (owner: $owner)"; fi
+done)
+if [ -n "$bad" ]; then
+  echo "pre-commit: you ($me) are committing files someone else owns:"
+  echo "$bad"
+  echo "Unstage them (git restore --staged <file>) and ask the owner, or, if agreed: git commit --no-verify"
+  exit 1
+fi
+exit 0

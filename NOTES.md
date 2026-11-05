@@ -1,12 +1,18 @@
 # NOTES: who does what, decisions, open questions
 
 ## Team
-| Who | Role | Owns |
-| --- | --- | --- |
-| Gajus | product + finance story | challenge pick, euro case, pitch, submission page |
-| Quant econ teammate | model + eval | hold-out labels, eval.py, metric |
-| Medical teammate (radiology) | domain + data | company Q&A, data cleaning, edge cases |
-| Data analyst / law teammate | data + rules | data analysis, NDA/IP/data rules, claims checking |
+Lead (picks the challenge in sinceai.app at 17:00, merges to main): Gajus
+
+| Who | GitHub | Laptop | LUMI/Aitta | Owns | Files they edit |
+| --- | --- | --- | --- | --- | --- |
+| Gajus | GajusVi | Mac Intel 2020 | yes | Product + pitch: challenge pick, user, one-sentence demo, company Q&A, euro case, 4-min pitch, judge Q&A | NOTES.md, README.md, docs/ |
+| Margiris | MargirisRakutis | Windows | yes | Model + proof: labels, prompts, held-out set, eval numbers, confidence check, euro formula inputs | backend/pipeline.py, backend/llm.py, eval/ |
+| Martynas | Paradox-Mrt | Windows | no | Data: company files to clean records, data quality, labelling the held-out set with Margiris | backend/ingest.py, backend/models.py, data/ |
+| Donatas | dpaulauskas0-cmd | Mac Air M4 | no | App + demo + submission: Streamlit screen, demo mode and cache (warm), 60-90 s video, screenshots, sinceai.app page | frontend/, demo/, submission/ |
+
+Backups: Gajus covers Donatas's submission page on Sunday morning; Margiris runs any LUMI/Aitta job.
+All on Claude Pro: heavy Claude Code sessions go to the owner of that area only; think and plan in claude.ai chat.
+Git: edit only your own files where possible; `git pull --rebase` before every `git push`; small commits; never commit .env or data/brief/.
 
 ## Challenge ranking (rev. Thu 5 Nov 23:25, LLM council round 2: Opus/Sonnet/Haiku; no domain expertise; keep IP)
 Select in this order: 1. Bayer  2. Lindstrom  3. Fonecta  4. Europress
@@ -16,6 +22,9 @@ Excluded (IP goes to company): Takomo Golf, DNA
 
 ## One-sentence demo (Fri 21:30 latest)
 For [user], takes [input], returns [output], so they can [benefit].
+
+## Requests (change needed in someone else's file: who asks, owner, what)
+-
 
 ## Decisions
 - 2026-11-05: scaffold = FastAPI + Streamlit + SQLite audit log; LLM via OpenAI-compatible client (provider by env).

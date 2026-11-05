@@ -1,0 +1,22 @@
+# Who owns which files. First word of `git config user.name`, lowercase. Longest matching prefix wins.
+# Files not listed (NOTES.md, tests/, .claude/...) are shared: anyone may edit, keep changes small.
+# The pre-commit hook (.githooks/pre-commit) refuses commits that touch someone else's files.
+backend/pipeline.py     margiris
+backend/llm.py          margiris
+eval/                   margiris
+backend/ingest.py       martynas
+backend/models.py       martynas
+data/                   martynas
+frontend/               donatas
+demo/                   donatas
+submission/             donatas
+README.md               gajus
+docs/                   gajus
+backend/config.py       gajus
+backend/main.py         gajus
+requirements.in         gajus
+requirements-extras.in  gajus
+Makefile                gajus
+run.ps1                 gajus
+setup_mac.sh            gajus
+setup_windows.ps1       gajus

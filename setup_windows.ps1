@@ -28,6 +28,10 @@ Step "Config"
 if (-not (Test-Path .env)) { Copy-Item .env.example .env; Write-Host "    .env created: paste your own GEMINI_API_KEY into it (notepad .env)" }
 else { Write-Host "    .env exists (left untouched)" }
 
+Step "Git team settings"
+git config core.hooksPath .githooks
+if (-not (git config user.name)) { Write-Host "    set your name:  git config --global user.name `"Firstname`"" -ForegroundColor Yellow } else { Write-Host "    ok  git user: $(git config user.name)" }
+
 Step "Smoke tests (no network)"
 $env:DEMO_MODE = "1"; .venv\Scripts\python.exe -m pytest -q; Remove-Item Env:DEMO_MODE
 
