@@ -1,0 +1,11 @@
+{
+  "label": "technical",
+  "priority": 5,
+  "confidence": 0.98,
+  "reason": "The production checkout system is down and returning 502 server errors, preventing customer payments.",
+  "evidence": [
+    "production checkout is down for all users",
+    "customers get error 502 on payment page"
+  ],
+  "suggested_action": "Immediately escalate to the engineering on-call team to investigate the 502 gateway error on the payment service."
+}

@@ -1,0 +1,14 @@
+# Track-specific extras. Install: make extras   (checked against Intel macOS + Python 3.11 wheels, 5 Nov 2026)
+# Forecasting (Turku Energia, Europress): LightGBM quantile models; feature attributions via
+#   model.predict(X, pred_contrib=True)  -> no shap needed (shap pulls numba, which has no new Intel-Mac wheels)
+lightgbm
+mapie            # conformal prediction intervals (v1 API: SplitConformalRegressor, ConformalizedQuantileRegressor)
+holidays         # Finnish public holidays as features
+# Privacy (TrustED): OpenDP for differential privacy; Flower for federated learning with scikit-learn models
+#   diffprivlib deliberately NOT used: it breaks on scikit-learn 1.9
+opendp
+flwr
+# Routing / scheduling (Europress, FORCIT): Google OR-Tools
+ortools
+# Graphs (Elisa knowledge graph, Valmet asset hierarchy)
+networkx

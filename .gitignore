@@ -1,0 +1,12 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+data/*.db
+models/
+wheelhouse/
+.DS_Store
+.hackmode.pid
+# demo/cache/ IS committed: it is the stage replay

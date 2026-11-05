@@ -1,0 +1,10 @@
+{
+  "label": "billing",
+  "priority": 3,
+  "confidence": 0.6,
+  "reason": "The ticket mentions an order number, which typically relates to billing or order processing.",
+  "evidence": [
+    "Ticket re: order #88213"
+  ],
+  "suggested_action": "Review the history for order #88213 and previous communications from this customer."
+}

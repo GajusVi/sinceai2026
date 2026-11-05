@@ -1,0 +1,28 @@
+# Core stack (playbook §4). Install: uv pip install -r requirements.in
+# Checked against Intel macOS (x86_64) + Python 3.11 wheels on 5 Nov 2026.
+# Deliberately NOT here: torch / sentence-transformers (Intel Macs are stuck on torch 2.2.2,
+# which breaks with numpy 2), faiss/chroma (in-memory numpy is enough at hackathon scale).
+fastapi
+uvicorn[standard]
+pydantic>=2.7
+pydantic-settings
+python-dotenv
+openai
+anthropic
+httpx
+tenacity
+pandas
+numpy
+scikit-learn
+statsmodels
+plotly
+streamlit>=1.40
+openpyxl
+python-multipart
+pypdf
+python-docx
+rapidfuzz
+fastembed
+pytest
+ruff
+ipykernel

@@ -1,0 +1,11 @@
+{
+  "label": "technical",
+  "priority": 2,
+  "confidence": 0.95,
+  "reason": "The dashboard data is failing to update automatically without multiple manual refreshes.",
+  "evidence": [
+    "dashboard sometimes shows yesterday's numbers until I refresh twice",
+    "Not urgent"
+  ],
+  "suggested_action": "Try clearing your browser cache or re-login, and contact support if the delayed refresh persists."
+}

@@ -1,0 +1,11 @@
+{
+  "label": "billing",
+  "priority": 4,
+  "confidence": 0.98,
+  "reason": "The user reported a duplicate charge for a specific invoice and requested a refund.",
+  "evidence": [
+    "charged twice for invoice 2026-0412",
+    "refund the duplicate payment"
+  ],
+  "suggested_action": "Verify invoice 2026-0412 payment records and process a refund for the duplicate transaction."
+}

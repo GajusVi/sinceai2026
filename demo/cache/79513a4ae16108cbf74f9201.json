@@ -1,0 +1,12 @@
+{
+  "label": "account",
+  "priority": 5,
+  "confidence": 0.95,
+  "reason": "The user is completely locked out of their account due to failed login attempts and needs urgent access for time-sensitive work.",
+  "evidence": [
+    "cant login since password reset yesterday",
+    "now account locked",
+    "need access for month-end close friday"
+  ],
+  "suggested_action": "Verify user identity and unlock the account to restore access."
+}

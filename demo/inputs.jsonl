@@ -1,0 +1,8 @@
+{"id": "T-1001", "text": "URGENT: production checkout is down for all users since 08:10, customers get error 502 on payment page. We are losing orders every minute.", "channel": "email"}
+{"id": "T-1002", "text": "Hi, I was charged twice for invoice 2026-0412 (EUR 1,240). Please refund the duplicate payment.", "channel": "portal"}
+{"id": "T-1003", "text": "cant login since password reset yesterday?? tried 3 times, now account locked. need access for month-end close friday", "channel": "chat"}
+{"id": "T-1004", "text": "Feature idea: would be nice to export the monthly report to Excel instead of PDF.", "channel": "portal"}
+{"id": "T-1005", "text": "Ticket re: order #88213 -- see attached. Same as last time. Thx", "channel": "email"}
+{"id": "T-1006", "text": "The dashboard sometimes shows yesterday's numbers until I refresh twice. Not urgent but confusing for my team.", "channel": "portal"}
+{"id": "T-1007", "text": "Laskussa on väärä ALV-prosentti (24% vs 25,5%). Korjatkaa ja lähettäkää uusi lasku.", "channel": "email"}
+{"id": "T-1008", "text": "New colleague starts Monday, please create an account with the same permissions as Anna in finance.", "channel": "portal"}

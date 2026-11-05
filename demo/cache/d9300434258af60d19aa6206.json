@@ -1,0 +1,10 @@
+{
+  "label": "other",
+  "priority": 1,
+  "confidence": 0.9,
+  "reason": "This is a feature request to add Excel export functionality for monthly reports.",
+  "evidence": [
+    "export the monthly report to Excel"
+  ],
+  "suggested_action": "Log the feedback in the product feature request backlog."
+}

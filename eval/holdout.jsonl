@@ -1,0 +1,8 @@
+{"id": "H-01", "text": "Payment failed with error 500 when I click pay", "label": "technical"}
+{"id": "H-02", "text": "Please send a refund for the cancelled subscription", "label": "billing"}
+{"id": "H-03", "text": "Forgot my password and the reset link expired", "label": "account"}
+{"id": "H-04", "text": "Your invoice has the wrong company address", "label": "billing"}
+{"id": "H-05", "text": "The app crashes every time I open settings", "label": "technical"}
+{"id": "H-06", "text": "Can you add dark mode?", "label": "other"}
+{"id": "H-07", "text": "I need admin permission to approve expenses", "label": "account"}
+{"id": "H-08", "text": "Price on the website differs from what I was charged", "label": "billing"}

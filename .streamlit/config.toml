@@ -1,0 +1,15 @@
+# Nordic corporate look: flat fills, dark green accent, plenty of white.
+[theme]
+base = "light"
+primaryColor = "#0E5E3B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F2F4F3"
+textColor = "#1B1F1D"
+font = "sans serif"
+
+[server]
+headless = true
+runOnSave = true
+
+[browser]
+gatherUsageStats = false

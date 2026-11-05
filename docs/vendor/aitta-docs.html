@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Aitta</title>
+    <link rel="icon" href="https://aitta.csc.fi/static/images/favicon.png" sizes="32x32"/>
+
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+          crossorigin="anonymous">
+    <!-- Custom CSS -->
+    <link href="https://aitta.csc.fi/static/css/variables.css" rel="stylesheet">
+    <link href="https://aitta.csc.fi/static/css/base.css" rel="stylesheet">
+    <link href="https://aitta.csc.fi/static/css/layout.css" rel="stylesheet">
+
+    <!-- Scrollbar Custom CSS -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.min.css">
+
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- My own Font Awesome JS -->
+    <script src="https://kit.fontawesome.com/c233f3821d.js" crossorigin="anonymous"></script>
+
+    <!-- Add Highlight.js CSS -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/intellij-light.min.css">
+
+    <!-- Add Highlight.js JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            hljs.highlightAll();
+        });
+    </script>
+
+    
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center gap-3" href="/">
+            <img src="https://aitta.csc.fi/static/images/csc_logo.png"
+                 width="50"
+                 height="35"
+                 alt="CSC">
+
+            <span class="brand-text">Aitta</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            
+            
+            
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="https://aitta-auth.csc.fi/myToken"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        Generate token
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       href="https://docs.lumi-supercomputer.eu/laif/inference/aitta/">
+                        <i class="fa-solid fa-book"></i> User guide
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link "
+                       href="/auth">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                        Log In
+                    </a>
+                </li>
+
+            
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="logoutModalLabel">
+          <i class="fa-solid fa-right-from-bracket me-2"></i>
+          Log out
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body text-center">
+<div class="logout-icon mb-3">
+      <i class="fa-solid fa-right-from-bracket"></i>
+  </div>
+        <p class="mb-2 fw-semibold">
+          Are you sure you want to log out?
+        </p>
+
+        <p class="text-muted small">
+          For security reasons we recommend closing your browser after logging out.
+        </p>
+
+      </div>
+
+      <div class="modal-footer justify-content-center">
+
+        <button type="button"
+                class="btn btn-outline-secondary"
+                data-bs-dismiss="modal">
+          Cancel
+        </button>
+
+        <a class="btn btn-danger" href="/logout">
+          <i class="fa-solid fa-right-from-bracket me-1"></i>
+          Log out
+        </a>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+
+<!-- API Status Banner -->
+<div id="api-status-banner" class="alert alert-warning alert-dismissible fade show d-none" role="alert">
+    <span id="status-message">Lumi is currently under maintenance.</span>
+    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="retry-status">Retry</button>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Session Expired Banner -->
+<div id="session-expired-banner" class="alert alert-warning d-none" role="alert"
+     data-was-authenticated="false">
+    Your session has ended. Please <a href="/auth" class="alert-link">log in</a> again to continue.
+</div>
+
+<main class="flex-grow-1">
+    
+
+<section class="hero-public text-center py-5">
+    <div class="container py-5">
+
+        <h1 class="display-4 fw-semibold mb-3">
+            Run AI models with Aitta
+        </h1>
+
+        <p class="lead text-muted mb-4">
+            Aitta provides researchers and developers access to curated AI models
+            running on energy-efficient HPC infrastructure.
+        </p>
+
+        
+        <div class="d-flex justify-content-center gap-3">
+            <a href="/auth" class="btn btn-primary btn-lg auth-button">
+                Log in to use Aitta
+            </a>
+        </div>
+        
+    </div>
+</section>
+
+<div class="container section-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 page-text" id="pages">
+            <h2>Run your AI models in LUMI supercomputer with Aitta</h2>
+<p>AI inference platform Aitta is a general purpose scalable service component of LUMI to host AI models for the research and development purposes.</p>
+<h3>Ease of use</h3>
+<p>Use LUMI supercomputer powers with easy Web UI and OpenAI-compatible API.</p>
+<h3>Efficiency</h3>
+<p>Resource allocation on demand from the European LUMI supercomputer and scalable microservice cloud for running the models in most suitable backend.</p>
+<h3>Security</h3>
+<p>Runs inside ISO/IEC 27001 certified datacenter.</p>
+<hr />
+<p>Aitta is part of <a href="https://deployaiproject.eu/">DeployAI EU project</a></p>
+<hr />
+        </div>
+    </div>
+</div>
+
+<section class="text-center py-5">
+    <div class="container page-text">
+        <h2 class="fw-semibold mb-4">Powered by LUMI supercomputer</h2>
+        <img class="img-fluid rounded shadow-sm"
+             src="https://aitta.csc.fi/static/images/lumi_super_computer.png"
+             alt="LUMI">
+    </div>
+</section>
+
+
+</main>
+<footer class="footer container-fluid border-top py-4">
+    <div class="container">
+
+        <div class="row align-items-center text-center text-md-start">
+
+            <div class="col-12 col-md-4 mb-3 mb-md-0">
+                <p class="mb-0 text-muted">
+                    &copy; CSC - IT Center for Science LTD
+                </p>
+            </div>
+
+            <div class="col-12 col-md-4 mb-3 mb-md-0 text-center">
+                <a href="https://csc.fi/en/" target="_blank" rel="noopener noreferrer">
+                    <img src="https://aitta.csc.fi/static/images/csc_logo.png"
+                         class="footer-logo"
+                         alt="CSC logo">
+                </a>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="footer-links">
+
+                    <a class="footer-link" href="https://aitta.csc.fi/terms-of-use" target="_self">
+                        <i class="fa-solid fa-file-contract"></i> Terms of Use
+                    </a>
+
+                    <a class="footer-link" href="https://aitta.csc.fi/privacy-notice" target="_self">
+                        <i class="fa-solid fa-shield-halved"></i> Privacy Notice
+                    </a>
+
+                    <a class="footer-link" href="https://pypi.org/project/aitta-client/" target="_blank">
+                        <i class="fa-solid fa-circle-nodes"></i> Client
+                    </a>
+
+                    <a class="footer-link" href="https://aitta-api.csc.fi/docs" target="_blank">
+                        <i class="fa-solid fa-circle-nodes"></i> API
+                    </a>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</footer>
+
+
+<script>
+// API Status Check
+let statusCheckInterval;
+
+// Helper function to format ISO date to human-readable format
+function formatDateTime(isoString) {
+    if (!isoString) return 'Unknown';
+    try {
+        const date = new Date(isoString);
+        const localTime = date.toLocaleString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZoneName: 'short'
+        });
+        return `${localTime}`;
+    } catch (e) {
+        return 'Unknown';
+    }
+}
+
+// Calculate relative time until maintenance ends
+function getTimeUntilEnd(endTime) {
+    if (!endTime) return '';
+    try {
+        const end = new Date(endTime);
+        const now = new Date();
+        const diff = end - now;
+
+        if (diff <= 0) return ' (ended)';
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        if (hours > 0) {
+            return ` (ends in ${hours}h ${minutes}m)`;
+        } else {
+            return ` (ends in ${minutes}m)`;
+        }
+    } catch (e) {
+        return '';
+    }
+}
+
+async function checkApiStatus() {
+
+    function updateBanner(classToSet, bannerMessage = null) {
+        const banner = document.getElementById('api-status-banner');
+        const message = document.getElementById('status-message');
+        banner.classList.remove('d-none');
+        banner.classList.remove('alert-danger');
+        banner.classList.remove('alert-warning');
+        banner.classList.add(classToSet);
+        if (message !== null) {
+            message.textContent = bannerMessage;
+        }
+    }
+
+    let expectedEndString = "";
+    try {
+        const response = await fetch('/api/status');
+        const data = await response.json();
+
+        switch (data.status) {
+            case 'operational':
+                updateBanner('d-none');
+                break;
+            case 'maintenance':
+                const formattedEnd = formatDateTime(data.downtime.end);
+                const relativeTime = getTimeUntilEnd(data.downtime.end);
+                expectedEndString =  ` Expected end: ${formattedEnd}${relativeTime}`;
+            case 'unavailable':
+                updateBanner(
+                    'alert-warning',
+                    `The system is currently unavailable. Reason: ${data.reason || 'Unknown'}` + expectedEndString
+                );
+                break;
+            case 'unreachable':
+                updateBanner(
+                    'alert-danger',
+                    'API is unreachable. Please check your connection.'
+                );
+                break;
+            default:
+                throw `unknown service status ${data.status}`;
+        }
+    } catch (error) {
+        console.error('Status check failed:', error);
+        updateBanner(
+            'alert-danger',
+            'API seems to be unreachable.'
+        );
+    }
+}
+
+document.getElementById('retry-status').addEventListener('click', checkApiStatus);
+
+// Initial check
+checkApiStatus();
+
+// Check every 30 seconds
+statusCheckInterval = setInterval(checkApiStatus, 30000);
+</script>
+
+<script>
+// Session Expiry Check
+//
+// Pages rendered for a logged-in user poll the session state and show a notice once the
+// session is no longer valid, whether the token expired or the session cookie disappeared
+const sessionExpiredBanner = document.getElementById('session-expired-banner');
+const wasAuthenticated = sessionExpiredBanner.dataset.wasAuthenticated === 'true';
+let sessionCheckInterval;
+
+async function checkSession() {
+    try {
+        const response = await fetch('/auth/session');
+        const data = await response.json();
+        if (data.status !== 'valid') {
+            sessionExpiredBanner.classList.remove('d-none');
+            clearInterval(sessionCheckInterval);
+        }
+    } catch (error) {
+        // connectivity problems are reported by the API status banner
+    }
+}
+
+if (wasAuthenticated) {
+    // Initial check
+    checkSession();
+
+    // Check every 30 seconds
+    sessionCheckInterval = setInterval(checkSession, 30000);
+}
+</script>
+
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<!-- Popper.JS -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+        integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+        crossorigin="anonymous"></script>
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+<!-- jQuery Custom Scroller CDN -->
+<script
+        src="https://cdnjs.cloudflare.com/ajax/libs/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.concat.min.js"></script>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#sidebar").mCustomScrollbar({
+            theme: "minimal"
+        });
+
+        $('#dismiss, .overlay').on('click', function () {
+            $('#sidebar').removeClass('active');
+            $('.overlay').removeClass('active');
+        });
+
+        $('#sidebarCollapse').on('click', function () {
+            $('#sidebar').addClass('active');
+            $('.overlay').addClass('active');
+            $('.collapse.in').toggleClass('in');
+            $('a[aria-expanded=true]').attr('aria-expanded', 'false');
+        });
+    });
+</script>
+
+
+
+
+</body>
+
+</html>
