@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     demo_mode: bool = False  # replay cached outputs; never calls the network
     db_path: Path = ROOT / "data" / "app.db"
     embed_model: str = "BAAI/bge-small-en-v1.5"
-    user_role: str = "the support team lead"  # who the product serves; change on Friday
+    user_role: str = "the support team lead"  # who the product serves; change HERE on Friday (part of the cache key)
 
     def resolved(self) -> tuple[str, str, str | None]:
         """Return (base_url, api_key, model) for the active provider."""

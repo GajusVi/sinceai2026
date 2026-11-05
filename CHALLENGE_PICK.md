@@ -1,3 +1,5 @@
+> **Superseded.** Final order is in NOTES.md: Bayer → Lindstrom → Fonecta → Europress. The table below is the Thursday first pass.
+
 # Challenge pick: Thursday 15:00 summaries, final choice Fri 15:00-17:30 by the team lead after marking READY (owner submits ONE, final)
 
 1 point per yes. Take the top four into Friday, in order.

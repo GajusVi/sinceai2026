@@ -23,7 +23,7 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0)
     args = ap.parse_args()
 
-    rows = [json.loads(line) for line in Path(args.file).read_text().splitlines() if line.strip()]
+    rows = [json.loads(line) for line in Path(args.file).read_text(encoding="utf-8").splitlines() if line.strip()]
     if args.limit:
         rows = rows[: args.limit]
     items = ingest.from_dataframe(pd.DataFrame(rows), text_col="text", id_col="id")
@@ -51,7 +51,7 @@ def main() -> None:
         "sources": dict(Counter(s.source for s in scored.values())),
         "misses": misses,
     }
-    (ROOT / "eval" / "results.json").write_text(json.dumps(res, indent=2))
+    (ROOT / "eval" / "results.json").write_text(json.dumps(res, indent=2), encoding="utf-8")
     print(classification_report(y_true, y_pred, zero_division=0))
     print(f"accuracy={res['accuracy']:.3f}  macro_f1={res['macro_f1']:.3f}  n={res['n']}  sources={res['sources']}")
     for m in misses:

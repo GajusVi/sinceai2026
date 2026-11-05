@@ -128,7 +128,7 @@ with tab_queue:
 with tab_proof:
     res_path = ROOT / "eval" / "results.json"
     if res_path.exists():
-        res = json.loads(res_path.read_text())
+        res = json.loads(res_path.read_text(encoding="utf-8"))
         c1, c2, c3 = st.columns(3)
         c1.metric("Accuracy (hold-out)", f"{res['accuracy']:.0%}")
         c2.metric("Macro F1", f"{res['macro_f1']:.2f}")
@@ -140,10 +140,11 @@ with tab_proof:
         st.caption("Run `make eval` to fill this tab.")
 
     st.markdown("#### Euro impact")
+    st.caption("Placeholder assumptions, not company data. Replace with the company's figures before quoting.")
     c1, c2, c3 = st.columns(3)
-    vol = c1.number_input("Items per month", value=2000, step=100)
-    mins = c2.number_input("Minutes saved per item", value=4.0, step=0.5)
-    rate = c3.number_input("Loaded cost €/hour", value=45, step=5)
+    vol = c1.number_input("Items per month (assumption)", value=2000, step=100)
+    mins = c2.number_input("Minutes saved per item (assumption)", value=4.0, step=0.5)
+    rate = c3.number_input("Loaded cost €/hour (assumption)", value=45, step=5)
     yearly = vol * 12 * mins / 60 * rate
     st.metric("Annual saving", f"€{yearly:,.0f}")
     st.caption(f"{vol:,} items/month × 12 × {mins} min ÷ 60 × €{rate}/h = €{yearly:,.0f}/year")

@@ -1,12 +1,14 @@
 """One LLM entry point. Structured output = JSON validated by Pydantic, one repair retry.
 
-Every successful output is cached in demo/cache/ keyed by (system, user, schema).
-DEMO_MODE=1 replays that cache and never touches the network.
+Every successful live output is written to demo/cache/ keyed by (system, user, schema).
+Live mode always calls the model (so eval measures the current model); the cache is read only
+in DEMO_MODE=1 (never touches the network) or as a fallback when the live call fails.
 """
 
 import hashlib
 import json
 import re
+from collections.abc import Callable
 from functools import lru_cache
 from typing import TypeVar
 
@@ -49,16 +51,19 @@ def _extract_json(text: str) -> str:
 
 def cached(system: str, user: str, schema: type[T]) -> T | None:
     path = CACHE_DIR / f"{_cache_key(system, user, schema.__name__)}.json"
-    return schema.model_validate_json(path.read_text()) if path.exists() else None
+    return schema.model_validate_json(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
-def complete_json(system: str, user: str, schema: type[T], temperature: float = 0.0) -> T:
+def complete_json(
+    system: str, user: str, schema: type[T], temperature: float = 0.0, check: Callable[[T], None] | None = None
+) -> T:
+    """Live call (DEMO_MODE: cache replay only). `check` may raise ValueError to trigger the repair retry."""
     s = get_settings()
     key = _cache_key(system, user, schema.__name__)
     path = CACHE_DIR / f"{key}.json"
     if s.demo_mode:
         if path.exists():
-            return schema.model_validate_json(path.read_text())
+            return schema.model_validate_json(path.read_text(encoding="utf-8"))
         raise LLMError("DEMO_MODE: no cached output for this input")
     if not s.llm_ready():
         raise LLMError(f"LLM not configured for provider {s.llm_provider!r} (key or model missing)")
@@ -80,6 +85,8 @@ def complete_json(system: str, user: str, schema: type[T], temperature: float = 
         text = resp.choices[0].message.content or ""
         try:
             obj = schema.model_validate_json(_extract_json(text))
+            if check:
+                check(obj)
         except (ValidationError, ValueError) as e:
             last_err = e
             messages += [
@@ -88,7 +95,7 @@ def complete_json(system: str, user: str, schema: type[T], temperature: float = 
             ]
             continue
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        path.write_text(obj.model_dump_json(indent=2))
+        path.write_text(obj.model_dump_json(indent=2), encoding="utf-8")
         return obj
     raise LLMError(f"invalid JSON after repair: {last_err}")
 

@@ -20,7 +20,7 @@ eval:       ## hold-out accuracy / F1 / misses -> eval/results.json
 	$(PY) eval/eval.py
 
 warm:       ## record live outputs for demo inputs + hold-out into demo/cache (run Saturday)
-	$(PY) -c "from backend import ingest, pipeline; from backend.config import ROOT; [pipeline.score_all(ingest.load_path(ROOT/p), log=False) for p in ('demo/inputs.jsonl',)]" && $(PY) eval/eval.py
+	$(PY) -m backend.warm && $(PY) eval/eval.py
 
 ping:       ## one-token call to check key + model
 	$(PY) -m backend.llm

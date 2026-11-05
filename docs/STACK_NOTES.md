@@ -21,7 +21,7 @@
 
 ## Intel Mac
 - No torch beyond 2.2.2 (and it needs numpy < 2). Not installed on purpose.
-- Offline reinstall: `uv pip install --offline -r requirements.lock.txt` uses uv's cache in ~/.cache/uv.
+- Offline reinstall: `uv pip install --offline -r requirements.lock.txt` uses uv's cache in ~/.cache/uv. Mac only: the lock pins uvloop, which has no Windows build.
 
 ## Demo safety
 - `make warm` on Saturday with the real key: records outputs for demo inputs into demo/cache.
