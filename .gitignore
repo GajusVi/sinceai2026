@@ -10,3 +10,5 @@ wheelhouse/
 .DS_Store
 .hackmode.pid
 # demo/cache/ IS committed: it is the stage replay
+.env.*
+!.env.example
