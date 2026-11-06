@@ -91,3 +91,7 @@ STOPWORDS = frozenset(
     trial logistic logistics footprint
     """.split()
 )
+
+# Multi-word phrases that contain a dictionary stem but mean something else ("first sales" is not net sales).
+# find_terms refuses to link inside them, so their words surface as unmapped_terms and the verdict is CLARIFY.
+AMBIGUOUS_PHRASES = ("first sales", "sales forecast", "sales performance", "market readiness")

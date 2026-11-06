@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 
 from .catalog import Catalog
+from .config import AMBIGUOUS_PHRASES
 from .models import ArtifactMetric
 
 
@@ -36,6 +37,8 @@ def find_terms(text: str, catalog: Catalog) -> list[TermMatch]:
         for value in dimension.values:
             scan(value.synonyms, "value", value.id, dimension.id)
 
+    blocked = [m.span() for phrase in AMBIGUOUS_PHRASES for m in re.finditer(rf"(?<!\w){re.escape(phrase)}", lowered)]
+    found = [f for f in found if not any(f.start < end and start < f.end for start, end in blocked)]
     found.sort(key=lambda m: (-(m.end - m.start), m.start))
     taken: list[TermMatch] = []
     for match in found:

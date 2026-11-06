@@ -61,3 +61,12 @@ def test_covered_words_are_not_unmapped(steward):
     parsed = RuleBasedParser(steward.catalog).parse("What is herbicide revenue in LATAM vs plan for Q3?")
 
     assert parsed.unmapped_terms == []
+
+
+def test_ambiguous_phrase_is_not_linked_to_a_metric(steward):
+    decision = steward.ask("What were first sales in Germany?").decision
+    parsed = RuleBasedParser(steward.catalog).parse("What were first sales in Germany?")
+
+    assert parsed.metrics == []
+    assert {"first", "sales"} <= set(parsed.unmapped_terms)
+    assert decision.verdict.value == "CLARIFY"
