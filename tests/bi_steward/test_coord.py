@@ -17,6 +17,7 @@ def test_brief_runs_offline():
                          capture_output=True, text=True, timeout=30)
     assert out.returncode == 0
     assert "TEAM BOARD" in out.stdout
+    assert "None" not in out.stdout.splitlines()
 
 
 def test_message_parse_split():

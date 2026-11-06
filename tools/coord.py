@@ -157,9 +157,7 @@ def cmd_brief(full: bool, no_fetch: bool) -> None:
     changed = not SEEN.exists() or SEEN.read_text() != digest
     if full or changed or urgent:
         print(text)
-        print(
         print("Protocol: CLAUDE.md 'Team board'. Answer asks only with your person's explicit yes/no.")
-        )
         SEEN.write_text(digest)
         if shown:
             SEEN_MSGS.write_text(" ".join(sorted(seen_msgs() | set(shown))))
