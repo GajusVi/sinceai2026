@@ -94,18 +94,20 @@ def label(row, names, countries):
     rule = T[tmpl]
     products = rule.get("products", [named] if named else [])
     regions = rule.get("regions", [])
-    conflicts = []
+    conflicts, blockers = [], 0  # severity (Gajus, T6 option C): blocker -> CLARIFY, confirm -> warning, none
     if products and pc not in products:
         conflicts.append(f"text names {'/'.join(products)}, product_context is {pc}")
+        blockers += pc != "All Pharma"  # All Pharma is broader metadata, not a contradiction: confirm
     if rule.get("all_pharma") and pc != "All Pharma":
         conflicts.append(f"text says Bayer Pharma (all products), product_context is {pc}")
     scope = rule["scope"]
     if scope == "global" and mc != "Global":
         conflicts.append(f"text says global, market_context is {mc}")
+        blockers += 1
     elif scope == "regions" and mc not in regions:
         conflicts.append(f"text says {' and '.join(regions)}, market_context is {mc}")
-    elif scope == "country_level" and mc not in countries:
-        conflicts.append(f"text says country-level, market_context is {mc}")
+        blockers += 1
+    # country-level text inside any region context is consistent (a region is made of countries): no conflict
     note = rule["notes"] + (" Conflict: " + "; ".join(conflicts) + "." if conflicts else "")
     out = dict(
         request_id=row.request_id,
@@ -118,6 +120,7 @@ def label(row, names, countries):
         expected_metric_ids=rule["metrics"],
         expected_grain="month",
         metadata_conflict=bool(conflicts),
+        metadata_severity="blocker" if blockers else "confirm" if conflicts else "none",
         notes=note,
     )
     return out, tmpl, any(c.startswith("text names") for c in conflicts)
@@ -130,6 +133,12 @@ def main():
         named = [x for x in rows if x[0]["expected_products"]]
         print("requests naming a product:", len(named), "| product mismatch:", sum(x[2] for x in named))
         print("all conflicts:", sum(x[0]["metadata_conflict"] for x in rows), "of", len(rows))
+    if OUT.exists():  # the 40 ids are fixed once published (other tests rely on them): only relabel them
+        keep = [json.loads(line)["request_id"] for line in OUT.read_text(encoding="utf-8").splitlines()]
+        by_id = {r["request_id"]: r for r, _, _ in rows}
+        OUT.write_text("".join(json.dumps(by_id[i], ensure_ascii=False) + "\n" for i in keep), encoding="utf-8")
+        print(f"relabelled {len(keep)} lines in {OUT.relative_to(ROOT)}")
+        return
     picked = []
     for tmpl in T:
         grp = [r for r, t, _ in rows if t == tmpl]

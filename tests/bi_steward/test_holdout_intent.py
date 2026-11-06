@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 KEYS = {"request_id", "text", "product_context", "market_context", "expected_products", "expected_markets",
-        "expected_regions", "expected_metric_ids", "expected_grain", "metadata_conflict", "notes"}
+        "expected_regions", "expected_metric_ids", "expected_grain", "metadata_conflict", "metadata_severity", "notes"}
 
 
 def _rows():
@@ -33,3 +33,9 @@ def test_expected_values_are_valid_catalog_ids():
         assert set(r["expected_regions"]) <= regions
         assert all(p in r["text"] or p in ("Nubeqa", "Hyrnuo") for p in r["expected_products"])
         assert r["expected_grain"] in ("month", "quarter")
+
+
+def test_severity_is_consistent_with_conflict_flag():
+    for r in _rows():
+        assert r["metadata_severity"] in ("blocker", "confirm", "none")
+        assert r["metadata_conflict"] == (r["metadata_severity"] != "none")
