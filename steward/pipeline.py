@@ -11,7 +11,7 @@ from .explain import get_explainer
 from .governance import Governance, today
 from .health import CatalogHealth, catalog_health
 from .llm import get_llm
-from .models import StewardResult
+from .models import Evidence, StewardResult
 from .query_parser import get_parser
 from .search import CatalogSearch
 from .search.semantic import Embedder, GeminiEmbedder
@@ -54,14 +54,19 @@ class Steward:
         return Catalog.load(self.catalog_dir, self.data_dir)
 
     def ask(self, text: str, context: dict[str, str] | None = None) -> StewardResult:
-        """`context` = request metadata ({"product": ..., "market": ...}); text that contradicts it forces CLARIFY."""
+        """`context` = request metadata ({"product": ..., "market": ...}). Text that contradicts it (blocker) forces CLARIFY;
+        metadata that is only broader or narrower than the text (confirm) adds a warning Evidence, the verdict follows the text."""
         question = self.parser.parse(text)
+        confirm: list[str] = []
         if context:
-            from .requests import context_conflicts
+            from .requests import blockers, confirmations, context_conflicts
 
-            question.conflicts.extend(context_conflicts(text, context, self.catalog))
+            found = context_conflicts(text, context, self.catalog)
+            question.conflicts.extend(blockers(found))
+            confirm = confirmations(found)
         hits = self.search.search(question)
         decision = decide(question, hits, self.catalog, self.as_of)
+        decision.evidence.extend(Evidence(claim=f"Confirm with the requester: {c}", severity="warning") for c in confirm)
         explanation = self.explainer.explain(question, decision, self.as_of)
         return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
 

@@ -57,7 +57,7 @@ def test_request_metadata_contradicts_text_in_65_of_75(pack_steward):
     for r in load_requests():
         if any(t.kind == "value" and t.dimension == "product" for t in find_terms(r.text, catalog)):
             named += 1
-            flagged += any(r.product_context in c for c in context_conflicts(r.text, r.context, catalog))
+            flagged += any(r.product_context in c.message for c in context_conflicts(r.text, r.context, catalog))
     assert (named, flagged) == (75, 65)
 
 
