@@ -37,3 +37,27 @@ def test_russian_input_is_understood(steward):
     assert parsed.filters == {"product_line": "herbicides", "region": "LATAM"}
     assert parse_period("за третий квартал") == "Q3"
     assert parse_period("за 2-й квартал") == "Q2"
+
+
+REQ_0001 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
+
+
+def test_unrecognised_terms_are_kept_not_dropped(steward):
+    parsed = RuleBasedParser(steward.catalog).parse(REQ_0001)
+
+    assert {"Nubeqa", "growth", "forecast", "variance", "market", "access"} <= set(parsed.unmapped_terms)
+    assert "dashboard" not in parsed.unmapped_terms
+
+
+def test_req_0001_is_clarify_not_reuse(steward):
+    decision = steward.ask(REQ_0001).decision
+
+    assert decision.verdict.value == "CLARIFY"
+    assert any(e.severity == "blocker" and e.rule_id is None for e in decision.evidence)
+    assert "Nubeqa" in " ".join(decision.reasons)
+
+
+def test_covered_words_are_not_unmapped(steward):
+    parsed = RuleBasedParser(steward.catalog).parse("What is herbicide revenue in LATAM vs plan for Q3?")
+
+    assert parsed.unmapped_terms == []

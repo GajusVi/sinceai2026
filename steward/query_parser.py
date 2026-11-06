@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Protocol
 
 from .catalog import Catalog
-from .linking import find_terms
+from .config import STOPWORDS
+from .linking import TermMatch, find_terms
 from .llm import LLMClient
 from .models import ParsedQuestion
 from .prompts import render_prompt
@@ -32,7 +33,8 @@ class RuleBasedParser:
         dimensions: list[str] = []
         filters: dict[str, str] = {}
 
-        for term in find_terms(text, self.catalog):
+        terms = find_terms(text, self.catalog)
+        for term in terms:
             if term.kind == "metric" and term.id not in metrics:
                 metrics.append(term.id)
             elif term.kind == "dimension" and term.id not in dimensions:
@@ -44,7 +46,12 @@ class RuleBasedParser:
         if period and "quarter" not in dimensions:
             dimensions.append("quarter")
 
-        return finalize(ParsedQuestion(text=text, metrics=metrics, dimensions=dimensions, filters=filters, period=period))
+        unmapped = unmapped_terms(text, terms)
+        return finalize(
+            ParsedQuestion(
+                text=text, metrics=metrics, dimensions=dimensions, filters=filters, period=period, unmapped_terms=unmapped
+            )
+        )
 
 
 class LLMParser:
@@ -79,8 +86,21 @@ class LLMParser:
         period = raw.get("period") or parse_period(text)
         if period and "quarter" not in dimensions:
             dimensions.append("quarter")
+        # The model may flag terms the dictionary lacks; the rule check catches words it silently skipped.
+        unmapped = [str(t).strip() for t in raw.get("unmapped") or [] if str(t).strip()]
+        for term in unmapped_terms(text, find_terms(text, self.catalog)):
+            if not any(term.lower() in u.lower() for u in unmapped):
+                unmapped.append(term)
         return finalize(
-            ParsedQuestion(text=text, metrics=metrics, dimensions=dimensions, filters=filters, period=period, parser="llm")
+            ParsedQuestion(
+                text=text,
+                metrics=metrics,
+                dimensions=dimensions,
+                filters=filters,
+                period=period,
+                parser="llm",
+                unmapped_terms=unmapped,
+            )
         )
 
     def _dictionary(self) -> str:
@@ -91,6 +111,27 @@ class LLMParser:
             values = ", ".join(f"{v.id} ({v.label})" for v in d.values) or "no fixed values"
             lines.append(f"- {d.id}: {d.name}; values: {values}")
         return "\n".join(lines)
+
+
+_WORD = re.compile(r"\w+", re.UNICODE)
+
+
+def unmapped_terms(text: str, terms: list[TermMatch]) -> list[str]:
+    """Content words that no dictionary term, period or stopword covers. They must never be dropped silently."""
+    lowered = text.lower()
+    covered = [(t.start, t.end) for t in terms]
+    out: list[str] = []
+    for word in _WORD.finditer(lowered):
+        token = word.group(0)
+        if any(start < word.end() and word.start() < end for start, end in covered):
+            continue
+        if token.isdigit() or re.fullmatch(r"q[1-4]", token) or len(token) < 2:
+            continue
+        if token in STOPWORDS or token.rstrip("s") in STOPWORDS:
+            continue
+        if text[word.start() : word.end()] not in out:
+            out.append(text[word.start() : word.end()])
+    return out
 
 
 def finalize(question: ParsedQuestion) -> ParsedQuestion:

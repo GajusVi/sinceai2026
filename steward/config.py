@@ -75,3 +75,19 @@ EXTEND_MIN_COVERAGE = 0.5
 STALE_AFTER_DAYS = 90
 LOW_USAGE_VIEWS = 5
 DUPLICATE_THRESHOLD = 0.6
+
+# Words that carry no analytics meaning. Any other word in a question that no dictionary term covers goes to
+# ParsedQuestion.unmapped_terms and turns the verdict into CLARIFY (no silent drops). Grow this list, never the goldens.
+STOPWORDS = frozenset(
+    """
+    a an the and or of in on at to for by with from per across over vs versus via about into than then as
+    is are was were be been do does did have has had it its this that these those there their them they
+    i me my we us our you your what which who how why when where many much any all each every some more most
+    need needs want wants like would could should can will please show shows showing give tell list display see
+    create build make new get find look compare comparison view views
+    dashboard dashboards report reports management monthly quarterly weekly yearly annual daily global country
+    countries level levels overview analysis data current latest last year years quarter month months week
+    something anything thing things interesting
+    trial logistic logistics footprint
+    """.split()
+)

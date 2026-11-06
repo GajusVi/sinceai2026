@@ -4,7 +4,7 @@ from datetime import date
 
 from ..catalog import Catalog
 from ..config import EXTEND_MIN_COVERAGE, REUSE_MIN_COVERAGE, REUSE_MIN_TRUST
-from ..models import Candidate, Decision, GapKind, ParsedQuestion, Verdict
+from ..models import Candidate, Decision, Evidence, GapKind, ParsedQuestion, Verdict
 from ..search import SearchHit
 from .conflicts import find_conflicts
 from .signals import coverage, trust, trust_gaps
@@ -36,6 +36,18 @@ def score_candidates(question: ParsedQuestion, hits: list[SearchHit], catalog: C
 
 def decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as_of: date) -> Decision:
     conflicts = find_conflicts(question.metrics, catalog)
+
+    if question.unmapped_terms or question.conflicts:
+        evidence = [
+            Evidence(claim=f"Not in the governed dictionary: '{term}'", rule_id=None, severity="blocker")
+            for term in question.unmapped_terms
+        ] + [Evidence(claim=f"Conflict in the request: {c}", rule_id=None, severity="blocker") for c in question.conflicts]
+        reasons = []
+        if question.unmapped_terms:
+            reasons.append("These terms are not in the governed dictionary: " + ", ".join(question.unmapped_terms) + ".")
+        if question.conflicts:
+            reasons.append("The request contradicts itself: " + "; ".join(question.conflicts) + ".")
+        return Decision(verdict=Verdict.CLARIFY, conflicts=conflicts, reasons=reasons, evidence=evidence)
 
     if not question.metrics:
         return Decision(
