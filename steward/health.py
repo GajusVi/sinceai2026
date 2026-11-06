@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import date
 from itertools import combinations
 
@@ -11,7 +12,7 @@ from .catalog import Catalog
 from .config import DUPLICATE_THRESHOLD, LOW_USAGE_VIEWS, STALE_AFTER_DAYS
 from .decision.minhash import MinHashCalculator
 from .decision.signals import trust
-from .linking import artifact_metric_ids
+from .linking import artifact_covered_metrics
 from .models import Artifact
 
 
@@ -37,7 +38,7 @@ class CatalogHealth(BaseModel):
 
 
 def _features(artifact: Artifact, catalog: Catalog) -> tuple[frozenset[str], frozenset[str]]:
-    metrics = frozenset(artifact_metric_ids(artifact.metrics, catalog))
+    metrics = frozenset(artifact_covered_metrics(artifact, catalog))
     return metrics, metrics | frozenset(artifact.dimensions) | frozenset(artifact.filters)
 
 
@@ -50,19 +51,25 @@ def catalog_health(catalog: Catalog, as_of: date) -> CatalogHealth:
     minhash = MinHashCalculator(shingle_size=3)
     signatures = {a.id: minhash.compute_signature(a.description) for a in artifacts}
 
+    # Features once per asset, and only assets with the same non-empty metric set can be duplicates.
+    features = {a.id: _features(a, catalog) for a in artifacts}
+    by_metrics: dict[frozenset[str], list[Artifact]] = defaultdict(list)
+    for a in artifacts:
+        if features[a.id][0]:
+            by_metrics[features[a.id][0]].append(a)
+
     duplicates = []
-    for a, b in combinations(artifacts, 2):
-        if a.family_id == b.family_id:
-            continue
-        metrics_a, features_a = _features(a, catalog)
-        metrics_b, features_b = _features(b, catalog)
-        if not metrics_a or metrics_a != metrics_b:
-            continue
-        similarity = max(_jaccard(features_a, features_b), minhash.estimate_jaccard(signatures[a.id], signatures[b.id]))
-        if similarity < DUPLICATE_THRESHOLD:
-            continue
-        keep, duplicate = sorted([a, b], key=lambda x: (trust(x, as_of), x.views_30d), reverse=True)
-        duplicates.append(DuplicatePair(keep_id=keep.id, duplicate_id=duplicate.id, similarity=round(similarity, 2)))
+    for group in by_metrics.values():
+        for a, b in combinations(group, 2):
+            if a.family_id == b.family_id:
+                continue
+            similarity = max(
+                _jaccard(features[a.id][1], features[b.id][1]), minhash.estimate_jaccard(signatures[a.id], signatures[b.id])
+            )
+            if similarity < DUPLICATE_THRESHOLD:
+                continue
+            keep, duplicate = sorted([a, b], key=lambda x: (trust(x, as_of), x.views_30d), reverse=True)
+            duplicates.append(DuplicatePair(keep_id=keep.id, duplicate_id=duplicate.id, similarity=round(similarity, 2)))
 
     # A copy of a copy should point to the original, not to the other copy.
     duplicate_ids = {p.duplicate_id for p in duplicates}
