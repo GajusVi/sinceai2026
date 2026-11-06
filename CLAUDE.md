@@ -70,7 +70,7 @@ teammates' status, open asks, answers to your asks, commits you are behind on. A
 4. An "ASK FOR YOU" appears → show it to your person word for word and ask them. Only after they answer in the chat:
    `tools/coord.py reply <id> ok|no|done "..."`. Never answer an ask on your own judgement.
 5. "ANSWER TO YOUR ASK" appears → tell your person, act on it, then `reply <id> done "seen"` to clear it.
-Windows: `.venv\Scripts\python.exe tools\coord.py ...`. Humans: `make board`.
+Windows: `.venv\Scripts\python.exe tools\coord.py ...`. Humans: `make board`, Discord: the pinned TEAM BOARD message (`make board-discord`).
 6. Messages: `tools/coord.py say <name|all> "..." --kind <kind> [--re <msg-id>]`. Post, without being asked:
    - `done` to all when you finish a task: what changed, commit id, how to use it, what is still missing (5 lines max);
    - `breaks` to the author when their commit breaks your work: the error line, file, commit id, what you need;

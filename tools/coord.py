@@ -181,6 +181,7 @@ def cmd_status(a: argparse.Namespace) -> None:
     body = f"# {who}\nupdated: {now()}\n" + "".join(f"{k}: {v}\n" for k, v in fields.items())
     path.write_text(body, encoding="utf-8")
     write_and_sync(path, f"coord({who}): {fields['now'][:60]}")
+    discord()  # status changes only refresh the live board, no feed line
 
 
 def cmd_ask(a: argparse.Namespace) -> None:
@@ -195,28 +196,81 @@ def cmd_ask(a: argparse.Namespace) -> None:
     path = ROOT / "coord" / "asks" / f"{ask_id}.md"
     path.write_text(body, encoding="utf-8")
     write_and_sync(path, f"coord({who}): ask {to}: {a.text[:50]}")
-    discord(f"**{who} asks {to}** ({ask_id}): {a.text}")
+    discord(f"**{who} asks {to}**  `{ask_id}`\n{a.text}" + (f"\nfiles: {' '.join(a.files)}" if a.files else ""))
 
 
-def discord(text: str) -> None:
-    """Optional human mirror: COORD_DISCORD_WEBHOOK=<url> in .env (never committed)."""
+DISCORD_STATE = ROOT / "coord" / "discord.json"  # shared id of the live board message
+
+
+def env_value(key: str) -> str:
     env = ROOT / ".env"
-    url = ""
     if env.exists():
         for line in env.read_text(encoding="utf-8").splitlines():
-            if line.startswith("COORD_DISCORD_WEBHOOK="):
-                url = line.split("=", 1)[1].split("#")[0].strip()
+            if line.startswith(f"{key}="):
+                return line.split("=", 1)[1].split("#")[0].strip()
+    return ""
+
+
+def discord_call(method: str, url: str, content: str) -> dict | None:
+    data = json.dumps({"content": content[:1990], "allowed_mentions": {"parse": []}}).encode()
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method=method,
+        headers={"Content-Type": "application/json", "User-Agent": "DiscordBot (sinceai2026 coord, 1.0)"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            body = resp.read()
+            return json.loads(body) if body else {}
+    except Exception:
+        return None  # the git copy is the source of truth; Discord is a mirror
+
+
+def discord_board() -> str:
+    """Neutral view of the board for the Discord channel (fits one 2,000-character message)."""
+    lines = [f"**TEAM BOARD**  (live, updated {now()})", "```"]
+    for person in TEAM:
+        s = parse(read_remote(f"coord/status/{person}.md"))
+        if s:
+            blocked = s.get("blocked", "-")
+            lines.append(f"{person:<9} {s.get('updated', '?')[-5:]}  now: {s.get('now', '-')[:70]}")
+            lines.append(
+                f"{'':<16}next: {s.get('next', '-')[:70]}"
+                + (f"  BLOCKED: {blocked[:40]}" if blocked not in ("", "-") else "")
+            )
+    open_asks = [a for a in asks() if a.get("status") == "open"]
+    lines.append("")
+    lines.append(f"OPEN ASKS ({len(open_asks)})")
+    lines += [f"  {a.get('from')} -> {a.get('to')}: {a.get('ask', '')[:80]}" for a in open_asks[-6:]] or ["  none"]
+    lines.append("")
+    lines.append("LAST MESSAGES")
+    msgs = messages()[-5:]
+    lines += [
+        f"  [{m.get('kind', 'fyi')}] {m.get('from')} -> {m.get('to')}: {m['body'].splitlines()[0][:80]}" for m in msgs
+    ] or ["  none"]
+    lines.append("")
+    lines.append("LAST COMMITS (origin/main)")
+    lines += ["  " + c[:95] for c in git("log", "--format=%h %an: %s", "-n", "5", "origin/main").splitlines()]
+    lines.append("```")
+    return "\n".join(lines)[:1990]
+
+
+def discord(feed: str | None = None) -> None:
+    """Post one feed line (if any) and refresh the pinned live board. Needs COORD_DISCORD_WEBHOOK in .env."""
+    url = env_value("COORD_DISCORD_WEBHOOK")
     if not url:
         return
-    try:
-        req = urllib.request.Request(
-            url,
-            data=json.dumps({"content": text[:1900]}).encode(),
-            headers={"Content-Type": "application/json", "User-Agent": "coord-board"},
-        )
-        urllib.request.urlopen(req, timeout=5)
-    except Exception:
-        pass  # the git copy is the source of truth
+    if feed:
+        discord_call("POST", url, feed)
+    state = json.loads(read_remote("coord/discord.json") or "{}")
+    board_id = state.get("board_message_id")
+    if board_id and discord_call("PATCH", f"{url}/messages/{board_id}", discord_board()) is not None:
+        return
+    created = discord_call("POST", f"{url}?wait=true", discord_board())
+    if created and created.get("id"):
+        DISCORD_STATE.write_text(json.dumps({"board_message_id": created["id"]}) + "\n", encoding="utf-8")
+        write_and_sync(DISCORD_STATE, "coord: new live board message in Discord (pin it)")
 
 
 def cmd_say(a: argparse.Namespace) -> None:
@@ -229,7 +283,7 @@ def cmd_say(a: argparse.Namespace) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(head + "---\n" + a.text.strip() + "\n", encoding="utf-8")
     write_and_sync(path, f"coord({who}) {a.kind} -> {to}: {a.text.strip().splitlines()[0][:60]}")
-    discord(f"**{who} -> {to}** [{a.kind}] {a.text.strip()}")
+    discord(f"**{who} -> {to}**  [{a.kind.upper()}]  {a.text.strip()}")
 
 
 def cmd_reply(a: argparse.Namespace) -> None:
@@ -246,6 +300,7 @@ def cmd_reply(a: argparse.Namespace) -> None:
         fields["seen_by_sender"] = "yes"
     path.write_text("".join(f"{k}: {v}\n" for k, v in fields.items()), encoding="utf-8")
     write_and_sync(path, f"coord({who}): {a.verdict} on {a.ask_id}")
+    discord(f"**{who}** answered `{a.ask_id}`: **{a.verdict.upper()}** {a.text}")
 
 
 def main() -> None:
@@ -255,6 +310,7 @@ def main() -> None:
     b.add_argument("--full", action="store_true")
     b.add_argument("--no-fetch", action="store_true")
     sub.add_parser("board")
+    sub.add_parser("discord")
     s = sub.add_parser("status")
     for k in ("now", "done", "next", "blocked"):
         s.add_argument(f"--{k}")
@@ -274,6 +330,12 @@ def main() -> None:
     a = p.parse_args()
     if a.cmd == "brief":
         cmd_brief(a.full, a.no_fetch)
+    elif a.cmd == "discord":
+        fetch(force=True)
+        if not env_value("COORD_DISCORD_WEBHOOK"):
+            sys.exit("Set COORD_DISCORD_WEBHOOK=<webhook url> in .env first")
+        discord()
+        print("Discord board refreshed (pin the TEAM BOARD message once)")
     elif a.cmd == "board":
         fetch(force=True)
         print(board_text(me()))

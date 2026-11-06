@@ -23,3 +23,13 @@ def test_brief_runs_offline():
 def test_message_parse_split():
     head, _, body = "id: x\nfrom: margiris\nto: all\nkind: breaks\n---\nline1\nline2\n".partition("\n---\n")
     assert coord.parse(head)["kind"] == "breaks" and body.startswith("line1")
+
+
+def test_discord_board_fits_one_message():
+    text = coord.discord_board()
+    assert text.startswith("**TEAM BOARD**") and len(text) <= 1990
+
+
+def test_discord_noop_without_webhook(monkeypatch):
+    monkeypatch.setattr(coord, "env_value", lambda key: "")
+    coord.discord("feed line")  # must not raise or touch the network

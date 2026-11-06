@@ -16,6 +16,9 @@ demo:       ## BI Steward screen with the LLM forced off (stage-safe, no network
 bayer:      ## BI Steward on the Bayer data pack (360 assets)
 	STEWARD_CATALOG=datapack $(PY) -m streamlit run frontend/steward_app.py
 
+board-discord: ## refresh the live TEAM BOARD message in Discord (needs COORD_DISCORD_WEBHOOK in .env)
+	$(PY) tools/coord.py discord
+
 board:      ## team board: who is on what, open asks, commits you are behind on
 	$(PY) tools/coord.py board
 
