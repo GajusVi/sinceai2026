@@ -32,3 +32,11 @@ def test_links_products_markets_and_skips_ambiguous_terms():
     # ambiguous words must stay unlinked so they reach CLARIFY; "items" must not match IT
     assert find_terms("forecast performance coverage readiness items", cat) == []
     assert [m.id for m in find_terms("Latin America", cat)] == ["Latin America"]
+
+
+def test_metric_definition_keeps_kpi_id_and_variants():
+    raw = json.loads((D / "metrics.json").read_text(encoding="utf-8"))
+    ms = {m["id"]: MetricDefinition.model_validate(m) for m in raw}
+    inv = ms["inventory_coverage"]
+    assert inv.kpi_id == "KPI-016"
+    assert {"KPI-018", "KPI-019"} <= {v.kpi_id for v in inv.variants}
