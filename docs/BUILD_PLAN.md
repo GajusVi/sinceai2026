@@ -40,7 +40,14 @@ Scoring weights we build against: 30% fit · 25% governance · 20% tech/AI · 15
    | EXTEND | covers ≥ 50% incl. ≥ 1 requested metric; gaps are a metric on the same model, a breakdown, an owner, certification, or a variant KPI to swap to canonical |
    | CONSOLIDATE | ≥ 2 candidates with same product scope and KPI-set Jaccard ≥ 0.6 → keep the most trusted, retire the rest |
    | CREATE | nothing compatible; metrics exist in catalog + a certified/promoted semantic model → spec |
-2. **Lifecycle flags on any candidate:** MIGRATE (Tableau + real usage, RULE-006), RETIRE (rule below), REASSIGN_OWNER (inactive/missing owner), FIX_REFRESH (model refresh failed/warning).
+2. **Lifecycle flags on any candidate:** MIGRATE (Tableau + real usage, RULE-006), RETIRE (rule below), REASSIGN_OWNER (rule below), FIX_REFRESH (model refresh failed/warning).
+   **Ownership = role + person, so leavers do not create orphans** (Owners sheet has role, scope, status; RULE-003).
+   Owner inactive or missing → REASSIGN_OWNER with a proposed successor, resolved in this order:
+   - *Same role, same scope, active* → propose that person (23 of the 65 inactive-owner assets). Successor must accept.
+   - *Same role, other scope, active* → list them, steward picks (21 assets).
+   - *Role vacant* (e.g. every Reporting Lead is inactive) → escalate to the workspace's BI Platform Owner and report
+     "role vacant" as an estate finding (21 assets). The 21 assets with no owner_id at all also go to the BI Platform Owner.
+   Never auto-assigned: the proposed person approves in the UI, the change is journaled.
    **RETIRE candidate only if ALL hold** (all thresholds in steward/config.py, stated as assumptions in README):
    - *Old enough to judge:* created ≥ 3 months before as-of date; younger = "too new to judge", never flagged.
    - *Low use, relative not absolute:* average **monthly unique users since creation** in the bottom 20% of comparable assets
@@ -52,7 +59,7 @@ Scoring weights we build against: 30% fit · 25% governance · 20% tech/AI · 15
    Never automatic: recommend with evidence → owner/steward approves → archived and reversible for 30 days → removed.
    Why not "< 1,000 views": that number is just the empty gap in this synthetic data (153 assets < 750 views, none 750-2,000);
    it ignores asset age and time window and would not transfer to a real estate.
-3. **Trust score:** certified 0.40 / promoted 0.25 · active owner 0.20 · model refresh healthy 0.25 / warning 0.10 · avg monthly unique users ≥ 50: 0.15, ≥ 10: 0.05 · minus 0.10 per open high-severity signal (floor 0).
+3. **Trust score:** certified 0.40 (admin-authorised reviewer checked it) / promoted 0.25 (author vouches for it) · accountable owner: active person 0.20, inactive but role still staffed 0.10, role vacant or no owner 0 · model refresh healthy 0.25 / warning 0.10 · avg monthly unique users ≥ 50: 0.15, ≥ 10: 0.05 · minus 0.10 per open high-severity signal (floor 0).
 4. **Scope rules (our assumptions, go in README).** Scope = the product_scope and market_scope *fields*, never the asset name (trap 18: 67 of 88 name suffixes contradict market_scope): asset with product "All Pharma" or market "Global" = has that breakdown; region asked (EMEA) needs Global or a region-level asset, a single-country asset does not cover it; month grain only (data is monthly Jan-Oct 2026).
 5. **Never trust these columns as truth:** lifecycle_status, estimated_audience, Migration_Backlog path, request product_context (all shown to contradict usage/text). Use them as "claimed" vs our "observed".
 6. **Intent fields** (Pydantic, contract between interview and engine): role, decision_supported, cadence, products[], markets[], regions[], metric_ids[] (canonical), unmapped_terms[], grain, comparison (target/forecast/prior), audience, conflicts[], confidence{field: 0-1}, mode (novice/expert/rescue).
@@ -63,7 +70,7 @@ Scoring weights we build against: 30% fit · 25% governance · 20% tech/AI · 15
 ## 3. Contracts first (Fri 23:00-00:00): stub code everyone builds against
 | ID | Owner (+ reviewer) | File | Done when |
 |---|---|---|---|
-| C1 | Martynas (+Margiris) | steward/models.py: `Artifact` gets platform, workspace_id, model_id, product_scope, market_scope, kpi_ids, endorsement, lifecycle_claimed, owner_status, usage (views/users by month), refresh_status, signals, data_quality, upstream/downstream ids | pydantic model merged, old fields kept or mapped |
+| C1 | Martynas (+Margiris) | steward/models.py: `Artifact` gets platform, workspace_id, model_id, product_scope, market_scope, kpi_ids, endorsement, lifecycle_claimed, owner_id, owner_role, owner_scope, owner_status, successor_candidates, usage (views/users by month), refresh_status, signals, data_quality, upstream/downstream ids | pydantic model merged, old fields kept or mapped |
 | C2 | Gajus (+Margiris) | steward/intent.py: `Intent` (section 2.6) | merged; ParsedQuestion = Intent or adapter |
 | C3 | Margiris (+Donatas) | steward/models.py `Decision` gains `evidence: list[Evidence]` (claim, rule_id, record_ids, value) + `flags` | merged; UI can render a fake one |
 | C4 | Martynas (+Donatas) | steward/spec.py: `DashboardSpec` (name, entities, columns, grain, relationships, measures, pages, rationale, owner, kpi_ids, source_model_id) | merged with one hand-written example |
@@ -89,7 +96,7 @@ Scoring weights we build against: 30% fit · 25% governance · 20% tech/AI · 15
 | L3 | P0 | **No silent drops:** parser returns unmapped_terms; they count in the coverage denominator; any unmapped or text/metadata conflict → CLARIFY | REQ-0001 no longer returns REUSE |
 | L4 | P0 | Coverage + trust on real fields (section 2.3-2.4), Tableau never REUSE; scope from fields only, name/scope mismatch → DQ flag (trap 18) | unit tests for 3 hand-picked assets |
 | L5 | P0 | Verdict engine: REUSE/EXTEND/CONSOLIDATE/CREATE/CLARIFY/NOT_FEASIBLE + lifecycle flags; every reason carries rule_id + record ids (RULE-008) | Decision.evidence filled for every verdict |
-| L6 | P1 | Health on real data: RETIRE rule from section 2.2 (age, relative monthly users, subscriptions, dependants), 21 null + 65 inactive owners, 16 certified-on-failed-refresh, duplicate clusters, Tableau re-triage vs Migration_Backlog | numbers match 03_DATA_PACK.md |
+| L6 | P1 | Health on real data: RETIRE rule from section 2.2 (age, relative monthly users, subscriptions, dependants), REASSIGN_OWNER with successor resolution (23 / 21 / 21 + 21 null), vacant roles, 16 certified-on-failed-refresh, duplicate clusters, Tableau re-triage vs Migration_Backlog | numbers match 03_DATA_PACK.md |
 | L7 | P1 | Lineage impact: upstream model + downstream assets (ASSET_TO_ASSET, MODEL_TO_MODEL) for any RETIRE/CONSOLIDATE | "retiring X affects Y, Z" shown |
 | L8 | P1 | **Eval** (`eval/eval_steward.py`): verdict accuracy, **false-REUSE rate** (headline), intent F1 (products/markets/metrics), confusion matrix, misses list → eval/results.json | first number at S3 |
 | L9 | P1 | Semantic search: swap trigram embedder for fastembed (already installed) | top-3 hit rate on hold-out before/after |
