@@ -13,6 +13,7 @@ Shortlist and planned builds per challenge: docs/sinceai/TOP4.md. Real briefs an
 - Prior work (tag `pre-event`) and event work stay in separate commits.
 
 ## Challenge: Bayer "Build Less, Build Better: AI for Governed Analytics" (locked Fri 6 Nov)
+Build plan (tasks per person, clock, cut order): docs/BUILD_PLAN.md.
 Read first: docs/challenge/00_INDEX.md (brief, Panu's framework, data-pack traps, plan, repo review).
 Data pack (synthetic, 360 BI assets): data/bayer/Bayer_Pharmaceuticals_SinceAI_2026_FINAL_Builder_Data_Pack.xlsx.
 Scope: Bayer Pharma only. No Crop Science, no Consumer Health, no clinical/pharmacovigilance use cases.
