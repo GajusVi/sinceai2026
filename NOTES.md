@@ -25,6 +25,7 @@ For [user], takes [input], returns [output], so they can [benefit].
 
 ## Requests (change needed in someone else's file: who asks, owner, what)
 - Martynas -> Margiris (steward/linking.py): "first sales" must CLARIFY, but the stem "sales" (net_sales synonym) matches inside it. Add a phrase blocklist/longest-match guard for ambiguous phrases (first sales, forecast, coverage, performance, readiness).
+- Gajus → Martynas: catalog.py split for the data-pack path, awaiting OK.
 
 ## Decisions
 - 2026-11-06 21:45: BI Steward (Donatas's bi-steward repo) merged in as the app: steward/, prompts/, catalog/, frontend/steward_app.py, tests/bi_steward/. `make ui`/`make demo` now open it; old scaffold = `make ui-old`. No new installs needed (all deps already in requirements.lock.txt). Rest of steward/ ownership to assign Sat 09:00.
@@ -37,6 +38,7 @@ For [user], takes [input], returns [output], so they can [benefit].
 - 2026-11-06 23:40: Tonight's shift revised (BUILD_PLAN 'TONIGHT'): Martynas + Donatas to 01:00 on C1/C4/D2/D3 and A1 shell/A7; Gajus + Margiris to 03:00 on D1 loader, C2/C3, L1-L3, D4. Martynas hands steward/catalog.py to Gajus for tonight only.
 - 2026-11-07 00:20: T1 done (Martynas): steward/models.py gains UsageMonth, Evidence, Artifact data-pack fields, CONSOLIDATE/NOT_FEASIBLE, Decision.evidence/flags, ParsedQuestion.unmapped_terms/conflicts; all defaulted, 28 tests green.
 - 2026-11-07 00:50 (Martynas) handover. DONE: T1 models (pushed 00:20); T2 steward/spec.py + test_spec.py; T3 catalog/bayer/metrics.json (18 canonical, 38 variants, synonyms per brief); T4 catalog/bayer/dimensions.json + regions.json; generator data/build_bayer_dictionaries.py; tests green. HALF-DONE: nothing; Gajus must review synonyms. NEXT: Sat 08:00 D5 hold-out labelling with Margiris, then D6 preview. Note: a cp1252-encoded untracked demo/cache file broke smoke tests; moved aside, root cause unknown.
+- 2026-11-07 Gajus: T1+T2 done locally (not committed): steward/intent.py (Intent, is_complete, should_stop, to_parsed_question), steward/datapack.py (360 Artifacts from the xlsx; opt in with STEWARD_CATALOG=datapack, needs catalog/bayer/ from Martynas), catalog.py split into apply_changes/read_json. Name-vs-scope rule flags 71 assets (doc says 67). Successor tiers 23/21/21-vacant and 16 certified-on-failed-refresh match the log.
 - 2026-11-06: Next P0 = data-pack loader replacing catalog/ sample; KPI-id matching; unrecognised terms count against coverage (fixes false REUSE on REQ-0001).
 - 2026-11-05: scaffold = FastAPI + Streamlit + SQLite audit log; LLM via OpenAI-compatible client (provider by env).
 

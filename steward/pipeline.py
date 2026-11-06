@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import os
 from datetime import date
 from pathlib import Path
 
 from .catalog import Catalog
-from .config import Settings
+from .config import ROOT_DIR, Settings
 from .decision import decide
 from .explain import get_explainer
 from .governance import Governance, today
@@ -36,11 +37,21 @@ class Steward:
         self.reload()
 
     def reload(self) -> None:
-        self.catalog = Catalog.load(self.catalog_dir, self.data_dir)
+        self.catalog = self._load_catalog()
         self.search = CatalogSearch(self.catalog, self.embedder)
         self.parser = get_parser(self.catalog, self.llm, self.settings.prompts_dir)
         self.explainer = get_explainer(self.catalog, self.llm, self.settings.prompts_dir)
         self.governance = Governance(self.catalog, self.data_dir)
+
+    def _load_catalog(self) -> Catalog:
+        """STEWARD_CATALOG=datapack (or catalog_dir = the .xlsx) uses the Bayer data pack with catalog/bayer/ dictionaries."""
+        from .datapack import DEFAULT_XLSX, load_catalog  # lazy: pandas only needed for the data pack
+
+        if self.catalog_dir.suffix == ".xlsx":
+            return load_catalog(self.catalog_dir, ROOT_DIR / "catalog" / "bayer", self.data_dir)
+        if os.getenv("STEWARD_CATALOG", "").lower() == "datapack":
+            return load_catalog(DEFAULT_XLSX, self.catalog_dir / "bayer", self.data_dir)
+        return Catalog.load(self.catalog_dir, self.data_dir)
 
     def ask(self, text: str) -> StewardResult:
         question = self.parser.parse(text)
