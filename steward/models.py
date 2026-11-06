@@ -6,6 +6,14 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 
+class MetricVariant(BaseModel):
+    kpi_id: str
+    kpi_name: str = ""
+    definition_status: str = ""
+    approval_status: str = ""
+    owner_id: str = ""
+
+
 class MetricDefinition(BaseModel):
     id: str
     name: str
@@ -13,6 +21,9 @@ class MetricDefinition(BaseModel):
     owner: str
     domain: str
     synonyms: list[str] = Field(default_factory=list)
+    kpi_id: str = ""
+    unit: str = ""
+    variants: list[MetricVariant] = Field(default_factory=list)
 
 
 class DimensionValue(BaseModel):
