@@ -192,6 +192,7 @@ class StewardResult(BaseModel):
 class JournalAction(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
+    PROPOSED = "proposed"  # recorded only, catalog unchanged (e.g. propose successor, retire candidate)
 
 
 class JournalEntry(BaseModel):
