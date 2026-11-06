@@ -22,11 +22,10 @@ import pandas as pd
 from .catalog import Catalog
 from .config import ROOT_DIR
 from .datapack import DEFAULT_XLSX
-from .linking import find_terms
+from .linking import asks_global, find_terms
 
 REGIONS_FILE = ROOT_DIR / "catalog" / "bayer" / "regions.json"
 ALL_PHARMA = "All Pharma"
-_GLOBAL = re.compile(r"(?<!\w)global")  # "global" as a market term; the dictionary has no Global value
 _BAYER_PHARMA = re.compile(r"(?<!\w)bayer pharma")
 
 Severity = Literal["blocker", "confirm"]
@@ -86,7 +85,7 @@ def context_conflicts(text: str, context: dict[str, str], catalog: Catalog) -> l
 
     claimed_market = context.get("market", "")
     places = {t.id for t in terms if t.kind == "value" and t.dimension in ("market", "region")}
-    if _GLOBAL.search(normalized) and claimed_market not in ("", "Global"):
+    if asks_global(text) and claimed_market not in ("", "Global"):
         conflicts.append(ContextConflict("blocker", f"the text says global, the request metadata says {claimed_market}"))
     elif places and claimed_market and not any(_nested(claimed_market, n) for n in places):
         conflicts.append(
