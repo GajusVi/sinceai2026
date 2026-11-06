@@ -10,11 +10,11 @@ def find_conflicts(metric_ids: list[str], catalog: Catalog) -> list[MetricConfli
     Example: "Revenue" in a dashboard that is really gross revenue, while official revenue is net."""
     wanted = set(metric_ids)
     conflicts = []
-    canonical_kpi = {metric_id: kpi for kpi, metric_id in kpi_index()[0].items()}
+    canonical_kpi = {metric_id: kpi for kpi, metric_id in kpi_index(catalog)[0].items()}
     for artifact in catalog.active_artifacts():
         if artifact.kpi_ids:  # data pack: a variant KPI id is the conflict (RULE-002)
             labels = {m.formula: m.label for m in artifact.metrics}
-            for variant_kpi, metric_id, _status in artifact_variants(artifact):
+            for variant_kpi, metric_id, _status in artifact_variants(artifact, catalog):
                 if metric_id in wanted:
                     conflicts.append(
                         MetricConflict(

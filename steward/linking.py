@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import re
-from pathlib import Path
 from dataclasses import dataclass
-from functools import lru_cache
 
 from .catalog import Catalog
-from .config import AMBIGUOUS_PHRASES, Settings
+from .config import AMBIGUOUS_PHRASES
 from .models import Artifact, ArtifactMetric
 
 
@@ -84,20 +81,15 @@ def artifact_metric_ids(metrics: list[ArtifactMetric], catalog: Catalog) -> set[
     return ids
 
 
-@lru_cache
-def kpi_index(catalog_dir: str | None = None) -> tuple[dict[str, str], dict[str, tuple[str, str]]]:
-    """Reads catalog/bayer/metrics.json: (canonical kpi_id -> metric id, variant kpi_id -> (metric id, definition_status)).
-    Empty for the sample catalog. MetricDefinition has no kpi_id/variants fields yet (request to Martynas in NOTES.md)."""
-    path = Settings.from_env().catalog_dir / "bayer" / "metrics.json" if catalog_dir is None else Path(catalog_dir)
-    if not path.exists():
-        return {}, {}
-    canonical: dict[str, str] = {}
-    variants: dict[str, tuple[str, str]] = {}
-    for metric in json.loads(path.read_text(encoding="utf-8")):
-        canonical[metric["kpi_id"]] = metric["id"]
-        for v in metric.get("variants", []):
-            variants[v["kpi_id"]] = (metric["id"], v["definition_status"])
-    return canonical, variants
+def kpi_index(catalog: Catalog) -> tuple[dict[str, str], dict[str, tuple[str, str]]]:
+    """From MetricDefinition.kpi_id/variants: (canonical kpi_id -> metric id, variant kpi_id -> (metric id, definition_status)).
+    Empty for the sample catalog. Cached on the catalog object, which is rebuilt on reload."""
+    cached = getattr(catalog, "_kpi_index", None)
+    if cached is None:
+        canonical = {m.kpi_id: m.id for m in catalog.metrics.values() if m.kpi_id}
+        variants = {v.kpi_id: (m.id, v.definition_status) for m in catalog.metrics.values() for v in m.variants}
+        cached = catalog._kpi_index = (canonical, variants)
+    return cached
 
 
 def artifact_covered_metrics(artifact: Artifact, catalog: Catalog) -> set[str]:
@@ -105,11 +97,11 @@ def artifact_covered_metrics(artifact: Artifact, catalog: Catalog) -> set[str]:
     Sample catalog (no kpi_ids): the formula must match the official definition."""
     if not artifact.kpi_ids:
         return artifact_metric_ids(artifact.metrics, catalog)
-    canonical, _ = kpi_index()
+    canonical, _ = kpi_index(catalog)
     return {canonical[k] for k in artifact.kpi_ids if k in canonical}
 
 
-def artifact_variants(artifact: Artifact) -> list[tuple[str, str, str]]:
+def artifact_variants(artifact: Artifact, catalog: Catalog) -> list[tuple[str, str, str]]:
     """(variant kpi_id, canonical metric id, definition_status) for each non-canonical KPI the asset uses."""
-    _, variants = kpi_index()
+    _, variants = kpi_index(catalog)
     return [(k, *variants[k]) for k in artifact.kpi_ids if k in variants]

@@ -35,9 +35,9 @@ def score_candidates(question: ParsedQuestion, hits: list[SearchHit], catalog: C
     return sorted(candidates, key=lambda c: (c.compatible, c.score), reverse=True)
 
 
-def conflict_evidence(conflicts: list, limit: int = 10) -> list[Evidence]:
+def conflict_evidence(conflicts: list, catalog: Catalog, limit: int = 10) -> list[Evidence]:
     """RULE-002: an asset uses a variant KPI instead of the approved one. Suggests the canonical id."""
-    variants = kpi_index()[1]
+    variants = kpi_index(catalog)[1]
     out = []
     for c in conflicts[:limit]:
         status = variants.get(c.artifact_formula, ("", "variant"))[1]
@@ -56,7 +56,7 @@ def conflict_evidence(conflicts: list, limit: int = 10) -> list[Evidence]:
 
 def decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as_of: date) -> Decision:
     decision = _decide(question, hits, catalog, as_of)
-    decision.evidence.extend(conflict_evidence(decision.conflicts))
+    decision.evidence.extend(conflict_evidence(decision.conflicts, catalog))
     return decision
 
 
