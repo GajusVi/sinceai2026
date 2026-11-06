@@ -105,6 +105,12 @@ Urgency: 78 normal / 31 high / 41 urgent. Status: 78 new / 72 triaged.
     AST-0016 "All Pharma Launch - EMEA" = CA). Rule: market_scope is the truth for compatibility; the name is a search hint only;
     a mismatch is a data-quality finding shown on the evidence card. Text search (BM25) will be misled by these names,
     so scope compatibility must never come from the name.
+    Tested the reading "name = broader audience, market_scope = narrower filter inside it": it does not hold here.
+    "- EMEA" names sit on an EMEA country 42% (15/36) vs 50% for names without a suffix; "- US" names are scoped to US
+    0% (0/26) vs 7% baseline, North America 12% vs 11%; 2 US-named assets are scoped Global (name narrower than scope).
+    The suffix is independent of scope in this synthetic set. Only "- Global" names on a single country stay plausible
+    (a global report filtered to one market). Evidence card wording: "name suggests EMEA, recorded scope is CA", no verdict
+    on which is right. Ask Panu which reading matches Bayer practice.
 16. Semantic models: ai_readiness good 30 / partial 24 / poor 21; issues poor_names 17, ambiguous_dates 16, implicit_measures 15;
     refresh healthy 42 / warning 19 / failed 14. 1 model has no assets. 1-12 assets per model (median 5).
 

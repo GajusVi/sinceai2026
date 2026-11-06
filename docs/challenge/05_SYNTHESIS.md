@@ -67,6 +67,7 @@ Second risk: .PBIP generation is fiddly; fallback is spec JSON + HTML preview, l
 3. Approver persona for HITL: data steward, BI platform owner, or KPI owner?
 4. OK to stay in the commercial-pharma data pack, or does he want a manufacturing/shop-floor example too?
 5. Business_Requests product_context contradicts the text in 65/75 cases: intentional noise?
+6. Asset name suffix ("- EMEA") vs market_scope: does the name mean the audience and the scope a default filter?
 
 ## Team split suggestion (from memory of roles; adjust)
 - Gajus: product, pitch, decision rules, README, video.
