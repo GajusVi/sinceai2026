@@ -1,0 +1,24 @@
+{
+  "EMEA": [
+    "DE",
+    "FR",
+    "IT",
+    "ES",
+    "FI",
+    "SE",
+    "UK"
+  ],
+  "North America": [
+    "US",
+    "CA"
+  ],
+  "Asia Pacific": [
+    "JP",
+    "CN",
+    "AU"
+  ],
+  "Latin America": [
+    "BR",
+    "MX"
+  ]
+}

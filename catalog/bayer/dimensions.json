@@ -1,0 +1,238 @@
+[
+  {
+    "id": "product",
+    "name": "Product",
+    "synonyms": [
+      "by product",
+      "product",
+      "brand",
+      "medicine"
+    ],
+    "values": [
+      {
+        "id": "P-NUB",
+        "label": "Nubeqa",
+        "synonyms": [
+          "nubeqa"
+        ]
+      },
+      {
+        "id": "P-KER",
+        "label": "Kerendia",
+        "synonyms": [
+          "kerendia"
+        ]
+      },
+      {
+        "id": "P-EYL",
+        "label": "Eylea",
+        "synonyms": [
+          "eylea"
+        ]
+      },
+      {
+        "id": "P-XAR",
+        "label": "Xarelto",
+        "synonyms": [
+          "xarelto"
+        ]
+      },
+      {
+        "id": "P-LYN",
+        "label": "Lynkuet",
+        "synonyms": [
+          "lynkuet"
+        ]
+      },
+      {
+        "id": "P-BEY",
+        "label": "Beyonttra",
+        "synonyms": [
+          "beyonttra"
+        ]
+      },
+      {
+        "id": "P-HYR",
+        "label": "Hyrnuo",
+        "synonyms": [
+          "hyrnuo"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "market",
+    "name": "Market",
+    "synonyms": [
+      "by market",
+      "market",
+      "country",
+      "countries"
+    ],
+    "values": [
+      {
+        "id": "DE",
+        "label": "Germany",
+        "synonyms": [
+          "germany"
+        ]
+      },
+      {
+        "id": "FR",
+        "label": "France",
+        "synonyms": [
+          "france"
+        ]
+      },
+      {
+        "id": "IT",
+        "label": "Italy",
+        "synonyms": [
+          "italy"
+        ]
+      },
+      {
+        "id": "ES",
+        "label": "Spain",
+        "synonyms": [
+          "spain"
+        ]
+      },
+      {
+        "id": "FI",
+        "label": "Finland",
+        "synonyms": [
+          "finland"
+        ]
+      },
+      {
+        "id": "SE",
+        "label": "Sweden",
+        "synonyms": [
+          "sweden"
+        ]
+      },
+      {
+        "id": "UK",
+        "label": "United Kingdom",
+        "synonyms": [
+          "united kingdom",
+          "britain",
+          "great britain"
+        ]
+      },
+      {
+        "id": "US",
+        "label": "United States",
+        "synonyms": [
+          "united states",
+          "usa",
+          "united states"
+        ]
+      },
+      {
+        "id": "CA",
+        "label": "Canada",
+        "synonyms": [
+          "canada"
+        ]
+      },
+      {
+        "id": "JP",
+        "label": "Japan",
+        "synonyms": [
+          "japan"
+        ]
+      },
+      {
+        "id": "CN",
+        "label": "China",
+        "synonyms": [
+          "china"
+        ]
+      },
+      {
+        "id": "AU",
+        "label": "Australia",
+        "synonyms": [
+          "australia"
+        ]
+      },
+      {
+        "id": "BR",
+        "label": "Brazil",
+        "synonyms": [
+          "brazil"
+        ]
+      },
+      {
+        "id": "MX",
+        "label": "Mexico",
+        "synonyms": [
+          "mexico"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "region",
+    "name": "Region",
+    "synonyms": [
+      "by region",
+      "region"
+    ],
+    "values": [
+      {
+        "id": "EMEA",
+        "label": "EMEA",
+        "synonyms": [
+          "emea",
+          "europe"
+        ]
+      },
+      {
+        "id": "North America",
+        "label": "North America",
+        "synonyms": [
+          "north america"
+        ]
+      },
+      {
+        "id": "Asia Pacific",
+        "label": "Asia Pacific",
+        "synonyms": [
+          "asia pacific",
+          "apac"
+        ]
+      },
+      {
+        "id": "Latin America",
+        "label": "Latin America",
+        "synonyms": [
+          "latin america",
+          "latam"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "month",
+    "name": "Month",
+    "synonyms": [
+      "by month",
+      "monthly",
+      "month"
+    ],
+    "values": []
+  },
+  {
+    "id": "quarter",
+    "name": "Quarter",
+    "synonyms": [
+      "by quarter",
+      "quarterly",
+      "quarter"
+    ],
+    "values": []
+  }
+]
