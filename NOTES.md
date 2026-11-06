@@ -34,3 +34,5 @@ For [user], takes [input], returns [output], so they can [benefit].
 
 ## Cut list (Sat 12:00 checkpoint)
 -
+## Webhook test
+- Fri 6 Nov: GitHub → Discord #github-feed test commit
