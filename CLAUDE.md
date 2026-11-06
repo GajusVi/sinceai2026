@@ -59,6 +59,19 @@ FastAPI (backend/main.py): /health /score /ingest /review /audit /audit.csv
 - Only Donatas runs `make warm` (rewrites demo/cache); only Margiris commits eval/results.json.
 - Windows teammates: `.\run.ps1 <task>` instead of make; Python is `.venv\Scripts\python.exe`.
 
+## Team board: how the four Claude Codes talk to each other (coord/, tools/coord.py)
+The SessionStart and UserPromptSubmit hooks print the TEAM BOARD into your context when something changed:
+teammates' status, open asks, answers to your asks, commits you are behind on. Act on it:
+1. Behind origin/main → `git pull --rebase --autostash` before you edit anything.
+2. After every push of real work → `.venv/bin/python tools/coord.py status --now "..." --done "..." --next "..." [--blocked "..."]`
+   (one line each, plain words, commit ids for done work). It commits and pushes only coord/ (no test run).
+3. You need someone else's file changed, a decision, or an OK → `tools/coord.py ask <name> "..." --files ...`,
+   tell your person, then keep working on something else. Do not edit their file meanwhile.
+4. An "ASK FOR YOU" appears → show it to your person word for word and ask them. Only after they answer in the chat:
+   `tools/coord.py reply <id> ok|no|done "..."`. Never answer an ask on your own judgement.
+5. "ANSWER TO YOUR ASK" appears → tell your person, act on it, then `reply <id> done "seen"` to clear it.
+Windows: `.venv\Scripts\python.exe tools\coord.py ...`. Humans: `make board`.
+
 ## Commands
 `make ui` · `make demo` (LLM off) · `make ask Q="..."` · `make ui-old` · `make api` · `make eval` · `make warm` (record cache) · `make ping` · `make test` · `make lint` · `make hack`
 

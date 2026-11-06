@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo bayer ui-old ask api eval warm test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo bayer board ui-old ask api eval warm test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -15,6 +15,9 @@ demo:       ## BI Steward screen with the LLM forced off (stage-safe, no network
 
 bayer:      ## BI Steward on the Bayer data pack (360 assets)
 	STEWARD_CATALOG=datapack $(PY) -m streamlit run frontend/steward_app.py
+
+board:      ## team board: who is on what, open asks, commits you are behind on
+	$(PY) tools/coord.py board
 
 ask:        ## one question from the terminal: make ask Q="Net sales by market"
 	$(PY) -m steward "$(Q)"

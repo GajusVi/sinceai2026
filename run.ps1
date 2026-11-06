@@ -9,6 +9,7 @@ try {
         "ui"     { Live; & $py -m streamlit run frontend\steward_app.py }
         "demo"   { $env:STEWARD_USE_LLM = "off"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_USE_LLM -ErrorAction SilentlyContinue }
         "bayer"  { Live; $env:STEWARD_CATALOG = "datapack"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG -ErrorAction SilentlyContinue }
+        "board"  { & $py tools\coord.py board }
         "ask"    { Live; & $py -m steward @rest }
         "ui-old" { Live; & $py -m streamlit run frontend\app.py }
         "api"    { Live; & $py -m uvicorn backend.main:app --reload --port 8000 }
@@ -17,7 +18,7 @@ try {
         "ping"   { Live; & $py -m backend.llm }
         "models" { Live; & $py -m backend.llm models }
         "test"   { $env:DEMO_MODE = "1"; & $py -m pytest -q }
-        default  { "tasks: ui demo bayer ask ui-old api eval warm ping models test" }
+        default  { "tasks: ui demo bayer board ask ui-old api eval warm ping models test" }
     }
 } finally {
     $env:DEMO_MODE = $prevDemo   # never leave demo mode on in this window

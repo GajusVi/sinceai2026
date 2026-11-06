@@ -13,7 +13,10 @@
       "Bash(git commit:*)",
       "Bash(rg:*)",
       "Bash(ls:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(.venv/bin/python tools/coord.py:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [
       "Read(./.env)",
@@ -30,6 +33,30 @@
           {
             "type": "command",
             "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.py) \"$CLAUDE_PROJECT_DIR/.venv/bin/ruff\" format -q \"$f\" >/dev/null 2>&1;; esac; exit 0"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=\"$CLAUDE_PROJECT_DIR/.venv/bin/python\"; [ -x \"$p\" ] || p=\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\"; \"$p\" \"$CLAUDE_PROJECT_DIR/tools/coord.py\" brief --full 2>/dev/null; exit 0",
+            "timeout": 20,
+            "statusMessage": "Reading team board..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=\"$CLAUDE_PROJECT_DIR/.venv/bin/python\"; [ -x \"$p\" ] || p=\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\"; \"$p\" \"$CLAUDE_PROJECT_DIR/tools/coord.py\" brief  2>/dev/null; exit 0",
+            "timeout": 15
           }
         ]
       }

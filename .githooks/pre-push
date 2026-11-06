@@ -2,6 +2,13 @@
 # Runs the offline smoke tests before every push, so nobody breaks main for the other three.
 # Takes ~10 s, needs no API key. Emergency only (tell the team): git push --no-verify
 root=$(git rev-parse --show-toplevel)
+# Team-board updates (coord/ only) skip the tests: nothing executable changed.
+only_coord=1
+while read -r lref lsha rref rsha; do
+  case "$rsha" in 0000000000000000000000000000000000000000) only_coord=0; continue;; esac
+  if git diff --name-only "$rsha" "$lsha" | grep -qv '^coord/'; then only_coord=0; fi
+done
+if [ "$only_coord" = 1 ]; then echo "pre-push: coord/ only, tests skipped"; exit 0; fi
 if [ -x "$root/.venv/bin/python" ]; then py="$root/.venv/bin/python"
 elif [ -x "$root/.venv/Scripts/python.exe" ]; then py="$root/.venv/Scripts/python.exe"
 else echo "pre-push: no .venv found, tests skipped (run the setup script)"; exit 0; fi
