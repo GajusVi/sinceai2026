@@ -47,6 +47,21 @@ def find_terms(text: str, catalog: Catalog) -> list[TermMatch]:
     return sorted(taken, key=lambda m: m.start)
 
 
+GLOBAL_SCOPE = "Global"
+_GLOBAL = re.compile(r"(?<!\w)global(?:ly)?(?!\w)")
+
+
+def asks_global(text: str) -> bool:
+    """"global" in a request is a scope filter (market=Global), not a breakdown. BUILD_PLAN 2.4, decision of 2026-11-07."""
+    return bool(_GLOBAL.search(text.lower()))
+
+
+def apply_global_scope(filters: dict[str, str], text: str, catalog: Catalog) -> None:
+    """Adds market=Global when the text says "global" and no market was named. Only on catalogs that have a market dimension."""
+    if "market" in catalog.dimensions and "market" not in filters and "region" not in filters and asks_global(text):
+        filters["market"] = GLOBAL_SCOPE
+
+
 def normalize_formula(formula: str) -> str:
     return re.sub(r"\s+", "", formula.lower())
 

@@ -7,7 +7,7 @@ from typing import Protocol
 
 from .catalog import Catalog
 from .config import AMBIGUOUS_PHRASES, STOPWORDS
-from .linking import TermMatch, find_terms
+from .linking import TermMatch, apply_global_scope, find_terms
 from .llm import LLMClient
 from .models import ParsedQuestion
 from .prompts import render_prompt
@@ -47,6 +47,7 @@ class RuleBasedParser:
             dimensions.append("quarter")
 
         unmapped = unmapped_terms(text, terms)
+        apply_global_scope(filters, text, self.catalog)
         return finalize(
             ParsedQuestion(
                 text=text, metrics=metrics, dimensions=dimensions, filters=filters, period=period, unmapped_terms=unmapped
@@ -86,6 +87,7 @@ class LLMParser:
         period = raw.get("period") or parse_period(text)
         if period and "quarter" not in dimensions:
             dimensions.append("quarter")
+        apply_global_scope(filters, text, self.catalog)
         # The model may flag terms the dictionary lacks; the rule check catches words it silently skipped.
         unmapped = [str(t).strip() for t in raw.get("unmapped") or [] if str(t).strip()]
         for term in unmapped_terms(text, find_terms(text, self.catalog)):

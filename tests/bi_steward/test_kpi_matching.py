@@ -85,3 +85,25 @@ def test_req_0001_text_vs_metadata_conflict_is_clarify(pack):
     decision = decide(question, pack.search.search(question), pack.catalog, AS_OF)
     assert decision.verdict.value == "CLARIFY"
     assert any(e.severity == "blocker" for e in decision.evidence)
+
+
+def test_global_request_is_a_scope_filter_only_global_assets_are_compatible(pack):
+    from steward.decision.engine import score_candidates
+
+    question = RuleBasedParser(pack.catalog).parse("Net sales growth globally by market")
+    assert question.filters.get("market") == "Global"
+    candidates = score_candidates(question, pack.search.search(question), pack.catalog, AS_OF)
+    assert candidates
+    assert all(c.artifact.market_scope == "Global" for c in candidates if c.compatible)
+    assert any(c.artifact.market_scope != "Global" and not c.compatible for c in candidates)
+
+
+def test_req_0001_best_asset_has_global_market_scope_even_though_its_name_says_emea(pack):
+    """AST-0143 is named '... - EMEA' but market_scope is Global (trap 18): scope comes from the field, never the name."""
+    best = pack.ask(REQ_0001).decision.best.artifact
+    assert best.id == "AST-0143" and best.market_scope == "Global"
+    assert any(d.startswith("NAME_SCOPE_MISMATCH") for d in best.data_quality)
+
+
+def test_unrelated_text_gets_no_global_filter(pack):
+    assert "market" not in RuleBasedParser(pack.catalog).parse("Net sales growth by month").filters
