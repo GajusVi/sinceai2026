@@ -9,6 +9,7 @@ try {
         "ui"     { Live; & $py -m streamlit run frontend\steward_app.py }
         "demo"   { $env:STEWARD_USE_LLM = "off"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_USE_LLM -ErrorAction SilentlyContinue }
         "bayer"  { Live; $env:STEWARD_CATALOG = "datapack"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG -ErrorAction SilentlyContinue }
+        "set-webhook" { & $py tools\coord.py set-webhook }
         "board-discord" { & $py tools\coord.py discord }
         "board"  { & $py tools\coord.py board }
         "ask"    { Live; & $py -m steward @rest }

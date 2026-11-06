@@ -211,20 +211,60 @@ def env_value(key: str) -> str:
     return ""
 
 
+WEBHOOK_PREFIXES = ("https://discord.com/api/webhooks/", "https://discordapp.com/api/webhooks/")
+
+
 def discord_call(method: str, url: str, content: str) -> dict | None:
+    if not url.startswith(WEBHOOK_PREFIXES):
+        print(
+            "coord: COORD_DISCORD_WEBHOOK in .env is not a Discord webhook URL; run `make set-webhook`", file=sys.stderr
+        )
+        return None
     data = json.dumps({"content": content[:1990], "allowed_mentions": {"parse": []}}).encode()
-    req = urllib.request.Request(
-        url,
-        data=data,
-        method=method,
-        headers={"Content-Type": "application/json", "User-Agent": "DiscordBot (sinceai2026 coord, 1.0)"},
-    )
     try:
+        req = urllib.request.Request(
+            url,
+            data=data,
+            method=method,
+            headers={"Content-Type": "application/json", "User-Agent": "DiscordBot (sinceai2026 coord, 1.0)"},
+        )
         with urllib.request.urlopen(req, timeout=6) as resp:
             body = resp.read()
             return json.loads(body) if body else {}
     except Exception:
         return None  # the git copy is the source of truth; Discord is a mirror
+
+
+def clipboard() -> str:
+    for cmd in (
+        ["pbpaste"],
+        ["powershell", "-NoProfile", "-Command", "Get-Clipboard"],
+        ["xclip", "-o", "-selection", "clipboard"],
+    ):
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if out.returncode == 0:
+                return out.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return ""
+
+
+def cmd_set_webhook() -> None:
+    """Write the webhook URL from the clipboard into .env (replacing any old COORD_DISCORD_WEBHOOK line)."""
+    url = clipboard()
+    if not url.startswith(WEBHOOK_PREFIXES):
+        sys.exit(
+            "Clipboard does not hold a Discord webhook URL. In Discord: #llm-board settings > Integrations > Webhooks >"
+            " LLM Board > Copy Webhook URL. Then TYPE `make set-webhook` (copying the command would replace the URL)."
+        )
+    env = ROOT / ".env"
+    lines = env.read_text(encoding="utf-8").splitlines() if env.exists() else []
+    lines = [ln for ln in lines if not ln.startswith("COORD_DISCORD_WEBHOOK=")] + [f"COORD_DISCORD_WEBHOOK={url}"]
+    env.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(
+        "COORD_DISCORD_WEBHOOK set in .env (old line replaced). Next: make board-discord (first person only)."
+    )
 
 
 def discord_board() -> str:
@@ -311,6 +351,7 @@ def main() -> None:
     b.add_argument("--no-fetch", action="store_true")
     sub.add_parser("board")
     sub.add_parser("discord")
+    sub.add_parser("set-webhook")
     s = sub.add_parser("status")
     for k in ("now", "done", "next", "blocked"):
         s.add_argument(f"--{k}")
@@ -330,6 +371,8 @@ def main() -> None:
     a = p.parse_args()
     if a.cmd == "brief":
         cmd_brief(a.full, a.no_fetch)
+    elif a.cmd == "set-webhook":
+        cmd_set_webhook()
     elif a.cmd == "discord":
         fetch(force=True)
         if not env_value("COORD_DISCORD_WEBHOOK"):

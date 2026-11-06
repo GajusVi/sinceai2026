@@ -33,3 +33,7 @@ def test_discord_board_fits_one_message():
 def test_discord_noop_without_webhook(monkeypatch):
     monkeypatch.setattr(coord, "env_value", lambda key: "")
     coord.discord("feed line")  # must not raise or touch the network
+
+
+def test_bad_webhook_value_does_not_crash():
+    assert coord.discord_call("POST", 'echo "COORD_DISCORD_WEBHOOK=$(pbpaste)" >> .env', "x") is None
