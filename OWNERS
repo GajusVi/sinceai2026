@@ -12,6 +12,7 @@ steward/models.py       martynas
 steward/spec.py         martynas
 steward/intent.py       gajus
 steward/datapack.py     gajus
+steward/requests.py     gajus
 steward/llm.py          margiris
 steward/query_parser.py margiris
 steward/linking.py      margiris
