@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from ..catalog import Catalog
-from ..linking import artifact_metric_ids
+from ..linking import artifact_covered_metrics
 from ..models import Artifact, Gap, GapKind, ParsedQuestion
 
 # A coarser time grain the question asks for can be built from these finer ones.
@@ -27,7 +27,7 @@ def coverage(question: ParsedQuestion, artifact: Artifact, catalog: Catalog) -> 
 
     An artifact is incompatible when it is locked to a different scope than asked:
     a report fixed to EMEA cannot be extended to answer a LATAM question."""
-    metrics = artifact_metric_ids(artifact.metrics, catalog)
+    metrics = artifact_covered_metrics(artifact, catalog)
     dimensions = set(artifact.dimensions)
     covered: list[str] = []
     gaps: list[Gap] = []

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 from dataclasses import dataclass
+from functools import lru_cache
 
 from .catalog import Catalog
-from .config import AMBIGUOUS_PHRASES
-from .models import ArtifactMetric
+from .config import AMBIGUOUS_PHRASES, Settings
+from .models import Artifact, ArtifactMetric
 
 
 @dataclass(frozen=True)
@@ -79,3 +82,34 @@ def artifact_metric_ids(metrics: list[ArtifactMetric], catalog: Catalog) -> set[
         if actual:
             ids.add(actual)
     return ids
+
+
+@lru_cache
+def kpi_index(catalog_dir: str | None = None) -> tuple[dict[str, str], dict[str, tuple[str, str]]]:
+    """Reads catalog/bayer/metrics.json: (canonical kpi_id -> metric id, variant kpi_id -> (metric id, definition_status)).
+    Empty for the sample catalog. MetricDefinition has no kpi_id/variants fields yet (request to Martynas in NOTES.md)."""
+    path = Settings.from_env().catalog_dir / "bayer" / "metrics.json" if catalog_dir is None else Path(catalog_dir)
+    if not path.exists():
+        return {}, {}
+    canonical: dict[str, str] = {}
+    variants: dict[str, tuple[str, str]] = {}
+    for metric in json.loads(path.read_text(encoding="utf-8")):
+        canonical[metric["kpi_id"]] = metric["id"]
+        for v in metric.get("variants", []):
+            variants[v["kpi_id"]] = (metric["id"], v["definition_status"])
+    return canonical, variants
+
+
+def artifact_covered_metrics(artifact: Artifact, catalog: Catalog) -> set[str]:
+    """Data-pack assets: a metric is present only if the asset carries its canonical KPI id (variants never count).
+    Sample catalog (no kpi_ids): the formula must match the official definition."""
+    if not artifact.kpi_ids:
+        return artifact_metric_ids(artifact.metrics, catalog)
+    canonical, _ = kpi_index()
+    return {canonical[k] for k in artifact.kpi_ids if k in canonical}
+
+
+def artifact_variants(artifact: Artifact) -> list[tuple[str, str, str]]:
+    """(variant kpi_id, canonical metric id, definition_status) for each non-canonical KPI the asset uses."""
+    _, variants = kpi_index()
+    return [(k, *variants[k]) for k in artifact.kpi_ids if k in variants]

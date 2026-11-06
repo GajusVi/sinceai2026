@@ -6,6 +6,7 @@ from ..catalog import Catalog
 from ..config import EXTEND_MIN_COVERAGE, REUSE_MIN_COVERAGE, REUSE_MIN_TRUST
 from ..models import Candidate, Decision, Evidence, GapKind, ParsedQuestion, Verdict
 from ..search import SearchHit
+from ..linking import kpi_index
 from .conflicts import find_conflicts
 from .signals import coverage, trust, trust_gaps
 
@@ -34,7 +35,32 @@ def score_candidates(question: ParsedQuestion, hits: list[SearchHit], catalog: C
     return sorted(candidates, key=lambda c: (c.compatible, c.score), reverse=True)
 
 
+def conflict_evidence(conflicts: list, limit: int = 10) -> list[Evidence]:
+    """RULE-002: an asset uses a variant KPI instead of the approved one. Suggests the canonical id."""
+    variants = kpi_index()[1]
+    out = []
+    for c in conflicts[:limit]:
+        status = variants.get(c.artifact_formula, ("", "variant"))[1]
+        if not c.artifact_formula.startswith("KPI-"):
+            continue
+        out.append(
+            Evidence(
+                claim=f"{c.artifact_id} uses {c.artifact_formula} ({status}); use the approved {c.official_formula} instead",
+                rule_id="RULE-002",
+                record_ids=[c.artifact_id, c.artifact_formula, c.official_formula],
+                severity="warning",
+            )
+        )
+    return out
+
+
 def decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as_of: date) -> Decision:
+    decision = _decide(question, hits, catalog, as_of)
+    decision.evidence.extend(conflict_evidence(decision.conflicts))
+    return decision
+
+
+def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as_of: date) -> Decision:
     conflicts = find_conflicts(question.metrics, catalog)
 
     if question.unmapped_terms or question.conflicts:
