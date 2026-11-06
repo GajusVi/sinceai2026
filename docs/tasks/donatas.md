@@ -26,3 +26,20 @@ This makes the pre-push hook protect the screen for everyone.
 Done when: `make demo` shows the chat, a fake-evidence card, reset works twice, `make test` green, pushed.
 ## 00:55 handover
 Push, then 3 lines in NOTES.md: done / half-done / next. Saturday: 08:30 S2, 09:00 Q&A with Gajus, then wire to the real engine + A3 KPI card.
+
+---
+# EXTRA (Sat 00:05 → 01:00), added after your first handover
+## T4 (A4) Orphan rescue tab, on the real data pack
+Run with `make bayer` (Windows `.\run.ps1 bayer`) = STEWARD_CATALOG=datapack. New tab "Orphan rescue" in frontend/steward_app.py:
+- Asset picker (default **AST-0091 "Hyrnuo Growth - US"**), searchable by id or name.
+- Panels, all from `steward.catalog.artifact(id)` fields (already loaded by Gajus's loader):
+  Owner: owner_id, role, scope, **status** (inactive in red), `successor_candidates` with names from the Owners data;
+  Trust: endorsement, model refresh_status (warning/failed in amber/red), platform;
+  Usage: `st.line_chart` of monthly unique_users from `usage` (months since creation only);
+  Signals + data_quality flags as small chips; "Claimed vs observed": `lifecycle_claimed` next to the usage tier,
+  and a name-vs-scope note when data_quality has the mismatch flag.
+- Buttons "Propose successor" and "Retire candidate": for now they only write a journal entry via `steward.governance`
+  (reason required), clearly labelled "proposal". Real logic comes from Margiris's rules on Saturday.
+- If the catalog is the sample one (no `owner_status`), show "Run make bayer to load the Bayer data pack" instead of crashing.
+- Extend tests/bi_steward/test_app.py: the tab opens on the data pack with AST-0091 without exceptions.
+Done when: AST-0091 shows inactive owner, successors, refresh warning, usage chart. Push + 3 lines in NOTES.md by 00:55.

@@ -14,4 +14,12 @@ Asset_Usage (only months ≥ created month; earlier rows → data_quality "USAGE
 Lineage_Edges (upstream/downstream) + Governance_Signals + Data_Quality. last_refreshed = last_modified (labelled). Name-vs-scope mismatch → data_quality.
 Hook in `steward/pipeline.py`: if `STEWARD_CATALOG=datapack` (or catalog_dir points to the xlsx) use the data-pack catalog with
 catalog/bayer/metrics.json + dimensions.json. Tests: 360 assets, 94 Tableau, 21 missing owners, 65 inactive-owner assets, 266 Power BI.
-## T3 (D4, 01:30-03:00) goldens on the data pack with Margiris: tests/bi_steward/golden_datapack.json (REQ-0001 → CLARIFY first).
+## T3a (00:05-01:15) request intake = trap 1 as a feature, `steward/intent.py`
+`intent_from_request(row, catalog)`: parse the request text, compare with the row's product_context / market_context.
+Different product → `conflicts += ["text says Nubeqa, request field says Beyonttra"]`; text says global or a region while
+market_context is a country (or the reverse) → conflict. Any conflict → CLARIFY, with the conflict as a blocker Evidence.
+Test on REQ-0001 (text Nubeqa/global vs Beyonttra/EMEA) and on Martynas's data/holdout/requests_intent.jsonl `metadata_conflict` labels
+(65 of 75 product-naming requests should conflict).
+## T3b (01:15-03:00) goldens on the data pack with Margiris: tests/bi_steward/golden_datapack.json
+REQ-0001 with metadata → CLARIFY first. Do NOT lock its post-clarification verdict until Margiris's L2 lands
+(today CREATE is only an artefact of the KPI placeholder; likely EXTEND on AST-0335 or AST-0015, 1 of 3 canonical KPIs).

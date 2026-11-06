@@ -65,3 +65,27 @@ regions.json: `{"EMEA": ["DE","FR","IT","ES","FI","SE","UK"], "North America": [
 
 ## 00:55 handover
 Push, then 3 lines in NOTES.md under Decisions: done / half-done / next. Saturday 08:00: D5 hold-out labelling with Margiris, then D6 preview.
+
+---
+# EXTRA (Sat 00:05 → 01:00), added after your first handover
+## T5 (10 min, push first: unblocks Margiris's L2 and Donatas's KPI card) `steward/models.py`
+`MetricDefinition` silently drops `kpi_id` and `variants` from catalog/bayer/metrics.json (no such fields). Add, with defaults:
+```python
+class MetricVariant(BaseModel):
+    kpi_id: str
+    kpi_name: str
+    definition_status: str   # duplicate_candidate | local_variant | definition_conflict
+    approval_status: str     # local | draft | unapproved
+    owner_id: str = ""
+```
+`MetricDefinition.kpi_id: str = ""` and `MetricDefinition.variants: list[MetricVariant] = Field(default_factory=list)`.
+Test: with STEWARD_CATALOG=datapack, `inventory_coverage` has kpi_id KPI-016 and variants incl. KPI-018 and KPI-019. Push, tell Margiris.
+
+## T6 (rest of the hour) intent labels for the hold-out: `data/holdout/requests_intent.jsonl`
+40 Business_Requests, 4 per template (10 templates, see docs/challenge/03_DATA_PACK.md). One JSON line each:
+`{"request_id", "text", "product_context", "market_context", "expected_products": [...], "expected_markets": [...],
+"expected_regions": [...], "expected_metric_ids": [...], "expected_grain": "month", "metadata_conflict": true/false, "notes": ""}`
+Pre-fill with a script (parse the text with the data-pack rule parser), then **check every line by hand**: the expected values come from
+the request TEXT, not the parser. `metadata_conflict` = the text names a different product than product_context, or says global/a region
+while market_context is a country (or the reverse). Label intent only, no verdicts (those wait for Margiris's rules).
+This is the input for Gajus's request-intake test and Margiris's intent F1. Push + 3 lines in NOTES.md by 00:55.

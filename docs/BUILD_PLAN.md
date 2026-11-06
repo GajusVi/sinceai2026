@@ -28,6 +28,7 @@ Gajus + Margiris stay to ~03:00 and take the long chain (loader → matching →
 |---|---|---|---|---|
 | 23:45-00:05 | **S1, all four, 20 min**: accept/override section 2, nothing else | S1 | S1 | S1 |
 | 00:05-01:00 | C2 `steward/intent.py` stub; start **D1 loader** in new file steward/datapack.py (no edit to Martynas's catalog.py) | C3 Decision.evidence stub; **L1** LLM client via backend/llm.py | **C1** Artifact fields + **C4** DashboardSpec stub; **D2** synonyms for the 18 canonical metrics; **D3** products/markets/regions | **A1 shell**: chat input + decision screen rendering a hard-coded fake Decision with evidence cards (C3 shape); **A7** Reset-demo button |
+| 00:05-01:00 EXTRA | T3a request intake (conflict check) | lighter: LLM prompt part moved to Sat | T5 MetricDefinition kpi_id + variants (unblocks L2), T6 intent labels for 40 requests | T4 Orphan rescue tab on the data pack (AST-0091) |
 | 00:55 | handover: M + D push, write 3 lines in NOTES ("done / half-done / next") | | push + NOTES | push + NOTES |
 | 01:00-03:00 | finish **D1** (360 assets load, counts test); **D4** goldens on data pack (with Margiris) | **L2** KPI-id matching; **L3** unmapped terms → CLARIFY (REQ-0001 test) | off | off |
 | 03:00 | checkpoint: app runs on data pack, REQ-0001 → CLARIFY. Sleep. | | | |

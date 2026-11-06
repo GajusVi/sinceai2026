@@ -1,5 +1,14 @@
 # Margiris: tonight 00:05 → 03:00 (LLM plumbing, no silent drops, KPI-id matching)
 
+> **UPDATE 00:05 (read first):**
+> - On the DATA PACK the parser already reads REQ-0001 fully (3 metrics, product Nubeqa, by market, nothing unmapped), so its CLARIFY
+>   comes from Gajus's request-intake conflict check (text vs product_context/market_context), not from your unmapped-terms rule.
+>   Keep your REQ-0001 test on the SAMPLE catalog (there those terms really are unknown).
+> - **Lighter tonight:** the LLM prompt "unmapped" field (T2 bullet 2) moves to Saturday. Do T1, T2 rule-parser part, T3.
+> - L2: match on `artifact.kpi_ids` (the loader's `ArtifactMetric.formula = kpi_id` is a placeholder) and on
+>   `MetricDefinition.kpi_id` / `.variants`, which Martynas adds ~00:15 (T5). Pull then.
+> - `make bayer` runs the app on the data pack.
+
 Tell your Claude Code: "Do docs/tasks/margiris.md. Read CLAUDE.md, docs/BUILD_PLAN.md section 2 and docs/challenge/03_DATA_PACK.md first."
 Your files tonight: steward/llm.py, steward/query_parser.py, steward/linking.py, steward/decision/, prompts/ (excl. interview.yaml).
 Martynas adds the model fields (`ParsedQuestion.unmapped_terms`, `Decision.evidence`, `Evidence`) by ~00:30: pull then.
