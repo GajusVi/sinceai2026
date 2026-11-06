@@ -73,7 +73,47 @@ class GeminiClient:
         return [e.values for e in response.embeddings]
 
 
-LLMClient = Union[ClaudeClient, GeminiClient]
+_SYSTEM = "You are a precise assistant for a BI governance tool. Follow the instructions in the user message exactly."
+
+
+class BackendClient:
+    """Reuses backend/llm.py: provider from .env (LLM_PROVIDER = gemini | aitta | ollama | ...), JSON validation,
+    one repair retry and the demo/cache replay. No embeddings, so semantic search keeps the offline embedder."""
+
+    provider = "backend"
+    supports_embeddings = False
+
+    def __init__(self) -> None:
+        from backend import llm as backend_llm
+        from backend.config import get_settings
+
+        self._llm = backend_llm
+        self._settings = get_settings()
+        self.model = self._settings.resolved()[2]
+
+    def generate_json(self, prompt: str) -> dict:
+        from pydantic import BaseModel, ConfigDict
+
+        class _AnyJSON(BaseModel):
+            model_config = ConfigDict(extra="allow")
+
+        return self._llm.complete_json(_SYSTEM, prompt, _AnyJSON).model_dump()
+
+    def generate_text(self, prompt: str) -> str:
+        response = self._llm._client().chat.completions.create(
+            model=self.model,
+            messages=[{"role": "system", "content": _SYSTEM}, {"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=self._settings.llm_max_tokens,
+            **self._llm._extra(),
+        )
+        return (response.choices[0].message.content or "").strip()
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        raise NotImplementedError("BackendClient has no embeddings")
+
+
+LLMClient = Union[ClaudeClient, GeminiClient, BackendClient]
 
 
 def get_llm(settings: Settings) -> LLMClient | None:
@@ -82,6 +122,8 @@ def get_llm(settings: Settings) -> LLMClient | None:
     provider = settings.provider
     model = settings.llm_model or DEFAULT_MODELS.get(provider or "", "")
     try:
+        if provider == "backend":
+            return BackendClient()
         if provider == "claude":
             return ClaudeClient(settings.anthropic_api_key, model)
         if provider == "gemini":

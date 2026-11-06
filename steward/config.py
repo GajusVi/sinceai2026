@@ -10,6 +10,16 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env", override=False)
 
 
+def _backend_ready() -> bool:
+    """True when the shared backend client (LLM_PROVIDER in .env: gemini | aitta | ollama ...) has a key and model."""
+    try:
+        from backend.config import get_settings
+
+        return get_settings().llm_ready()
+    except Exception:
+        return False
+
+
 @dataclass(frozen=True)
 class Settings:
     catalog_dir: Path
@@ -46,11 +56,11 @@ class Settings:
             return "claude" if self.anthropic_api_key else None
         if self.llm_provider == "gemini":
             return "gemini" if self.gemini_api_key else None
+        if self.llm_provider == "backend":
+            return "backend" if _backend_ready() else None
         if self.anthropic_api_key:
             return "claude"
-        if self.gemini_api_key:
-            return "gemini"
-        return None
+        return "backend" if _backend_ready() else None
 
     @property
     def llm_enabled(self) -> bool:
