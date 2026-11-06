@@ -30,6 +30,7 @@ For [user], takes [input], returns [output], so they can [benefit].
 - 2026-11-06 21:45: BI Steward (Donatas's bi-steward repo) merged in as the app: steward/, prompts/, catalog/, frontend/steward_app.py, tests/bi_steward/. `make ui`/`make demo` now open it; old scaffold = `make ui-old`. No new installs needed (all deps already in requirements.lock.txt). Rest of steward/ ownership to assign Sat 09:00.
 - 2026-11-06: Bayer data pack committed to data/bayer/ (synthetic, built for builders, private repo) so everyone has it on git pull. Exception to the data/brief/ rule; move out if the team disagrees.
 - 2026-11-06 22:00: Build plan in docs/BUILD_PLAN.md (S1 logic lock 22:15, contracts by 24:00, core on real data by Sat 03:00, freeze Sun 02:00, submit Sun 08:00).
+- 2026-11-06 22:30: RETIRE rule changed from '< 1,000 views' to relative, age-aware rule (BUILD_PLAN 2.2): >= 3 months old, bottom-20% monthly users since creation, no subscriptions/dependants, plus duplicate or no owner; human-approved, 30-day reversible archive.
 - 2026-11-06: Next P0 = data-pack loader replacing catalog/ sample; KPI-id matching; unrecognised terms count against coverage (fixes false REUSE on REQ-0001).
 - 2026-11-05: scaffold = FastAPI + Streamlit + SQLite audit log; LLM via OpenAI-compatible client (provider by env).
 

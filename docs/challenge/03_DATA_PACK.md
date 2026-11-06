@@ -97,6 +97,8 @@ Urgency: 78 normal / 31 high / 41 urgent. Status: 78 new / 72 triaged.
 14. **Product_Market_Monthly**: 110 rows with zero sales and null forecast_variance; 80 of them are in markets where
     Market_Access says "listed" (inconsistent). value_type flips actual_like/forecast_like month to month.
 15. **Launch_Milestones**: 2 "completed" dated in the future, 6 "planned" dated in the past (vs 6 Nov 2026).
+17. **Usage dated before the asset existed**: for assets created from Apr 2026, 218 of 400 usage rows are earlier than created_date.
+    Count usage only from the creation month; report the rest as a data-quality finding.
 16. Semantic models: ai_readiness good 30 / partial 24 / poor 21; issues poor_names 17, ambiguous_dates 16, implicit_measures 15;
     refresh healthy 42 / warning 19 / failed 14. 1 model has no assets. 1-12 assets per model (median 5).
 

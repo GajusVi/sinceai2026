@@ -30,7 +30,7 @@ duplicate clusters, Tableau backlog re-triage under RULE-006). Same evidence eng
 - EXTEND: good candidate missing 1-2 metrics that exist on its semantic model.
 - CONSOLIDATE: >= 2 near-duplicates (same scope, KPI-set Jaccard >= 0.6, Copy/v2/Final/Legacy names).
 - MIGRATE: Tableau asset with real usage and no PBI twin; target = certified shared model.
-- RETIRE: low usage (< 1,000 views / 10 months) AND (duplicate OR no active owner); never auto, always human-approved.
+- RETIRE: see docs/BUILD_PLAN.md section 2.2 (age >= 3 months, bottom-20% monthly users since creation, no subscriptions or dependants, plus duplicate or no owner); never auto, always human-approved.
 - NEW_BUILD: no candidate above threshold and catalog supports the metrics.
 - Use usage numbers, NOT lifecycle_status / estimated_audience / backlog path (all shown to be noise, see 03).
 Thresholds are our assumptions: state them in README and make them config.

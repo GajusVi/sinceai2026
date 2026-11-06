@@ -40,7 +40,18 @@ Scoring weights we build against: 30% fit · 25% governance · 20% tech/AI · 15
    | EXTEND | covers ≥ 50% incl. ≥ 1 requested metric; gaps are a metric on the same model, a breakdown, an owner, certification, or a variant KPI to swap to canonical |
    | CONSOLIDATE | ≥ 2 candidates with same product scope and KPI-set Jaccard ≥ 0.6 → keep the most trusted, retire the rest |
    | CREATE | nothing compatible; metrics exist in catalog + a certified/promoted semantic model → spec |
-2. **Lifecycle flags on any candidate:** MIGRATE (Tableau + real usage, RULE-006), RETIRE (< 1,000 views Jan-Oct AND duplicate or no active owner), REASSIGN_OWNER (inactive/missing owner), FIX_REFRESH (model refresh failed/warning).
+2. **Lifecycle flags on any candidate:** MIGRATE (Tableau + real usage, RULE-006), RETIRE (rule below), REASSIGN_OWNER (inactive/missing owner), FIX_REFRESH (model refresh failed/warning).
+   **RETIRE candidate only if ALL hold** (all thresholds in steward/config.py, stated as assumptions in README):
+   - *Old enough to judge:* created ≥ 3 months before as-of date; younger = "too new to judge", never flagged.
+   - *Low use, relative not absolute:* average **monthly unique users since creation** in the bottom 20% of comparable assets
+     (same asset type), AND < 10 users in each of the last 3 months. Count only months after created_date
+     (the data pack has usage dated before creation for 218 of 400 rows on assets created from Apr 2026: ignore and flag as DQ).
+   - *Nobody depends on it quietly:* 0 subscriptions in the last 3 months (77 of the 153 low-use assets have some),
+     no downstream ASSET_TO_ASSET dependants (24 of them feed another asset), no high-criticality KPI (those go to HUMAN_REVIEW).
+   - *Plus a reason beyond low use:* duplicate of a more trusted asset, or no active owner.
+   Never automatic: recommend with evidence → owner/steward approves → archived and reversible for 30 days → removed.
+   Why not "< 1,000 views": that number is just the empty gap in this synthetic data (153 assets < 750 views, none 750-2,000);
+   it ignores asset age and time window and would not transfer to a real estate.
 3. **Trust score:** certified 0.40 / promoted 0.25 · active owner 0.20 · model refresh healthy 0.25 / warning 0.10 · avg monthly unique users ≥ 50: 0.15, ≥ 10: 0.05 · minus 0.10 per open high-severity signal (floor 0).
 4. **Scope rules (our assumptions, go in README):** asset with product "All Pharma" or market "Global" = has that breakdown; region asked (EMEA) needs Global or a region-level asset, a single-country asset does not cover it; month grain only (data is monthly Jan-Oct 2026).
 5. **Never trust these columns as truth:** lifecycle_status, estimated_audience, Migration_Backlog path, request product_context (all shown to contradict usage/text). Use them as "claimed" vs our "observed".
@@ -78,7 +89,7 @@ Scoring weights we build against: 30% fit · 25% governance · 20% tech/AI · 15
 | L3 | P0 | **No silent drops:** parser returns unmapped_terms; they count in the coverage denominator; any unmapped or text/metadata conflict → CLARIFY | REQ-0001 no longer returns REUSE |
 | L4 | P0 | Coverage + trust on real fields (section 2.3-2.4), Tableau never REUSE | unit tests for 3 hand-picked assets |
 | L5 | P0 | Verdict engine: REUSE/EXTEND/CONSOLIDATE/CREATE/CLARIFY/NOT_FEASIBLE + lifecycle flags; every reason carries rule_id + record ids (RULE-008) | Decision.evidence filled for every verdict |
-| L6 | P1 | Health on real data: usage tiers, 21 null + 65 inactive owners, 16 certified-on-failed-refresh, duplicate clusters, Tableau re-triage vs Migration_Backlog | numbers match 03_DATA_PACK.md |
+| L6 | P1 | Health on real data: RETIRE rule from section 2.2 (age, relative monthly users, subscriptions, dependants), 21 null + 65 inactive owners, 16 certified-on-failed-refresh, duplicate clusters, Tableau re-triage vs Migration_Backlog | numbers match 03_DATA_PACK.md |
 | L7 | P1 | Lineage impact: upstream model + downstream assets (ASSET_TO_ASSET, MODEL_TO_MODEL) for any RETIRE/CONSOLIDATE | "retiring X affects Y, Z" shown |
 | L8 | P1 | **Eval** (`eval/eval_steward.py`): verdict accuracy, **false-REUSE rate** (headline), intent F1 (products/markets/metrics), confusion matrix, misses list → eval/results.json | first number at S3 |
 | L9 | P1 | Semantic search: swap trigram embedder for fastembed (already installed) | top-3 hit rate on hold-out before/after |
