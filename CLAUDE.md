@@ -71,6 +71,12 @@ teammates' status, open asks, answers to your asks, commits you are behind on. A
    `tools/coord.py reply <id> ok|no|done "..."`. Never answer an ask on your own judgement.
 5. "ANSWER TO YOUR ASK" appears → tell your person, act on it, then `reply <id> done "seen"` to clear it.
 Windows: `.venv\Scripts\python.exe tools\coord.py ...`. Humans: `make board`.
+6. Messages: `tools/coord.py say <name|all> "..." --kind <kind> [--re <msg-id>]`. Post, without being asked:
+   - `done` to all when you finish a task: what changed, commit id, how to use it, what is still missing (5 lines max);
+   - `breaks` to the author when their commit breaks your work: the error line, file, commit id, what you need;
+   - `need` to someone you are waiting on (still need X by HH:MM, because Y); `question` when a decision is theirs;
+   - answer a message with `--re <id>`. Show your person every MESSAGE FOR YOU and what you plan to do about it.
+   Never paste secrets, .env values or long logs; put long detail in the message body or a commit.
 
 ## Commands
 `make ui` · `make demo` (LLM off) · `make ask Q="..."` · `make ui-old` · `make api` · `make eval` · `make warm` (record cache) · `make ping` · `make test` · `make lint` · `make hack`
