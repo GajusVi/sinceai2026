@@ -234,19 +234,6 @@ def render_result(result: StewardResult) -> None:
                 st.session_state.result = None
 
 
-@st.cache_resource(show_spinner="Computing catalog health ...")
-def _health(_steward: Steward, catalog_key: tuple):
-    return _steward.health()
-
-
-def get_health():
-    """health() takes ~45 s on the 360-asset data pack (linking.scan), so there it runs on request and is cached."""
-    on_datapack = any(a.platform for a in steward.catalog.artifacts.values())
-    if on_datapack and not st.session_state.get("health_requested"):
-        return None
-    return _health(steward, tuple(steward.catalog.artifacts))
-
-
 @st.cache_data
 def load_owners() -> dict[str, dict]:
     import pandas as pd
@@ -382,38 +369,32 @@ with tab_ask:
         render_result(st.session_state.result)
 
 with tab_health:
-    health = get_health()
-    if health is None:
-        st.info("Computing the catalog health takes about a minute on the Bayer data pack (it is cached afterwards).")
-        if st.button("Compute catalog health"):
-            st.session_state.health_requested = True
-            st.rerun()
-    else:
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Reports in catalog", health.total)
-        c2.metric("Certified", health.certified)
-        c3.metric("Duplicates", len(health.duplicates))
-        c4.metric("Retirement candidates", len(health.retire))
+    health = steward.health()
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Reports in catalog", health.total)
+    c2.metric("Certified", health.certified)
+    c3.metric("Duplicates", len(health.duplicates))
+    c4.metric("Retirement candidates", len(health.retire))
 
-        st.markdown("#### Candidates for retirement")
-        st.dataframe(
-            [{"report": r.title, "id": r.artifact_id, "why": "; ".join(r.reasons)} for r in health.retire],
-            width="stretch",
-            hide_index=True,
-        )
-        st.markdown("#### Duplicates")
-        st.dataframe(
-            [
-                {
-                    "keep": steward.catalog.artifact(p.keep_id).title,
-                    "duplicate": steward.catalog.artifact(p.duplicate_id).title,
-                    "similarity": f"{p.similarity:.0%}",
-                }
-                for p in health.duplicates
-            ],
-            width="stretch",
-            hide_index=True,
-        )
+    st.markdown("#### Candidates for retirement")
+    st.dataframe(
+        [{"report": r.title, "id": r.artifact_id, "why": "; ".join(r.reasons)} for r in health.retire],
+        width="stretch",
+        hide_index=True,
+    )
+    st.markdown("#### Duplicates")
+    st.dataframe(
+        [
+            {
+                "keep": steward.catalog.artifact(p.keep_id).title,
+                "duplicate": steward.catalog.artifact(p.duplicate_id).title,
+                "similarity": f"{p.similarity:.0%}",
+            }
+            for p in health.duplicates
+        ],
+        width="stretch",
+        hide_index=True,
+    )
 
 
 with tab_orphan:
