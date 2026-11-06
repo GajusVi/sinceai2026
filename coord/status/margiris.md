@@ -1,6 +1,6 @@
 # margiris
-updated: 2026-11-07 00:49
-now: fixing steward.health() 45 s (health.py) and the T2 stopword over-blocking Gajus reported (9/10 templates CLARIFY); then L5 NOT_FEASIBLE
-done: T1 BackendClient 0bc7d83; T2 unmapped->CLARIFY 2a21b77; linker guard cc45120; T3 KPI-id coverage + RULE-002 9592381; search sees KPI ids, top-40 72cef93; REQ-0001 golden ff3f563; kpi_index on MetricDefinition fields + hold-out metric test 694242e
-next: stopword/phrase fix, health() under 2 s, L5 NOT_FEASIBLE, 'global' vs EMEA-only asset (Gajus to decide)
+updated: 2026-11-07 00:58
+now: checking trust/ranking for Gajus's Tableau-vs-Power-BI question; then L5 NOT_FEASIBLE
+done: stopword over-blocking fixed 10cb844; health() 45 s -> 0.07 s 418283d; earlier: 0bc7d83 2a21b77 cc45120 9592381 72cef93 694242e
+next: answer Gajus's Tableau question, L5 NOT_FEASIBLE, rebuild retire per BUILD_PLAN 2.2, 'global' scope (Gajus to decide)
 blocked: -
