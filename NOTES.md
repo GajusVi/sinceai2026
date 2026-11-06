@@ -33,6 +33,7 @@ For [user], takes [input], returns [output], so they can [benefit].
 - 2026-11-06 22:30: RETIRE rule changed from '< 1,000 views' to relative, age-aware rule (BUILD_PLAN 2.2): >= 3 months old, bottom-20% monthly users since creation, no subscriptions/dependants, plus duplicate or no owner; human-approved, 30-day reversible archive.
 - 2026-11-06 22:50: Trap 18 logged: asset name suffixes contradict market_scope (67 of 88). Scope comes from fields only; mismatch = data-quality flag.
 - 2026-11-06 23:15: Ownership = role + person. Inactive/missing owner → REASSIGN_OWNER: same role+scope successor (23 assets), same role other scope (21), role vacant → BI Platform Owner (21, + 21 null owners). Successor must accept; journaled. Trust: active 0.20, role still staffed 0.10, vacant 0.
+- 2026-11-06 23:40: Tonight's shift revised (BUILD_PLAN 'TONIGHT'): Martynas + Donatas to 01:00 on C1/C4/D2/D3 and A1 shell/A7; Gajus + Margiris to 03:00 on D1 loader, C2/C3, L1-L3, D4. Martynas hands steward/catalog.py to Gajus for tonight only.
 - 2026-11-06: Next P0 = data-pack loader replacing catalog/ sample; KPI-id matching; unrecognised terms count against coverage (fixes false REUSE on REQ-0001).
 - 2026-11-05: scaffold = FastAPI + Streamlit + SQLite audit log; LLM via OpenAI-compatible client (provider by env).
 

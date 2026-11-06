@@ -19,6 +19,21 @@ ORPHAN RESCUE: pick an asset ─▶ reverse-engineer into Intent ─▶ same eng
 ```
 Scoring weights we build against: 30% fit · 25% governance · 20% tech/AI · 15% usability (business AND IT) · 10% scale/demo.
 
+## TONIGHT (Fri 23:45 → Sat 03:00): revised shift
+Martynas + Donatas leave ~01:00, so they take short, self-contained tasks that unblock others.
+Gajus + Margiris stay to ~03:00 and take the long chain (loader → matching → no-silent-drops).
+
+| Time | Gajus | Margiris | Martynas (→ 01:00) | Donatas (→ 01:00) |
+|---|---|---|---|---|
+| 23:45-00:05 | **S1, all four, 20 min**: accept/override section 2, nothing else | S1 | S1 | S1 |
+| 00:05-01:00 | C2 `steward/intent.py` stub; start **D1 loader** (Martynas hands over catalog.py for tonight, logged in NOTES) | C3 Decision.evidence stub; **L1** LLM client via backend/llm.py | **C1** Artifact fields + **C4** DashboardSpec stub; **D2** synonyms for the 18 canonical metrics; **D3** products/markets/regions | **A1 shell**: chat input + decision screen rendering a hard-coded fake Decision with evidence cards (C3 shape); **A7** Reset-demo button |
+| 00:55 | handover: M + D push, write 3 lines in NOTES ("done / half-done / next") | | push + NOTES | push + NOTES |
+| 01:00-03:00 | finish **D1** (360 assets load, counts test); **D4** goldens on data pack (with Margiris) | **L2** KPI-id matching; **L3** unmapped terms → CLARIFY (REQ-0001 test) | off | off |
+| 03:00 | checkpoint: app runs on data pack, REQ-0001 → CLARIFY. Sleep. | | | |
+
+Saturday 08:00 restart: Martynas → D5 hold-out labelling (with Margiris), D6 preview; Donatas → wire A1/A2 to the real engine, A3 disambiguation card;
+Gajus → S2 at 08:30, Q&A 09:00 with Donatas; Margiris → L4, L5.
+
 ## 1. Team sessions (everyone, timeboxed; output written to NOTES.md)
 | ID | When | Session | Output |
 |---|---|---|---|
