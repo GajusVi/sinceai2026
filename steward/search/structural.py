@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..catalog import Catalog
-from ..linking import artifact_metric_ids
+from ..linking import artifact_covered_metrics
 from ..models import ParsedQuestion
 
 
@@ -11,7 +11,7 @@ def rank_by_structure(question: ParsedQuestion, catalog: Catalog) -> list[str]:
     wanted_dimensions = set(question.dimensions) | set(question.filters)
     scores = {}
     for artifact in catalog.active_artifacts():
-        metrics = artifact_metric_ids(artifact.metrics, catalog)
+        metrics = artifact_covered_metrics(artifact, catalog)
         dimensions = set(artifact.dimensions) | set(artifact.filters)
         score = 2 * len(metrics & set(question.metrics)) + len(dimensions & wanted_dimensions)
         if score:

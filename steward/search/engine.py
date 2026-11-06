@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..catalog import Catalog
-from ..linking import artifact_metric_ids
+from ..linking import artifact_covered_metrics
 from ..models import Artifact, ParsedQuestion
 from .lexical import BM25Index
 from .rrf import reciprocal_rank_fusion
@@ -25,7 +25,7 @@ class CatalogSearch:
         self.lexical = BM25Index(documents)
         self.semantic = SemanticIndex(documents, embedder or HashingEmbedder())
 
-    def search(self, question: ParsedQuestion, limit: int = 8) -> list[SearchHit]:
+    def search(self, question: ParsedQuestion, limit: int = 40) -> list[SearchHit]:
         query = self._query(question)
         rankings = {
             "lexical": self.lexical.rank(query),
@@ -42,7 +42,7 @@ class CatalogSearch:
     def _document(self, artifact: Artifact) -> str:
         """Catalog entries are in English and questions are often in Russian, so both sides
         are expanded with dictionary names of the linked metrics and dimensions."""
-        metric_names = [self.catalog.metric(m).name for m in artifact_metric_ids(artifact.metrics, self.catalog)]
+        metric_names = [self.catalog.metric(m).name for m in artifact_covered_metrics(artifact, self.catalog)]
         dimension_names = [self.catalog.dimension(d).name for d in artifact.dimensions if d in self.catalog.dimensions]
         filter_labels = [self.catalog.dimension_value_label(d, v) for d, v in artifact.filters.items()]
         return " ".join(

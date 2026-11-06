@@ -70,9 +70,12 @@ def test_sample_catalog_still_uses_formula_path(steward):
 REQ_0001 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
 
 
-def test_req_0001_on_data_pack_is_never_reuse(pack):
-    """Text alone: all three metrics are in the dictionary and no asset carries all of them -> CREATE, not a false REUSE."""
-    assert pack.ask(REQ_0001).decision.verdict.value == "CREATE"
+def test_req_0001_on_data_pack_extends_a_partial_match(pack):
+    """Text alone: no asset carries all 3 canonical KPIs, so never REUSE. Search must surface assets with 1 of 3 (EXTEND)."""
+    decision = pack.ask(REQ_0001).decision
+    assert decision.verdict.value == "EXTEND"
+    assert any(i.startswith("metric:") for i in decision.best.covered)
+    assert {"AST-0015", "AST-0335"} & {c.artifact.id for c in [decision.best, *decision.alternatives]}
 
 
 def test_req_0001_text_vs_metadata_conflict_is_clarify(pack):
