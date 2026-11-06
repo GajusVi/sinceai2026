@@ -53,8 +53,13 @@ class Steward:
             return load_catalog(DEFAULT_XLSX, self.catalog_dir / "bayer", self.data_dir)
         return Catalog.load(self.catalog_dir, self.data_dir)
 
-    def ask(self, text: str) -> StewardResult:
+    def ask(self, text: str, context: dict[str, str] | None = None) -> StewardResult:
+        """`context` = request metadata ({"product": ..., "market": ...}); text that contradicts it forces CLARIFY."""
         question = self.parser.parse(text)
+        if context:
+            from .requests import context_conflicts
+
+            question.conflicts.extend(context_conflicts(text, context, self.catalog))
         hits = self.search.search(question)
         decision = decide(question, hits, self.catalog, self.as_of)
         explanation = self.explainer.explain(question, decision, self.as_of)

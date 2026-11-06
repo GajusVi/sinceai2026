@@ -1,0 +1,35 @@
+[
+  {
+    "question": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
+    "context": {"product": "Beyonttra", "market": "EMEA"},
+    "verdict": "CLARIFY",
+    "artifact_id": null,
+    "note": "REQ-0001 with its metadata: text says Nubeqa, metadata says Beyonttra/EMEA. Text wins, the conflict is a blocker (trap 1)."
+  },
+  {
+    "question": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
+    "verdict": "CREATE",
+    "artifact_id": null,
+    "note": "Same text, no metadata: all 3 metrics are governed but no asset has all of them. Review at S3 once EXTEND from partial assets is tuned."
+  },
+  {
+    "question": "Inventory Coverage Mgmt",
+    "verdict": "CLARIFY",
+    "artifact_id": null,
+    "official_kpis": ["KPI-016"],
+    "variant_kpis": ["KPI-017", "KPI-018", "KPI-019"],
+    "note": "Demo beat 3: the bad-name KPI exists twice (018, 019) plus a duplicate (017). 'Mgmt' is unmapped, and the card must suggest canonical KPI-016."
+  },
+  {
+    "question": "Show me something interesting",
+    "verdict": "CLARIFY",
+    "artifact_id": null
+  },
+  {
+    "question": "What is the batch yield for Kerendia?",
+    "verdict": "NOT_FEASIBLE",
+    "artifact_id": null,
+    "known_gap": "L5 (Margiris): NOT_FEASIBLE is not in the engine yet, it answers CLARIFY because 'batch' and 'yield' are unmapped.",
+    "note": "Metric is not in the KPI catalog at all: say so and offer the nearest governed metric (BUILD_PLAN 2.1)."
+  }
+]
