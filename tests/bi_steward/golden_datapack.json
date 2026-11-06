@@ -8,9 +8,9 @@
   },
   {
     "question": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
-    "verdict": "CREATE",
-    "artifact_id": null,
-    "note": "Same text, no metadata: all 3 metrics are governed but no asset has all of them. Review at S3 once EXTEND from partial assets is tuned."
+    "verdict": "EXTEND",
+    "artifact_id": "AST-0143",
+    "note": "Same text, no metadata: all 3 metrics are governed, no asset has all of them. Search now surfaces partial matches (AST-0143 forecast variance; AST-0015, AST-0335 are alternatives) so EXTEND. Open: AST-0143 is EMEA-only but the request says global."
   },
   {
     "question": "Inventory Coverage Mgmt",
