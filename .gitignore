@@ -5,6 +5,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 data/*.db
+# BI Steward local state (approved changes + journal); delete to reset the demo
+data/steward/
 models/
 wheelhouse/
 .DS_Store

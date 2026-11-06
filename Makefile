@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo api eval warm test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo ui-old ask api eval warm test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -7,11 +7,17 @@ setup:      ## install/repair everything (idempotent)
 extras:     ## track extras: forecasting, privacy, routing, graphs (uses ./wheelhouse if offline)
 	uv pip install --python $(PY) --find-links wheelhouse -r requirements-extras.in
 
-ui:         ## Streamlit decision screen, live LLM
-	$(PY) -m streamlit run frontend/app.py
+ui:         ## BI Steward screen (LLM if a key is in .env, else rules + templates)
+	$(PY) -m streamlit run frontend/steward_app.py
 
-demo:       ## same UI, replays demo/cache only (stage mode)
-	DEMO_MODE=1 $(PY) -m streamlit run frontend/app.py
+demo:       ## BI Steward screen with the LLM forced off (stage-safe, no network)
+	STEWARD_USE_LLM=off $(PY) -m streamlit run frontend/steward_app.py
+
+ask:        ## one question from the terminal: make ask Q="Net sales by market"
+	$(PY) -m steward "$(Q)"
+
+ui-old:     ## pre-event scaffold screen (backend/), kept until removed
+	$(PY) -m streamlit run frontend/app.py
 
 api:        ## FastAPI on :8000 (docs at /docs)
 	$(PY) -m uvicorn backend.main:app --reload --port 8000

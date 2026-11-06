@@ -1,6 +1,10 @@
-# SinceAI 2026 workspace
+# SinceAI 2026 workspace: BI Steward (Bayer challenge)
 
-Decision-layer scaffold: company data in, a scored queue with evidence out, approve/reject, audit trail.
+For any business question, BI Steward first looks for what already exists, checks whether it can be trusted,
+and only then allows something new: REUSE, EXTEND, CREATE or CLARIFY, approved by a human and journaled.
+Challenge notes: docs/challenge/. Design: docs/steward/architecture.md.
+
+After `git pull`: nothing to install. `make test`, then `make ui` (Windows: `.\run.ps1 test`, `.\run.ps1 ui`).
 
 ## First run (once, on good Wi-Fi)
 ```bash
@@ -22,8 +26,10 @@ notepad .env        # paste your own GEMINI_API_KEY, save
 ## Daily commands
 | Command | What |
 | --- | --- |
-| `make ui` | decision screen, live LLM |
-| `make demo` | same screen, replays cached outputs, no network |
+| `make ui` | BI Steward screen (LLM if key, else rules) |
+| `make demo` | same screen, LLM off, no network |
+| `make ask Q="..."` | one question in the terminal |
+| `make ui-old` | pre-event scaffold screen |
 | `make eval` | hold-out accuracy, F1, misses |
 | `make warm` | record live outputs into demo/cache (Saturday) |
 | `make api` | FastAPI on :8000, docs at /docs |

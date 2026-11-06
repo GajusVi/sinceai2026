@@ -8,6 +8,9 @@ backend/ingest.py       martynas
 backend/models.py       martynas
 data/                   martynas
 frontend/               donatas
+steward/models.py       martynas
+steward/catalog.py      martynas
+catalog/                martynas
 demo/                   donatas
 submission/             donatas
 README.md               gajus

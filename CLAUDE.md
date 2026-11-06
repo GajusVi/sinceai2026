@@ -12,7 +12,25 @@ Shortlist and planned builds per challenge: docs/sinceai/TOP4.md. Real briefs an
 - Simplest working approach wins. Say so when a request does not fit the clock.
 - Prior work (tag `pre-event`) and event work stay in separate commits.
 
-## Architecture (decision layer)
+## Challenge: Bayer "Build Less, Build Better: AI for Governed Analytics" (locked Fri 6 Nov)
+Read first: docs/challenge/00_INDEX.md (brief, Panu's framework, data-pack traps, plan, repo review).
+Data pack (synthetic, 360 BI assets): data/bayer/Bayer_Pharmaceuticals_SinceAI_2026_FINAL_Builder_Data_Pack.xlsx.
+Scope: Bayer Pharma only. No Crop Science, no Consumer Health, no clinical/pharmacovigilance use cases.
+
+## Active app: BI Steward (steward/, from Donatas's bi-steward repo)
+```
+question ─query_parser─▶ ParsedQuestion ─search (BM25+trigram+structure, RRF)─▶ hits ─decision/engine─▶ Decision
+   REUSE | EXTEND | CREATE | CLARIFY  (+ metric-conflict warnings)  ─explain (template or LLM)─▶ text
+human approve/reject ─governance.py─▶ data/steward/catalog_changes.json + journal.jsonl     health.py: duplicates, stale, no owner
+```
+- UI: frontend/steward_app.py (`make ui`, `make demo` = LLM off). CLI: `make ask Q="..."`. Tests: tests/bi_steward/.
+- The verdict is rule-based code; the LLM only parses the question and rewrites the explanation. Thresholds: steward/config.py.
+- tests/bi_steward/golden_questions.json is the verdict contract. Change a verdict on purpose -> update it in the same commit.
+- Known gaps (see docs/challenge/06_REPO_REVIEW.md): catalog/ is still the invented sample (to be replaced by the data-pack loader),
+  matching is by formula string (must become KPI id + definition_status), unrecognised terms are silently dropped (false REUSE).
+- Design docs: docs/steward/architecture.md, work-plan.md (ignore its stage 2: the data pack replaces the invented catalog).
+
+## Pre-event scaffold (backend/, frontend/app.py): legacy, kept until removed. `make ui-old`.
 ```
 company files ──ingest.py──▶ Item ──pipeline.score──▶ Decision (label, priority, confidence, reason, evidence, action)
                                          │                  │
@@ -41,7 +59,7 @@ FastAPI (backend/main.py): /health /score /ingest /review /audit /audit.csv
 - Windows teammates: `.\run.ps1 <task>` instead of make; Python is `.venv\Scripts\python.exe`.
 
 ## Commands
-`make ui` · `make demo` (DEMO_MODE) · `make api` · `make eval` · `make warm` (record cache) · `make ping` · `make test` · `make lint` · `make hack`
+`make ui` · `make demo` (LLM off) · `make ask Q="..."` · `make ui-old` · `make api` · `make eval` · `make warm` (record cache) · `make ping` · `make test` · `make lint` · `make hack`
 
 ## Machine constraints
 - Intel MacBook (x86_64). No CUDA/MPS. torch is capped at 2.2.2 on Intel Macs and conflicts with numpy 2: don't add torch/sentence-transformers. Use fastembed or API embeddings.
