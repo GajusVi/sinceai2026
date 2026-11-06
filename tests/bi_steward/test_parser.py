@@ -68,5 +68,5 @@ def test_ambiguous_phrase_is_not_linked_to_a_metric(steward):
     parsed = RuleBasedParser(steward.catalog).parse("What were first sales in Germany?")
 
     assert parsed.metrics == []
-    assert {"first", "sales"} <= set(parsed.unmapped_terms)
+    assert "first sales" in parsed.unmapped_terms
     assert decision.verdict.value == "CLARIFY"

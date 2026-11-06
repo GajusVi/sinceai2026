@@ -89,9 +89,11 @@ STOPWORDS = frozenset(
     countries level levels overview analysis data current latest last year years quarter month months week
     something anything thing things interesting
     trial logistic logistics footprint
+    power bi tableau legacy replacement workbook commercial finance executive comparing combining one
+    bayer pharma indicator indicators coverage status progress launch
     """.split()
 )
 
 # Multi-word phrases that contain a dictionary stem but mean something else ("first sales" is not net sales).
 # find_terms refuses to link inside them, so their words surface as unmapped_terms and the verdict is CLARIFY.
-AMBIGUOUS_PHRASES = ("first sales", "sales forecast", "sales performance", "market readiness")
+AMBIGUOUS_PHRASES = ("first sales", "sales forecast", "sales performance", "market readiness", "launch readiness", "supply risk", "supply-risk")

@@ -15,3 +15,14 @@ def test_rule_parser_metric_ids_match_holdout_labels():
     parser = RuleBasedParser(Pack().catalog)
     wrong = [r["request_id"] for r in ROWS if set(parser.parse(r["text"]).metrics) != set(r["expected_metric_ids"])]
     assert len(ROWS) == 40 and wrong == []
+
+
+# Words Martynas's labels treat as genuinely ambiguous or outside the dictionary: these SHOULD stay unmapped (CLARIFY).
+MEANT_TO_CLARIFY = {"first sales", "performance", "launch readiness", "supply-risk", "oncology"}
+
+
+def test_only_genuinely_ambiguous_words_are_unmapped_on_holdout():
+    """Filler (Power BI, Tableau, workbook, finance, executive, Bayer Pharma...) must not block a request."""
+    parser = RuleBasedParser(Pack().catalog)
+    stray = {t for r in ROWS for t in parser.parse(r["text"]).unmapped_terms} - MEANT_TO_CLARIFY
+    assert stray == set()

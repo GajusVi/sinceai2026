@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Protocol
 
 from .catalog import Catalog
-from .config import STOPWORDS
+from .config import AMBIGUOUS_PHRASES, STOPWORDS
 from .linking import TermMatch, find_terms
 from .llm import LLMClient
 from .models import ParsedQuestion
@@ -121,6 +121,11 @@ def unmapped_terms(text: str, terms: list[TermMatch]) -> list[str]:
     lowered = text.lower()
     covered = [(t.start, t.end) for t in terms]
     out: list[str] = []
+    for phrase in AMBIGUOUS_PHRASES:  # reported as one phrase, e.g. "first sales", not as loose words
+        for match in re.finditer(rf"(?<!\w){re.escape(phrase)}", lowered):
+            covered.append(match.span())
+            if text[match.start() : match.end()] not in out:
+                out.append(text[match.start() : match.end()])
     for word in _WORD.finditer(lowered):
         token = word.group(0)
         if any(start < word.end() and word.start() < end for start, end in covered):
