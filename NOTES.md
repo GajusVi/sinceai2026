@@ -46,3 +46,4 @@ For [user], takes [input], returns [output], so they can [benefit].
 -
 ## Webhook test
 - Fri 6 Nov: GitHub → Discord #github-feed test commit
+- 2026-11-07 00:50 Donatas handover. Done: T1 chat Ask tab (st.chat_input + history), expert-mode toggle (no behaviour), evidence cards (FAKE_EVIDENCE labelled "Sample evidence" until decision.evidence exists), CONSOLIDATE/NOT_FEASIBLE titles, claimed-vs-observed placeholder row; T2 Reset demo; T3 tests/bi_steward/test_app.py (AppTest chat + reset twice). Half-done: claimed-vs-observed shows "not wired yet"; approve/reject only for REUSE/EXTEND/CREATE. Next: wire to the real engine + A3 KPI card (Sat after Q&A). Note: `make lint` auto-fixes files of other owners (docs/vendor, steward/decision/minhash.py); run ruff on your own files only.

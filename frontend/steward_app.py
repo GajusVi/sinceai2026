@@ -8,7 +8,9 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from steward import Steward  # noqa: E402
+from steward.catalog import CHANGES_FILE  # noqa: E402
 from steward.explain import TemplateExplainer  # noqa: E402
+from steward.governance import JOURNAL_FILE  # noqa: E402
 from steward.models import GapKind, StewardResult, Verdict  # noqa: E402
 
 EXAMPLES = [
@@ -25,7 +27,21 @@ VERDICT_TITLES = {
     Verdict.EXTEND: "Extend an existing report",
     Verdict.CREATE: "Create a new report",
     Verdict.CLARIFY: "Clarify the question",
+    "CONSOLIDATE": "Consolidate duplicates",
+    "NOT_FEASIBLE": "Not possible with governed data",
 }
+
+SEVERITY_ICONS = {"info": "🔵", "warning": "🟠", "blocker": "🔴"}
+
+# C3 evidence shape. Shown only while decision.evidence is empty, and always labelled as a sample.
+FAKE_EVIDENCE = [
+    {"claim": "Report is tagged Active but has had no viewers for 90 days", "rule_id": "RULE-003",
+     "record_ids": ["RPT-0142"], "value": "0 views / 90 d", "severity": "warning"},
+    {"claim": "Same KPI is defined in two reports with different formulas", "rule_id": "RULE-007",
+     "record_ids": ["RPT-0142", "RPT-0288"], "value": "2 definitions", "severity": "blocker"},
+    {"claim": "Owner is active and the role is staffed", "rule_id": "RULE-011",
+     "record_ids": ["USR-0031"], "value": "trust +0.20", "severity": "info"},
+]
 
 APPROVE_LABELS = {
     Verdict.REUSE: "Open this report",
@@ -49,18 +65,58 @@ with st.sidebar:
     st.caption(f"Reference date for freshness checks: {steward.as_of}")
     st.caption("Language model: " + ({"claude": f"Claude ({steward.llm.model})", "gemini": f"Gemini ({steward.llm.model})"}[steward.llm.provider] if steward.llm else "off, using rules and templates"))
     actor = st.text_input("Your name", value="demo-user")
+    st.toggle("Expert mode: skip the interview", key="expert_mode")
     st.divider()
     st.caption("Example questions")
     for example in EXAMPLES:
         if st.button(example, width="stretch"):
-            st.session_state.question = example
-            st.session_state.result = steward.ask(example)
+            st.session_state.pending_question = example
+    st.divider()
+    if st.button("Reset demo", width="stretch"):
+        for name in (CHANGES_FILE, JOURNAL_FILE):
+            (steward.data_dir / name).unlink(missing_ok=True)
+        st.cache_resource.clear()
+        st.session_state.clear()
+        st.rerun()
+
+
+def verdict_title(verdict) -> str:
+    return VERDICT_TITLES.get(verdict, getattr(verdict, "value", str(verdict)))
+
+
+def ask(text: str) -> None:
+    """Run one question; keep chat history (question, one-line verdict) and the latest full result."""
+    result = steward.ask(text)
+    best = result.decision.best
+    summary = verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else "")
+    st.session_state.setdefault("messages", []).extend(
+        [{"role": "user", "content": text}, {"role": "assistant", "content": summary}]
+    )
+    st.session_state.result = result
+
+
+def render_evidence(decision) -> None:
+    items = list(getattr(decision, "evidence", []) or [])
+    sample = not items
+    if sample:
+        items = FAKE_EVIDENCE
+    st.markdown("#### Evidence")
+    for item in items:
+        e = item if isinstance(item, dict) else item.model_dump()
+        sev = str(getattr(e["severity"], "value", e["severity"])).lower()
+        with st.container(border=True):
+            st.markdown(f"{SEVERITY_ICONS.get(sev, '⚪')} **{e['claim']}**")
+            st.caption(f"`{e['rule_id']}` · {sev} · records: {', '.join(map(str, e['record_ids'])) or 'none'} · value: {e['value']}")
+    if sample:
+        st.caption("Sample evidence: not from the engine yet.")
 
 
 def render_result(result: StewardResult) -> None:
     decision = result.decision
-    st.subheader(VERDICT_TITLES[decision.verdict])
+    st.subheader(verdict_title(decision.verdict))
     st.markdown(result.explanation)
+
+    render_evidence(decision)
 
     with st.expander("How the question was understood"):
         q = result.question
@@ -85,6 +141,11 @@ def render_result(result: StewardResult) -> None:
             f"Owner: {best.artifact.owner or 'none'} · "
             f"{'certified' if best.artifact.certified else 'not certified'} · "
             f"refreshed {best.artifact.last_refreshed}"
+        )
+        st.dataframe(
+            [{"lifecycle label (claimed)": best.artifact.status.value, "usage (observed)": "not wired yet", "match": "-"}],
+            width="stretch",
+            hide_index=True,
         )
         missing = [labels.gap_label(g) for g in best.gaps]
         if missing:
@@ -111,7 +172,7 @@ def render_result(result: StewardResult) -> None:
         for reason in decision.reasons:
             st.write("- " + reason)
 
-    if decision.verdict == Verdict.CLARIFY:
+    if decision.verdict not in APPROVE_LABELS:
         return
 
     st.divider()
@@ -146,9 +207,13 @@ def render_result(result: StewardResult) -> None:
 tab_ask, tab_health, tab_journal, tab_catalog = st.tabs(["Ask", "Catalog health", "Journal", "Catalog"])
 
 with tab_ask:
-    question = st.text_input("Business question", key="question", placeholder=EXAMPLES[0])
-    if st.button("Ask", type="primary") and question.strip():
-        st.session_state.result = steward.ask(question)
+    typed = st.chat_input("Ask a business question, e.g. " + EXAMPLES[0])
+    question = typed or st.session_state.pop("pending_question", None)
+    if question and question.strip():
+        ask(question.strip())
+    for message in st.session_state.get("messages", []):
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
     if st.session_state.get("result"):
         render_result(st.session_state.result)
 
