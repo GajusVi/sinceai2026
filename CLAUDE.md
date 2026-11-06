@@ -77,6 +77,13 @@ Windows: `.venv\Scripts\python.exe tools\coord.py ...`. Humans: `make board`.
    - `need` to someone you are waiting on (still need X by HH:MM, because Y); `question` when a decision is theirs;
    - answer a message with `--re <id>`. Show your person every MESSAGE FOR YOU and what you plan to do about it.
    Never paste secrets, .env values or long logs; put long detail in the message body or a commit.
+7. Check the board yourself (`tools/coord.py brief --full`) before every push and when you finish a task:
+   the hooks only fire when your person sends a prompt, not while you work or sit idle.
+8. ESCALATE hard calls instead of deciding them: changes to a shared contract (steward/models.py, intent.py, spec.py),
+   verdict rules or thresholds, a conflict between two owners, cutting or adding a feature, anything the build plan doesn't cover.
+   `tools/coord.py say gajus "ESCALATE: <decision>. Options: A ..., B .... I recommend A because ..." --kind question`,
+   tell your person, and work on something else until the answer arrives. Gajus decides (with his architect chat) and
+   records it in NOTES.md; the answer comes back with `--re <id>`.
 
 ## Commands
 `make ui` · `make demo` (LLM off) · `make ask Q="..."` · `make ui-old` · `make api` · `make eval` · `make warm` (record cache) · `make ping` · `make test` · `make lint` · `make hack`
