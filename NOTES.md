@@ -24,7 +24,7 @@ Excluded (IP goes to company): Takomo Golf, DNA
 For [user], takes [input], returns [output], so they can [benefit].
 
 ## Requests (change needed in someone else's file: who asks, owner, what)
--
+- Martynas -> Margiris (steward/linking.py): "first sales" must CLARIFY, but the stem "sales" (net_sales synonym) matches inside it. Add a phrase blocklist/longest-match guard for ambiguous phrases (first sales, forecast, coverage, performance, readiness).
 
 ## Decisions
 - 2026-11-06 21:45: BI Steward (Donatas's bi-steward repo) merged in as the app: steward/, prompts/, catalog/, frontend/steward_app.py, tests/bi_steward/. `make ui`/`make demo` now open it; old scaffold = `make ui-old`. No new installs needed (all deps already in requirements.lock.txt). Rest of steward/ ownership to assign Sat 09:00.

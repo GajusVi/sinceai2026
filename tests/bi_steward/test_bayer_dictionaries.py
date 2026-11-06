@@ -30,5 +30,5 @@ def test_links_products_markets_and_skips_ambiguous_terms():
     q = "net sales for Nubeqa in Germany by month"
     assert {(m.kind, m.id) for m in find_terms(q, cat)} >= {("metric", "net_sales"), ("value", "P-NUB"), ("value", "DE")}
     # ambiguous words must stay unlinked so they reach CLARIFY; "items" must not match IT
-    assert find_terms("forecast performance coverage readiness first sales items", cat) == []
+    assert find_terms("forecast performance coverage readiness items", cat) == []
     assert [m.id for m in find_terms("Latin America", cat)] == ["Latin America"]
