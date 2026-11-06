@@ -23,19 +23,11 @@ class Catalog:
 
     @classmethod
     def load(cls, catalog_dir: Path, data_dir: Path | None = None) -> Catalog:
-        artifacts = [Artifact.model_validate(a) for a in _read_json(catalog_dir / "artifacts.json")]
-        metrics = [MetricDefinition.model_validate(m) for m in _read_json(catalog_dir / "metrics.json")]
-        dimensions = [DimensionDefinition.model_validate(d) for d in _read_json(catalog_dir / "dimensions.json")]
+        artifacts = [Artifact.model_validate(a) for a in read_json(catalog_dir / "artifacts.json")]
+        metrics = [MetricDefinition.model_validate(m) for m in read_json(catalog_dir / "metrics.json")]
+        dimensions = [DimensionDefinition.model_validate(d) for d in read_json(catalog_dir / "dimensions.json")]
 
-        changes_path = data_dir / CHANGES_FILE if data_dir else None
-        if changes_path and changes_path.exists():
-            changes = _read_json(changes_path)
-            artifacts.extend(Artifact.model_validate(a) for a in changes.get("added", []))
-            superseded = set(changes.get("superseded", []))
-            artifacts = [
-                a.model_copy(update={"status": ArtifactStatus.SUPERSEDED}) if a.id in superseded else a
-                for a in artifacts
-            ]
+        artifacts = apply_changes(artifacts, data_dir)
         return cls(artifacts, metrics, dimensions)
 
     def active_artifacts(self) -> list[Artifact]:
@@ -59,6 +51,19 @@ class Catalog:
         return value_id
 
 
-def _read_json(path: Path):
+def apply_changes(artifacts: list[Artifact], data_dir: Path | None) -> list[Artifact]:
+    """Adds approved artifacts and marks superseded ones from `data_dir/catalog_changes.json`."""
+    changes_path = data_dir / CHANGES_FILE if data_dir else None
+    if not (changes_path and changes_path.exists()):
+        return artifacts
+    changes = read_json(changes_path)
+    artifacts = artifacts + [Artifact.model_validate(a) for a in changes.get("added", [])]
+    superseded = set(changes.get("superseded", []))
+    return [
+        a.model_copy(update={"status": ArtifactStatus.SUPERSEDED}) if a.id in superseded else a for a in artifacts
+    ]
+
+
+def read_json(path: Path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
