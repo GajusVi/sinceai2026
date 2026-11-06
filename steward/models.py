@@ -39,6 +39,25 @@ class ArtifactStatus(str, Enum):
     SUPERSEDED = "superseded"
 
 
+class UsageMonth(BaseModel):
+    month: date
+    views: int = 0
+    unique_users: int = 0
+    exports: int = 0
+    subscriptions: int = 0
+    query_errors: int = 0
+
+
+class Evidence(BaseModel):
+    """One cited reason behind a decision (RULE-008)."""
+
+    claim: str  # "Owner OWN-018 is inactive"
+    rule_id: str | None = None  # "RULE-003"
+    record_ids: list[str] = Field(default_factory=list)  # ["AST-0091", "OWN-018"]
+    value: str | None = None  # "309 users/month"
+    severity: str = "info"  # info | warning | blocker
+
+
 class Artifact(BaseModel):
     id: str
     title: str
@@ -58,6 +77,28 @@ class Artifact(BaseModel):
     previous_id: str | None = None
     status: ArtifactStatus = ArtifactStatus.ACTIVE
     source_tables: list[str] = Field(default_factory=list)
+    # Data-pack fields (all defaulted so the sample catalog keeps loading)
+    platform: str = ""
+    workspace_id: str = ""
+    model_id: str = ""
+    product_scope: str = ""  # product name or "All Pharma"
+    market_scope: str = ""  # market_id or "Global"
+    kpi_ids: list[str] = Field(default_factory=list)
+    endorsement: str = "none"  # certified | promoted | none
+    lifecycle_claimed: str = ""  # data-pack label, NOT trusted
+    created_date: date | None = None
+    owner_id: str = ""
+    owner_role: str = ""
+    owner_scope: str = ""
+    owner_status: str = ""  # active | inactive | "" = missing
+    successor_candidates: list[str] = Field(default_factory=list)
+    usage: list[UsageMonth] = Field(default_factory=list)
+    refresh_status: str = ""  # semantic model: healthy | warning | failed
+    model_endorsement: str = ""
+    signals: list[str] = Field(default_factory=list)  # "CODE:severity:status"
+    data_quality: list[str] = Field(default_factory=list)  # DQ ids
+    upstream_ids: list[str] = Field(default_factory=list)
+    downstream_ids: list[str] = Field(default_factory=list)
 
     @property
     def has_owner(self) -> bool:
@@ -71,6 +112,8 @@ class ParsedQuestion(BaseModel):
     filters: dict[str, str] = Field(default_factory=dict)
     period: str | None = None
     parser: str = "rules"
+    unmapped_terms: list[str] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
 
 
 class Verdict(str, Enum):
@@ -78,6 +121,8 @@ class Verdict(str, Enum):
     EXTEND = "EXTEND"
     CREATE = "CREATE"
     CLARIFY = "CLARIFY"
+    CONSOLIDATE = "CONSOLIDATE"
+    NOT_FEASIBLE = "NOT_FEASIBLE"
 
 
 class GapKind(str, Enum):
@@ -121,6 +166,9 @@ class Decision(BaseModel):
     alternatives: list[Candidate] = Field(default_factory=list)
     conflicts: list[MetricConflict] = Field(default_factory=list)
     reasons: list[str] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list)
+    # REASSIGN_OWNER, RETIRE, MIGRATE, FIX_REFRESH, CONSOLIDATE
+    flags: list[str] = Field(default_factory=list)
 
 
 class StewardResult(BaseModel):
