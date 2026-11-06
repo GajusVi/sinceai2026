@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -173,6 +174,39 @@ def write_and_sync(path: Path, message: str) -> None:
     print(f"pushed {rel}")
 
 
+def cmd_mirror(before: str, after: str) -> None:
+    """GitHub workflow: post every new message / ask / answer between two commits, then refresh the live board."""
+    if not env_value("COORD_DISCORD_WEBHOOK"):
+        print("coord mirror: repo secret COORD_DISCORD_WEBHOOK is not set yet, nothing posted")
+        return
+    if not before or set(before) == {"0"}:
+        before = f"{after}~1"
+    feed = []
+    for line in git("diff", "--name-status", before, after, "--", "coord/").splitlines():
+        parts = line.split("\t")
+        state, path = parts[0], parts[-1]
+        if not path.endswith(".md") or "README" in path:
+            continue
+        text = git("show", f"{after}:{path}")
+        if path.startswith("coord/chat/") and state.startswith("A"):
+            head, _, body = text.partition("\n---\n")
+            m = parse(head)
+            re_ = f" (re {m['re']})" if m.get("re") else ""
+            feed.append(f"**{m.get('from')} -> {m.get('to')}**  [{m.get('kind', 'fyi').upper()}]{re_}  {body.strip()}")
+        elif path.startswith("coord/asks/"):
+            q = parse(text)
+            if state.startswith("A"):
+                files = f"\nfiles: {q['files']}" if q.get("files") else ""
+                feed.append(f"**{q.get('from')} asks {q.get('to')}**  `{q.get('id')}`\n{q.get('ask', '')}{files}")
+            elif q.get("status") in ("ok", "no", "done"):
+                who = q.get("replied", "").split(" ")[0] or q.get("to")
+                feed.append(f"**{who}** answered `{q.get('id')}`: **{q['status'].upper()}** {q.get('reply', '')}")
+    for item in feed:
+        discord_call("POST", env_value("COORD_DISCORD_WEBHOOK"), item)
+    discord(force=True)
+    print(f"coord mirror: {len(feed)} feed line(s), board refreshed")
+
+
 def cmd_status(a: argparse.Namespace) -> None:
     who = me()
     path = ROOT / "coord" / "status" / f"{who}.md"
@@ -202,7 +236,12 @@ def cmd_ask(a: argparse.Namespace) -> None:
 DISCORD_STATE = ROOT / "coord" / "discord.json"  # shared id of the live board message
 
 
+WORKFLOW = ROOT / ".github" / "workflows" / "coord-discord.yml"
+
+
 def env_value(key: str) -> str:
+    if os.environ.get(key):
+        return os.environ[key].strip()
     env = ROOT / ".env"
     if env.exists():
         for line in env.read_text(encoding="utf-8").splitlines():
@@ -262,9 +301,7 @@ def cmd_set_webhook() -> None:
     lines = env.read_text(encoding="utf-8").splitlines() if env.exists() else []
     lines = [ln for ln in lines if not ln.startswith("COORD_DISCORD_WEBHOOK=")] + [f"COORD_DISCORD_WEBHOOK={url}"]
     env.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(
-        "COORD_DISCORD_WEBHOOK set in .env (old line replaced). Next: make board-discord (first person only)."
-    )
+    print("COORD_DISCORD_WEBHOOK set in .env (old line replaced). Next: make board-discord (first person only).")
 
 
 def discord_board() -> str:
@@ -296,8 +333,12 @@ def discord_board() -> str:
     return "\n".join(lines)[:1990]
 
 
-def discord(feed: str | None = None) -> None:
-    """Post one feed line (if any) and refresh the pinned live board. Needs COORD_DISCORD_WEBHOOK in .env."""
+def discord(feed: str | None = None, force: bool = False) -> None:
+    """Post one feed line (if any) and refresh the pinned live board.
+    When the GitHub workflow exists, GitHub mirrors every push for everyone, so laptops stay quiet (no duplicates);
+    `force` (make board-discord) still works locally, e.g. to create the board the first time."""
+    if WORKFLOW.exists() and not force and not os.environ.get("GITHUB_ACTIONS"):
+        return
     url = env_value("COORD_DISCORD_WEBHOOK")
     if not url:
         return
@@ -306,6 +347,9 @@ def discord(feed: str | None = None) -> None:
     state = json.loads(read_remote("coord/discord.json") or "{}")
     board_id = state.get("board_message_id")
     if board_id and discord_call("PATCH", f"{url}/messages/{board_id}", discord_board()) is not None:
+        return
+    if os.environ.get("GITHUB_ACTIONS"):
+        print("coord: no live board message yet; run `make board-discord` once on a laptop and pin it")
         return
     created = discord_call("POST", f"{url}?wait=true", discord_board())
     if created and created.get("id"):
@@ -352,6 +396,9 @@ def main() -> None:
     sub.add_parser("board")
     sub.add_parser("discord")
     sub.add_parser("set-webhook")
+    mi = sub.add_parser("mirror")
+    mi.add_argument("before")
+    mi.add_argument("after")
     s = sub.add_parser("status")
     for k in ("now", "done", "next", "blocked"):
         s.add_argument(f"--{k}")
@@ -371,13 +418,15 @@ def main() -> None:
     a = p.parse_args()
     if a.cmd == "brief":
         cmd_brief(a.full, a.no_fetch)
+    elif a.cmd == "mirror":
+        cmd_mirror(a.before, a.after)
     elif a.cmd == "set-webhook":
         cmd_set_webhook()
     elif a.cmd == "discord":
         fetch(force=True)
         if not env_value("COORD_DISCORD_WEBHOOK"):
             sys.exit("Set COORD_DISCORD_WEBHOOK=<webhook url> in .env first")
-        discord()
+        discord(force=True)
         print("Discord board refreshed (pin the TEAM BOARD message once)")
     elif a.cmd == "board":
         fetch(force=True)

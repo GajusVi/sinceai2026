@@ -1,0 +1,27 @@
+# Mirrors the team board (coord/) to Discord #llm-board for everyone, whoever pushed.
+# One-time setup: repo Settings > Secrets and variables > Actions > New secret COORD_DISCORD_WEBHOOK = the webhook URL.
+name: coord-discord
+on:
+  push:
+    branches: [main]
+    paths: ["coord/**"]
+permissions:
+  contents: read
+concurrency:
+  group: coord-discord
+  cancel-in-progress: false
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Post new messages, asks, answers; refresh the live board
+        run: python tools/coord.py mirror "${{ github.event.before }}" "${{ github.sha }}"
+        env:
+          COORD_DISCORD_WEBHOOK: ${{ secrets.COORD_DISCORD_WEBHOOK }}
