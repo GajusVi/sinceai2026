@@ -36,6 +36,7 @@ FastAPI (backend/main.py): /health /score /ingest /review /audit /audit.csv
 - `backend/models.py` is the contract between data, model and app: never rename or remove a field without Martynas.
 - Start of every session and before every push: `git pull --rebase`. Commit small, push often. Never force-push, never `git reset --hard`.
 - A commit refused by the pre-commit hook means you touched another owner's file: unstage it, never use --no-verify yourself.
+- `git push` runs the smoke tests first (pre-push hook). If it refuses, fix the failing test; never push with --no-verify yourself.
 - Only Donatas runs `make warm` (rewrites demo/cache); only Margiris commits eval/results.json.
 - Windows teammates: `.\run.ps1 <task>` instead of make; Python is `.venv\Scripts\python.exe`.
 

@@ -1,9 +1,10 @@
 """Smoke tests that run with no API key and no network."""
 
 import os
+import tempfile
 
 os.environ["DEMO_MODE"] = "1"
-os.environ["DB_PATH"] = "/tmp/sinceai_test.db"
+os.environ["DB_PATH"] = os.path.join(tempfile.gettempdir(), "sinceai_test.db")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
