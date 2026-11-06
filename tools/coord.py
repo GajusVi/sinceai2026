@@ -23,6 +23,7 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -191,20 +192,25 @@ def cmd_mirror(before: str, after: str) -> None:
         if path.startswith("coord/chat/") and state.startswith("A"):
             head, _, body = text.partition("\n---\n")
             m = parse(head)
-            re_ = f" (re {m['re']})" if m.get("re") else ""
-            feed.append(f"**{m.get('from')} -> {m.get('to')}**  [{m.get('kind', 'fyi').upper()}]{re_}  {body.strip()}")
+            footer = m.get("id", "") + (f"  ·  re {m['re']}" if m.get("re") else "")
+            feed.append(card(m.get("kind", "fyi"), m.get("from", "?"), m.get("to", "?"), body, footer))
         elif path.startswith("coord/asks/"):
             q = parse(text)
             if state.startswith("A"):
-                files = f"\nfiles: {q['files']}" if q.get("files") else ""
-                feed.append(f"**{q.get('from')} asks {q.get('to')}**  `{q.get('id')}`\n{q.get('ask', '')}{files}")
+                files = f"\n**files:** {q['files']}" if q.get("files") else ""
+                feed.append(
+                    card("ask", q.get("from", "?"), q.get("to", "?"), q.get("ask", "") + files, q.get("id", ""))
+                )
             elif q.get("status") in ("ok", "no", "done"):
-                who = q.get("replied", "").split(" ")[0] or q.get("to")
-                feed.append(f"**{who}** answered `{q.get('id')}`: **{q['status'].upper()}** {q.get('reply', '')}")
+                who = q.get("replied", "").split(" ")[0] or q.get("to", "?")
+                kind = {"ok": "ok", "no": "no"}.get(q["status"], "answered")
+                feed.append(card(kind, who, q.get("from", "?"), q.get("reply", ""), q.get("id", "")))
     for item in feed:
         discord_call("POST", env_value("COORD_DISCORD_WEBHOOK"), item)
     discord(force=True)
-    print(f"coord mirror: {len(feed)} feed line(s), board refreshed")
+    print(f"coord mirror: {len(feed)} post(s), board refreshed")
+    if FAILURES:
+        sys.exit(f"coord mirror: Discord refused {len(FAILURES)} call(s): {', '.join(FAILURES)}")
 
 
 def cmd_status(a: argparse.Namespace) -> None:
@@ -230,7 +236,7 @@ def cmd_ask(a: argparse.Namespace) -> None:
     path = ROOT / "coord" / "asks" / f"{ask_id}.md"
     path.write_text(body, encoding="utf-8")
     write_and_sync(path, f"coord({who}): ask {to}: {a.text[:50]}")
-    discord(f"**{who} asks {to}**  `{ask_id}`\n{a.text}" + (f"\nfiles: {' '.join(a.files)}" if a.files else ""))
+    discord(card("ask", who, to, a.text + (f"\n**files:** {' '.join(a.files)}" if a.files else ""), ask_id))
 
 
 DISCORD_STATE = ROOT / "coord" / "discord.json"  # shared id of the live board message
@@ -253,25 +259,57 @@ def env_value(key: str) -> str:
 WEBHOOK_PREFIXES = ("https://discord.com/api/webhooks/", "https://discordapp.com/api/webhooks/")
 
 
-def discord_call(method: str, url: str, content: str) -> dict | None:
+FAILURES: list[str] = []
+STYLE = {  # Discord embed colour + label per kind, so each post type is recognisable at a glance
+    "breaks": (0xE5484D, "🔴 BREAKS"),
+    "need": (0xF5A524, "🟠 NEED"),
+    "done": (0x30A46C, "🟢 DONE"),
+    "fyi": (0x8B8D98, "⚪ FYI"),
+    "question": (0x8E4EC6, "🟣 QUESTION"),
+    "escalate": (0x8E4EC6, "🟣 ESCALATE"),
+    "ask": (0x3E63DD, "🔵 ASK"),
+    "ok": (0x12A594, "✅ ANSWER: OK"),
+    "no": (0xE5484D, "⛔ ANSWER: NO"),
+    "answered": (0x30A46C, "☑️ ANSWER: DONE"),
+}
+
+
+def card(kind: str, who: str, to: str, body: str, footer: str = "") -> dict:
+    """One feed post as a coloured Discord embed: '🔴 BREAKS · margiris → martynas' + body + id footer."""
+    if kind == "question" and body.lstrip().upper().startswith("ESCALATE"):
+        kind = "escalate"
+    colour, label = STYLE.get(kind, STYLE["fyi"])
+    embed = {"title": f"{label} · {who} → {to}", "description": body.strip()[:3900], "color": colour}
+    if footer:
+        embed["footer"] = {"text": footer[:200]}
+    return {"embeds": [embed]}
+
+
+def discord_call(method: str, url: str, payload: str | dict) -> dict | None:
     if not url.startswith(WEBHOOK_PREFIXES):
-        print(
-            "coord: COORD_DISCORD_WEBHOOK in .env is not a Discord webhook URL; run `make set-webhook`", file=sys.stderr
-        )
+        print("coord: COORD_DISCORD_WEBHOOK is not a Discord webhook URL; run `make set-webhook`", file=sys.stderr)
+        FAILURES.append("not a webhook URL")
         return None
-    data = json.dumps({"content": content[:1990], "allowed_mentions": {"parse": []}}).encode()
+    body = {"content": payload[:1990]} if isinstance(payload, str) else dict(payload)
+    body["allowed_mentions"] = {"parse": []}
     try:
         req = urllib.request.Request(
             url,
-            data=data,
+            data=json.dumps(body).encode(),
             method=method,
             headers={"Content-Type": "application/json", "User-Agent": "DiscordBot (sinceai2026 coord, 1.0)"},
         )
         with urllib.request.urlopen(req, timeout=6) as resp:
-            body = resp.read()
-            return json.loads(body) if body else {}
-    except Exception:
-        return None  # the git copy is the source of truth; Discord is a mirror
+            raw = resp.read()
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        hint = " (webhook deleted or URL changed: update the secret / make set-webhook)" if e.code in (401, 404) else ""
+        print(f"coord: Discord refused {method}: HTTP {e.code}{hint}", file=sys.stderr)
+        FAILURES.append(f"{method} HTTP {e.code}")
+    except Exception as e:  # network
+        print(f"coord: Discord unreachable ({type(e).__name__})", file=sys.stderr)
+        FAILURES.append(type(e).__name__)
+    return None
 
 
 def clipboard() -> str:
@@ -306,7 +344,7 @@ def cmd_set_webhook() -> None:
 
 def discord_board() -> str:
     """Neutral view of the board for the Discord channel (fits one 2,000-character message)."""
-    lines = [f"**TEAM BOARD**  (live, updated {now()})", "```"]
+    lines = [f"📋 **TEAM BOARD**  ·  live  ·  updated {now()}", "```"]
     for person in TEAM:
         s = parse(read_remote(f"coord/status/{person}.md"))
         if s:
@@ -333,7 +371,7 @@ def discord_board() -> str:
     return "\n".join(lines)[:1990]
 
 
-def discord(feed: str | None = None, force: bool = False) -> None:
+def discord(feed: str | dict | None = None, force: bool = False) -> None:
     """Post one feed line (if any) and refresh the pinned live board.
     When the GitHub workflow exists, GitHub mirrors every push for everyone, so laptops stay quiet (no duplicates);
     `force` (make board-discord) still works locally, e.g. to create the board the first time."""
@@ -367,7 +405,7 @@ def cmd_say(a: argparse.Namespace) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(head + "---\n" + a.text.strip() + "\n", encoding="utf-8")
     write_and_sync(path, f"coord({who}) {a.kind} -> {to}: {a.text.strip().splitlines()[0][:60]}")
-    discord(f"**{who} -> {to}**  [{a.kind.upper()}]  {a.text.strip()}")
+    discord(card(a.kind, who, to, a.text, msg_id + (f"  ·  re {a.re}" if a.re else "")))
 
 
 def cmd_reply(a: argparse.Namespace) -> None:
@@ -384,7 +422,7 @@ def cmd_reply(a: argparse.Namespace) -> None:
         fields["seen_by_sender"] = "yes"
     path.write_text("".join(f"{k}: {v}\n" for k, v in fields.items()), encoding="utf-8")
     write_and_sync(path, f"coord({who}): {a.verdict} on {a.ask_id}")
-    discord(f"**{who}** answered `{a.ask_id}`: **{a.verdict.upper()}** {a.text}")
+    discord(card({"ok": "ok", "no": "no"}.get(a.verdict, "answered"), who, fields.get("from", "?"), a.text, a.ask_id))
 
 
 def main() -> None:
@@ -427,6 +465,8 @@ def main() -> None:
         if not env_value("COORD_DISCORD_WEBHOOK"):
             sys.exit("Set COORD_DISCORD_WEBHOOK=<webhook url> in .env first")
         discord(force=True)
+        if FAILURES:
+            sys.exit(f"Discord refused: {', '.join(FAILURES)}. Check COORD_DISCORD_WEBHOOK (make set-webhook).")
         print("Discord board refreshed (pin the TEAM BOARD message once)")
     elif a.cmd == "board":
         fetch(force=True)

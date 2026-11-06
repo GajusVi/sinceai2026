@@ -27,7 +27,7 @@ def test_message_parse_split():
 
 def test_discord_board_fits_one_message():
     text = coord.discord_board()
-    assert text.startswith("**TEAM BOARD**") and len(text) <= 1990
+    assert "**TEAM BOARD**" in text and len(text) <= 1990
 
 
 def test_discord_noop_without_webhook(monkeypatch):
@@ -37,3 +37,9 @@ def test_discord_noop_without_webhook(monkeypatch):
 
 def test_bad_webhook_value_does_not_crash():
     assert coord.discord_call("POST", 'echo "COORD_DISCORD_WEBHOOK=$(pbpaste)" >> .env', "x") is None
+
+
+def test_card_styles():
+    c = coord.card("question", "margiris", "gajus", "ESCALATE: thresholds", "id1")["embeds"][0]
+    assert c["title"].endswith("ESCALATE · margiris → gajus") and c["footer"]["text"] == "id1"
+    assert coord.card("breaks", "a", "b", "x")["embeds"][0]["color"] == 0xE5484D
