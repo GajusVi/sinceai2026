@@ -35,12 +35,27 @@ SEVERITY_ICONS = {"info": "🔵", "warning": "🟠", "blocker": "🔴"}
 
 # C3 evidence shape. Shown only while decision.evidence is empty, and always labelled as a sample.
 FAKE_EVIDENCE = [
-    {"claim": "Report is tagged Active but has had no viewers for 90 days", "rule_id": "RULE-003",
-     "record_ids": ["RPT-0142"], "value": "0 views / 90 d", "severity": "warning"},
-    {"claim": "Same KPI is defined in two reports with different formulas", "rule_id": "RULE-007",
-     "record_ids": ["RPT-0142", "RPT-0288"], "value": "2 definitions", "severity": "blocker"},
-    {"claim": "Owner is active and the role is staffed", "rule_id": "RULE-011",
-     "record_ids": ["USR-0031"], "value": "trust +0.20", "severity": "info"},
+    {
+        "claim": "Report is tagged Active but has had no viewers for 90 days",
+        "rule_id": "RULE-003",
+        "record_ids": ["RPT-0142"],
+        "value": "0 views / 90 d",
+        "severity": "warning",
+    },
+    {
+        "claim": "Same KPI is defined in two reports with different formulas",
+        "rule_id": "RULE-007",
+        "record_ids": ["RPT-0142", "RPT-0288"],
+        "value": "2 definitions",
+        "severity": "blocker",
+    },
+    {
+        "claim": "Owner is active and the role is staffed",
+        "rule_id": "RULE-011",
+        "record_ids": ["USR-0031"],
+        "value": "trust +0.20",
+        "severity": "info",
+    },
 ]
 
 APPROVE_LABELS = {
@@ -63,7 +78,14 @@ labels = TemplateExplainer(steward.catalog)
 with st.sidebar:
     st.title("BI Steward")
     st.caption(f"Reference date for freshness checks: {steward.as_of}")
-    st.caption("Language model: " + ({"claude": f"Claude ({steward.llm.model})", "gemini": f"Gemini ({steward.llm.model})"}[steward.llm.provider] if steward.llm else "off, using rules and templates"))
+    st.caption(
+        "Language model: "
+        + (
+            {"claude": f"Claude ({steward.llm.model})", "gemini": f"Gemini ({steward.llm.model})"}[steward.llm.provider]
+            if steward.llm
+            else "off, using rules and templates"
+        )
+    )
     actor = st.text_input("Your name", value="demo-user")
     st.toggle("Expert mode: skip the interview", key="expert_mode")
     st.divider()
@@ -106,7 +128,9 @@ def render_evidence(decision) -> None:
         sev = str(getattr(e["severity"], "value", e["severity"])).lower()
         with st.container(border=True):
             st.markdown(f"{SEVERITY_ICONS.get(sev, '⚪')} **{e['claim']}**")
-            st.caption(f"`{e['rule_id']}` · {sev} · records: {', '.join(map(str, e['record_ids'])) or 'none'} · value: {e['value']}")
+            st.caption(
+                f"`{e['rule_id']}` · {sev} · records: {', '.join(map(str, e['record_ids'])) or 'none'} · value: {e['value']}"
+            )
     if sample:
         st.caption("Sample evidence: not from the engine yet.")
 
@@ -143,7 +167,13 @@ def render_result(result: StewardResult) -> None:
             f"refreshed {best.artifact.last_refreshed}"
         )
         st.dataframe(
-            [{"lifecycle label (claimed)": best.artifact.status.value, "usage (observed)": "not wired yet", "match": "-"}],
+            [
+                {
+                    "lifecycle label (claimed)": best.artifact.status.value,
+                    "usage (observed)": "not wired yet",
+                    "match": "-",
+                }
+            ],
             width="stretch",
             hide_index=True,
         )
@@ -204,7 +234,141 @@ def render_result(result: StewardResult) -> None:
                 st.session_state.result = None
 
 
-tab_ask, tab_health, tab_journal, tab_catalog = st.tabs(["Ask", "Catalog health", "Journal", "Catalog"])
+@st.cache_resource(show_spinner="Computing catalog health ...")
+def _health(_steward: Steward, catalog_key: tuple):
+    return _steward.health()
+
+
+def get_health():
+    """health() takes ~45 s on the 360-asset data pack (linking.scan), so there it runs on request and is cached."""
+    on_datapack = any(a.platform for a in steward.catalog.artifacts.values())
+    if on_datapack and not st.session_state.get("health_requested"):
+        return None
+    return _health(steward, tuple(steward.catalog.artifacts))
+
+
+@st.cache_data
+def load_owners() -> dict[str, dict]:
+    import pandas as pd
+
+    from steward.datapack import DEFAULT_XLSX
+
+    return pd.read_excel(DEFAULT_XLSX, sheet_name="Owners").set_index("owner_id").to_dict("index")
+
+
+@st.cache_data
+def usage_cutoffs(_artifacts: dict, key: int) -> tuple[float, float]:
+    """Average monthly unique users: the 20th and 80th percentile over all assets that have usage."""
+    avgs = sorted(sum(m.unique_users for m in a.usage) / len(a.usage) for a in _artifacts.values() if a.usage)
+    return avgs[int(len(avgs) * 0.2)], avgs[int(len(avgs) * 0.8)]
+
+
+def usage_tier(artifact) -> str:
+    if not artifact.usage:
+        return "no usage data"
+    low, high = usage_cutoffs(steward.catalog.artifacts, len(steward.catalog.artifacts))
+    avg = sum(m.unique_users for m in artifact.usage) / len(artifact.usage)
+    tier = "low (bottom 20%)" if avg <= low else "high (top 20%)" if avg >= high else "medium"
+    return f"{tier}: {avg:.0f} users/month"
+
+
+def render_orphan_rescue() -> None:
+    artifacts = steward.catalog.artifacts
+    if not any(a.platform for a in artifacts.values()):
+        st.info("Run `make bayer` to load the Bayer data pack (Windows: `.\\run.ps1 bayer`).")
+        return
+    owners = load_owners()
+    ids = list(artifacts)
+    default = ids.index("AST-0091") if "AST-0091" in artifacts else 0
+    asset_id = st.selectbox(
+        "Asset (search by id or name)", ids, index=default, format_func=lambda i: f"{i}: {artifacts[i].title}"
+    )
+    a = artifacts[asset_id]
+    st.subheader(f"{a.title} ({a.id})")
+    st.caption(
+        f"{a.type} on {a.platform} · product {a.product_scope} · market {a.market_scope} · created {a.created_date}"
+    )
+
+    col_owner, col_trust, col_usage = st.columns(3)
+    with col_owner:
+        st.markdown("#### Owner")
+        status_color = {"active": "green", "inactive": "red"}.get(a.owner_status, "red")
+        st.markdown(f"**{a.owner or 'No owner'}** ({a.owner_id or 'none'})")
+        st.markdown(f"Role: {a.owner_role or '-'} · Scope: {a.owner_scope or '-'}")
+        st.markdown(f"Status: :{status_color}[{a.owner_status or 'missing'}]")
+        if a.successor_candidates:
+            st.markdown("**Successor candidates**")
+            for oid in a.successor_candidates:
+                o = owners.get(oid, {})
+                st.markdown(f"- {o.get('owner_name', oid)} ({oid}) · {o.get('role', '')} · {o.get('scope', '')}")
+        elif a.owner_status != "active":
+            st.caption("No successor candidates: the role is vacant.")
+    with col_trust:
+        st.markdown("#### Trust")
+        refresh_color = {"healthy": "green", "warning": "orange", "failed": "red"}.get(a.refresh_status, "gray")
+        st.markdown(f"Endorsement: **{a.endorsement}**")
+        st.markdown(
+            f"Model {a.model_id}: refresh :{refresh_color}[{a.refresh_status or 'unknown'}] · endorsement {a.model_endorsement or '-'}"
+        )
+        st.markdown(f"Platform: {a.platform}")
+    with col_usage:
+        st.markdown("#### Usage")
+        if a.usage:
+            st.line_chart({m.month.strftime("%Y-%m"): m.unique_users for m in a.usage}, y_label="unique users / month")
+        else:
+            st.caption("No usage rows since creation.")
+
+    st.markdown("#### Signals and data quality")
+    chips = [f":orange-badge[{x}]" for x in a.signals] + [f":gray-badge[{x.split(':')[0]}]" for x in a.data_quality]
+    st.markdown(" ".join(chips) if chips else "None.")
+
+    st.markdown("#### Claimed vs observed")
+    st.dataframe(
+        [{"lifecycle (claimed in data pack)": a.lifecycle_claimed, "usage (observed)": usage_tier(a)}],
+        width="stretch",
+        hide_index=True,
+    )
+    for flag in a.data_quality:
+        if flag.startswith("NAME_SCOPE_MISMATCH"):
+            st.warning(
+                f"Name vs scope: the name ends in a different market than market_scope ({flag.split(':', 1)[1]}). "
+                "Scope is taken from the fields, not the name."
+            )
+
+    st.markdown("#### Proposals (journal only, nothing is changed)")
+    reason = st.text_input("Reason (required)", key=f"orphan_reason_{a.id}")
+    c1, c2 = st.columns(2)
+    with c1:
+        candidate = (
+            st.selectbox(
+                "Successor",
+                a.successor_candidates,
+                format_func=lambda i: f"{owners.get(i, {}).get('owner_name', i)} ({i})",
+                key=f"orphan_succ_{a.id}",
+            )
+            if a.successor_candidates
+            else None
+        )
+        if st.button("Propose successor", disabled=candidate is None, width="stretch"):
+            try:
+                steward.governance.propose(a.id, "propose successor", actor, reason, detail=candidate)
+            except ValueError as error:
+                st.error(str(error))
+            else:
+                st.success("Proposal recorded in the journal (not applied).")
+    with c2:
+        if st.button("Retire candidate", width="stretch"):
+            try:
+                steward.governance.propose(a.id, "retire candidate", actor, reason)
+            except ValueError as error:
+                st.error(str(error))
+            else:
+                st.success("Proposal recorded in the journal (not applied).")
+
+
+tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog = st.tabs(
+    ["Ask", "Catalog health", "Orphan rescue", "Journal", "Catalog"]
+)
 
 with tab_ask:
     typed = st.chat_input("Ask a business question, e.g. " + EXAMPLES[0])
@@ -218,32 +382,42 @@ with tab_ask:
         render_result(st.session_state.result)
 
 with tab_health:
-    health = steward.health()
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Reports in catalog", health.total)
-    c2.metric("Certified", health.certified)
-    c3.metric("Duplicates", len(health.duplicates))
-    c4.metric("Retirement candidates", len(health.retire))
+    health = get_health()
+    if health is None:
+        st.info("Computing the catalog health takes about a minute on the Bayer data pack (it is cached afterwards).")
+        if st.button("Compute catalog health"):
+            st.session_state.health_requested = True
+            st.rerun()
+    else:
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Reports in catalog", health.total)
+        c2.metric("Certified", health.certified)
+        c3.metric("Duplicates", len(health.duplicates))
+        c4.metric("Retirement candidates", len(health.retire))
 
-    st.markdown("#### Candidates for retirement")
-    st.dataframe(
-        [{"report": r.title, "id": r.artifact_id, "why": "; ".join(r.reasons)} for r in health.retire],
-        width="stretch",
-        hide_index=True,
-    )
-    st.markdown("#### Duplicates")
-    st.dataframe(
-        [
-            {
-                "keep": steward.catalog.artifact(p.keep_id).title,
-                "duplicate": steward.catalog.artifact(p.duplicate_id).title,
-                "similarity": f"{p.similarity:.0%}",
-            }
-            for p in health.duplicates
-        ],
-        width="stretch",
-        hide_index=True,
-    )
+        st.markdown("#### Candidates for retirement")
+        st.dataframe(
+            [{"report": r.title, "id": r.artifact_id, "why": "; ".join(r.reasons)} for r in health.retire],
+            width="stretch",
+            hide_index=True,
+        )
+        st.markdown("#### Duplicates")
+        st.dataframe(
+            [
+                {
+                    "keep": steward.catalog.artifact(p.keep_id).title,
+                    "duplicate": steward.catalog.artifact(p.duplicate_id).title,
+                    "similarity": f"{p.similarity:.0%}",
+                }
+                for p in health.duplicates
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+
+
+with tab_orphan:
+    render_orphan_rescue()
 
 with tab_journal:
     entries = steward.governance.entries()
@@ -255,7 +429,7 @@ with tab_journal:
                     "who": e.actor,
                     "question": e.question,
                     "verdict": e.verdict.value,
-                    "decision": "approved" if e.action.value == "approved" else "rejected",
+                    "decision": "proposal" if e.question.startswith("PROPOSAL") else e.action.value,
                     "report": e.artifact_id,
                     "created": e.created_artifact_id,
                     "reason": e.reason,

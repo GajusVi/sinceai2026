@@ -54,6 +54,23 @@ class Governance:
             raise ValueError("Please give a reason for rejecting.")
         return self._log(result, actor, JournalAction.REJECTED, reason=reason)
 
+    def propose(self, artifact_id: str, kind: str, actor: str, reason: str, detail: str = "") -> JournalEntry:
+        """Journal a proposal (e.g. propose successor, retire candidate). Nothing in the catalog changes."""
+        if not reason.strip():
+            raise ValueError("Please give a reason for the proposal.")
+        entry = JournalEntry(
+            timestamp=datetime.now(timezone.utc),
+            actor=actor,
+            question=f"PROPOSAL (not applied): {kind} {detail} for {artifact_id}".replace("  ", " "),
+            verdict=Verdict.CLARIFY,
+            action=JournalAction.APPROVED,  # = recorded; a PROPOSED action needs models.py (requested in NOTES)
+            artifact_id=artifact_id,
+            reason=reason,
+        )
+        with open(self.data_dir / JOURNAL_FILE, "a", encoding="utf-8") as f:
+            f.write(entry.model_dump_json() + "\n")
+        return entry
+
     def entries(self) -> list[JournalEntry]:
         path = self.data_dir / JOURNAL_FILE
         if not path.exists():
