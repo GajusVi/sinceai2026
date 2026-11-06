@@ -50,7 +50,8 @@ def test_orphan_rescue_on_datapack(monkeypatch, tmp_path):
     at.text_input(key="orphan_reason_AST-0091").set_value("No users, owner left").run()
     next(b for b in at.button if b.label == "Retire candidate").click().run()
     assert not at.exception
-    assert "PROPOSAL" in (tmp_path / "journal.jsonl").read_text()
+    journal = (tmp_path / "journal.jsonl").read_text()
+    assert "PROPOSAL" in journal and '"action":"proposed"' in journal
 
 
 def test_orphan_rescue_on_sample_catalog(monkeypatch, tmp_path):

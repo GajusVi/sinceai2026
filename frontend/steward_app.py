@@ -410,7 +410,7 @@ with tab_journal:
                     "who": e.actor,
                     "question": e.question,
                     "verdict": e.verdict.value,
-                    "decision": "proposal" if e.question.startswith("PROPOSAL") else e.action.value,
+                    "decision": e.action.value,
                     "report": e.artifact_id,
                     "created": e.created_artifact_id,
                     "reason": e.reason,

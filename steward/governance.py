@@ -63,7 +63,7 @@ class Governance:
             actor=actor,
             question=f"PROPOSAL (not applied): {kind} {detail} for {artifact_id}".replace("  ", " "),
             verdict=Verdict.CLARIFY,
-            action=JournalAction.APPROVED,  # = recorded; a PROPOSED action needs models.py (requested in NOTES)
+            action=JournalAction.PROPOSED,  # recorded only, catalog unchanged
             artifact_id=artifact_id,
             reason=reason,
         )
