@@ -24,6 +24,9 @@ BLUE, GREY, GOOD, BAD = "#3b6bff", "#a1a1aa", "#4ade80", "#f87171"
 GRID, AXIS, TITLE = "#27272a", "#a1a1aa", "#fafafa"
 MONO = "Geist Mono, ui-monospace, SF Mono, Menlo, Consolas, monospace"
 SANS = "Instrument Sans, -apple-system, Segoe UI, sans-serif"
+# Day template (docs/steward/DESIGN.md): the same chart on the light panel. Night figures are built directly; a day
+# figure is the night figure recoloured by _day(), so both stay deterministic per (spec, filters, theme).
+DAY = dict(actual="#1a4be0", forecast="#71717a", grid="#e4e4e7", axis="#52525b", title="#09090b")
 DIM_LABEL_COLUMN = {"market": "market_id", "product": "product_name", "region": "region"}
 
 
@@ -58,9 +61,10 @@ class RenderedDashboard:
 
 
 def render(
-    spec: DashboardSpec, frames: dict[str, pd.DataFrame], filters: dict[str, str] | None = None
+    spec: DashboardSpec, frames: dict[str, pd.DataFrame], filters: dict[str, str] | None = None, theme: str = "night"
 ) -> RenderedDashboard:
-    """`filters` (product / market / region / month_from / month_to) override the spec's own filters."""
+    """`filters` (product / market / region / month_from / month_to) override the spec's own filters.
+    `theme` ('night' default, or 'day') only recolours the charts; the numbers never depend on it."""
     effective = {**spec.filters, **(filters or {})}
     out = RenderedDashboard(title=spec.name, filters=effective)
     measures = {m.name: m for m in spec.measures}
@@ -78,6 +82,9 @@ def render(
                 _bar(out, v, ms[0], frames, effective, dq)
             elif v.type == "table" and ms[0].feasible:
                 _table(out, v, ms[0], frames, effective, dq)
+    if theme == "day":
+        for _, fig in out.figures:
+            _day(fig)
     out.dq = list(dict.fromkeys(dq))
     out.footer = _footer(spec)
     return out
@@ -233,6 +240,19 @@ def _layout(title: str, m: Measure, **extra) -> dict:
         yaxis={**axis, "title": dict(text=extra.pop("yaxis_title", m.unit), font=dict(family=MONO, size=11, color=AXIS))},
         **extra,
     )
+
+
+def _day(fig: go.Figure) -> None:
+    axis = dict(gridcolor=DAY["grid"], zerolinecolor=DAY["grid"], linecolor=DAY["grid"],
+                tickfont=dict(color=DAY["axis"]), title=dict(font=dict(color=DAY["axis"])))
+    fig.update_layout(title_font_color=DAY["title"], font_color=DAY["axis"], legend_font_color=DAY["axis"],
+                      xaxis=axis, yaxis=axis)
+    for trace in fig.data:
+        colour = DAY["forecast"] if trace.name == "Forecast" else DAY["actual"]
+        if isinstance(trace, go.Bar):
+            trace.marker.color = colour
+        else:
+            trace.line.color = colour
 
 
 # -- governance footer -----------------------------------------------------------------------------------------------

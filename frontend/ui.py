@@ -12,11 +12,13 @@ from pathlib import Path
 
 import streamlit as st
 
-BG, PANEL, RAISED, LINE = "#09090b", "#111114", "#18181b", "#27272a"
-INK, MUTED, FAINT = "#fafafa", "#a1a1aa", "#71717a"
-ACCENT, FOCUS, ACCENT_TEXT = "#1a4be0", "#3b6bff", "#6b8cff"  # fill / focus ring / accent as text (#3b6bff is 4.25:1)
+# Colours are CSS variables, so day / night is one switch in CSS (steward.css: night, plus a day block).
+# Hex values per theme and their contrast: docs/steward/DESIGN.md.
+BG, PANEL, RAISED, LINE = "var(--bg)", "var(--panel)", "var(--raised)", "var(--line)"
+INK, MUTED, FAINT = "var(--ink)", "var(--muted)", "var(--faint)"
+ACCENT, FOCUS, ACCENT_TEXT = "var(--accent)", "var(--focus)", "var(--accent-text)"
 SURFACE = RAISED
-GOOD, WARN, BAD, INFO = "#4ade80", "#fbbf24", "#f87171", "#6b8cff"
+GOOD, WARN, BAD, INFO = "var(--reuse)", "var(--amber)", "var(--rescue)", "var(--extend)"
 
 # The verdict word and its colour (spec.change_type MIGRATE / RESCUE override the verdict's word).
 VERDICT_COLOUR = {
@@ -26,8 +28,8 @@ VERDICT_COLOUR = {
     "MIGRATE": WARN,
     "CREATE": INK,
     "RESCUE": BAD,
-    "CLARIFY": MUTED,
-    "NOT_FEASIBLE": MUTED,
+    "CLARIFY": "var(--grey)",
+    "NOT_FEASIBLE": "var(--grey)",
 }
 TONE = {"good": GOOD, "bad": BAD, "neutral": MUTED, "warn": WARN, "info": MUTED}
 SEVERITY = {"info": MUTED, "warning": WARN, "blocker": BAD}
@@ -35,8 +37,20 @@ SEVERITY = {"info": MUTED, "warning": WARN, "blocker": BAD}
 CSS_FILE = Path(__file__).with_name("steward.css")
 
 
+def theme() -> str:
+    """'night' (default) or 'day'. Starts from ?theme= (the desktop login hands its choice over), then the toggle."""
+    if "bs_day" not in st.session_state:
+        st.session_state.bs_day = st.query_params.get("theme") == "day"
+    return "day" if st.session_state.bs_day else "night"
+
+
 def inject() -> None:
-    st.html(f"<style>{CSS_FILE.read_text(encoding='utf-8')}</style>")
+    """The stylesheet for the current theme, and the day / night toggle at the bottom of the sidebar.
+    Streamlit 1.67 has no runtime theme API (st.context.theme is read-only), so the switch is CSS variables."""
+    marker = '<div class="bs-day"></div>' if theme() == "day" else ""  # steward.css scopes the day tokens on it
+    st.html(f"<style>{CSS_FILE.read_text(encoding='utf-8')}</style>{marker}")
+    with st.sidebar.container(key="bs-theme"):  # moved to the bottom of the sidebar by steward.css (order)
+        st.toggle("Day theme", key="bs_day")
 
 
 def html(markup: str) -> None:

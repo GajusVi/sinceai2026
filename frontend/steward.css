@@ -189,6 +189,72 @@ div[data-testid="stButton"] button:active { transform: scale(0.97); }
 .bs-typing .dots span:nth-child(2) { animation-delay: 0.2s; }
 .bs-typing .dots span:nth-child(3) { animation-delay: 0.4s; }
 
+
+/* ===== day theme (switched on by frontend/ui.py: a .bs-day marker in the page) ==================================
+   BI Steward day theme: the same system as steward.css (night), light. Active only while the .bs-day marker is in the page. Contrast on the white panel (checked): ink #09090B 19.9, muted #52525B 7.7,
+   faint #71717A 4.8; verdicts REUSE #15803D 5.0, EXTEND #1A4BE0 6.7, amber #B45309 5.0, RESCUE #B91C1C 6.5,
+   grey #52525B 7.7, CREATE #09090B 19.9.
+   Known limit: st.dataframe draws on a canvas with Streamlit's own (dark) theme, which CSS cannot reach. */
+:root:has(.bs-day) {
+  --bg: #fafafa; --panel: #ffffff; --raised: #f4f4f5; --line: #e4e4e7;
+  --ink: #09090b; --muted: #52525b; --faint: #71717a;
+  --accent: #1a4be0; --focus: #1a4be0; --accent-text: #1a4be0;
+  --reuse: #15803d; --extend: #1a4be0; --amber: #b45309; --create: #09090b; --rescue: #b91c1c; --grey: #52525b;
+}
+:root:has(.bs-day) .stApp { background: var(--bg) !important; color: var(--ink); }
+:root:has(.bs-day) [data-testid="stHeader"] { background: var(--bg); }
+:root:has(.bs-day) [data-testid="stSidebar"] { background: var(--panel) !important; }
+:root:has(.bs-day) .stApp p,
+:root:has(.bs-day) .stApp li,
+:root:has(.bs-day) .stApp h1,
+:root:has(.bs-day) .stApp h2,
+:root:has(.bs-day) .stApp h3,
+:root:has(.bs-day) .stApp h4,
+:root:has(.bs-day) .stApp h5,
+:root:has(.bs-day) .stApp h6,
+:root:has(.bs-day) .stApp label,
+:root:has(.bs-day) .stApp summary,
+:root:has(.bs-day) .stApp strong,
+:root:has(.bs-day) [data-testid="stSidebar"] p { color: var(--ink); }
+:root:has(.bs-day) [data-testid="stCaptionContainer"],
+:root:has(.bs-day) [data-testid="stCaptionContainer"] p,
+:root:has(.bs-day) label p { color: var(--muted) !important; }
+:root:has(.bs-day) .st-key-bs-rail [data-testid="stRadioOption"] p { color: var(--muted); }
+:root:has(.bs-day) .st-key-bs-rail [data-testid="stRadioOption"][data-selected="true"] p { color: var(--ink); }
+:root:has(.bs-day) [data-baseweb="input"] input,
+:root:has(.bs-day) [data-baseweb="textarea"] textarea,
+:root:has(.bs-day) [data-testid="stChatInput"] textarea {
+  color: var(--ink) !important; -webkit-text-fill-color: var(--ink); caret-color: var(--ink); }
+:root:has(.bs-day) [data-testid="stChatInput"] textarea::placeholder,
+:root:has(.bs-day) [data-baseweb="input"] input::placeholder { color: var(--faint) !important;
+  -webkit-text-fill-color: var(--faint); }
+:root:has(.bs-day) [data-testid="stChatInput"] button { color: var(--muted); }
+:root:has(.bs-day) button[kind="primary"] p,
+:root:has(.bs-day) button[kind="primary"] { color: #ffffff !important; }
+:root:has(.bs-day) div[data-testid="stButton"] button[kind="secondary"] p,
+:root:has(.bs-day) .st-key-bs-options button p,
+:root:has(.bs-day) .st-key-bs-examples button p { color: var(--ink); }
+:root:has(.bs-day) .st-key-w-chat button,
+:root:has(.bs-day) .st-key-w-other button,
+:root:has(.bs-day) .st-key-w-chat button p,
+:root:has(.bs-day) .st-key-w-other button p { color: #ffffff !important; }
+:root:has(.bs-day) [data-testid="stExpander"] summary svg { color: var(--muted); }
+:root:has(.bs-day) [data-testid="stAlert"] { background: var(--raised); }
+:root:has(.bs-day) hr { border-color: var(--line) !important; }
+:root:has(.bs-day) /* charts: render.py builds night figures by default; until the app passes theme='day' to render(),
+:root:has(.bs-day) restyle the SVG */
+.js-plotly-plot .main-svg .xtick text,
+:root:has(.bs-day) .js-plotly-plot .main-svg .ytick text,
+:root:has(.bs-day) .js-plotly-plot .main-svg .g-xtitle text,
+:root:has(.bs-day) .js-plotly-plot .main-svg .g-ytitle text,
+:root:has(.bs-day) .js-plotly-plot .main-svg .legendtext { fill: #52525b !important; }
+:root:has(.bs-day) .js-plotly-plot .main-svg .gtitle { fill: #09090b !important; }
+:root:has(.bs-day) .js-plotly-plot .main-svg .gridlayer path,
+:root:has(.bs-day) .js-plotly-plot .main-svg .zerolinelayer path { stroke: #e4e4e7 !important; }
+:root:has(.bs-day) .js-plotly-plot .main-svg .scatterlayer .trace:first-child .js-line { stroke: #1a4be0 !important; }
+:root:has(.bs-day) .js-plotly-plot .main-svg .scatterlayer .trace:nth-child(2) .js-line { stroke: #71717a !important; }
+:root:has(.bs-day) .js-plotly-plot .main-svg .barlayer path { fill: #1a4be0 !important; }
+
 @media (max-width: 640px) {
   .block-container { padding-left: 0.8rem; padding-right: 0.8rem; }
   .bs-big, .bs-skel-row { grid-template-columns: 1fr; }
@@ -210,3 +276,13 @@ div[data-testid="stButton"] button:active { transform: scale(0.97); }
 .st-key-bs-user [data-testid="stCaptionContainer"] p { font-size: 0.74rem !important; }
 .st-key-bs-user [data-testid="stElementContainer"] { height: auto !important; min-height: 1.15rem; }
 .st-key-bs-user [data-testid="stMarkdownContainer"] { margin-bottom: 0 !important; }
+
+/* the day / night toggle (frontend/ui.py) sits at the bottom of the sidebar */
+.st-key-bs-theme,
+[data-testid="stSidebar"] [data-testid="stLayoutWrapper"]:has(> .st-key-bs-theme),
+[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(> .st-key-bs-theme),
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div:has(.st-key-bs-theme):not(:has([data-testid="stRadioOption"])) { order: 98; }
+.st-key-bs-theme { padding-top: 0.4rem; border-top: 1px solid var(--line); }
+/* switch tracks: a 1 px line so an "off" switch stays visible on both themes */
+label:has(input[role="switch"]) > div:not([data-testid]) { box-shadow: inset 0 0 0 1px var(--line); }
+:root:has(.bs-day) label:has(input[role="switch"]:not(:checked)) > div:not([data-testid]) { background: #d4d4d8 !important; }
