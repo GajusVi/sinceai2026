@@ -118,6 +118,23 @@ Drafted by Gajus's Claude, Sat 7 Nov 19:20.
   (certify, reassign, fix refresh, ask the KPI owner).
 - Shown beside the result for the BI team, and it is the pipeline slide (Panu point 8).
 
+### T2.6 BI Steward as a desktop app (Gajus 21:00; priority over T2.5)
+A packaged desktop app, not a browser page:
+- double-click `BI Steward.app` (Mac, built here) / `BI Steward.exe` (built by a Windows teammate) via PyInstaller;
+- fallback, if packaging fights back: a double-clickable launcher with an icon.
+
+Flow:
+1. A small native login window (pywebview; credentials checked by steward/auth.py in Python).
+2. A loading screen while the engine starts.
+3. The same window grows into the workspace: left navigation rail, top bar (user, role, plant, AI status), no
+   browser or Streamlit chrome. The login is handed over by a one-time signed token.
+
+| Part | Owner |
+|---|---|
+| Launcher, login + loading screens, workspace shell, Mac build | Gajus |
+| Dashboard area inside the workspace (with T2.2) | Donatas |
+| Windows .exe build | Windows teammate, when the Mac build works |
+
 ### Tier 3: if time allows (in this order)
 
 | # | Change | Owner | Effort |
@@ -181,7 +198,7 @@ Drafted by Gajus's Claude, Sat 7 Nov 19:20.
   label is kept as `label_v1`.
 - **A8 (Donatas):** the seed check **warns** loudly; it never refuses to start (a refusal on stage is worse).
 - **A9 (Donatas):** the shared JSON inbox (T2.3) moves to Gajus. Pitch, pipeline slide and demo video get
-  **02:00-06:00** on the frozen build.
+  **05:00-07:30** on the frozen app build (moved 21:00).
 - **Dependency:** T1.5 "warm covers text calls" needs an LLM key with quota (Gemini returned 429 all evening). Whoever
   has quota runs it, or warm runs on another provider.
 
@@ -217,6 +234,6 @@ Drafted by Gajus's Claude, Sat 7 Nov 19:20.
 - **19:45:** replies to this draft.
 - **20:00:** Gajus signs C1-C6 and the build resumes with Tier 1.
 - **22:30:** Tier 1 green; Tier 2 starts.
-- **02:00:** freeze; Tier 3 only if Tier 2 is done.
-- **02:00-06:00:** pitch, pipeline slide and demo video on the frozen build (Donatas, A9).
+- ~~02:00 freeze~~ moved by Gajus (21:00): **05:00 freeze**; Tier 3 only if Tier 2 is done.
+- **05:00-07:30:** pitch, pipeline slide and demo video on the frozen app build (Donatas, A9).
 - **Sun 08:00:** submission.
