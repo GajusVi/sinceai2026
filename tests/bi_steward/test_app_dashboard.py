@@ -65,3 +65,21 @@ def test_a_filter_changes_the_numbers(app):
 def test_clarify_shows_no_dashboard(app):
     app.chat_input[0].set_value("Show me something interesting").run()
     assert not app.exception and not dashboard_metrics(app)
+
+
+class FakeBackendLLM:
+    """What get_llm returns when .env selects the backend client (Aitta / Gemini through backend/llm.py)."""
+
+    provider = "backend"
+    model = "openai/gpt-oss-120b"
+    supports_embeddings = False
+
+
+def test_app_loads_with_the_backend_llm_client(monkeypatch, tmp_path):
+    """Regression: the sidebar crashed with KeyError 'backend' when an LLM was configured through backend/llm.py."""
+    monkeypatch.setenv("STEWARD_CATALOG", "datapack")
+    monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("steward.pipeline.get_llm", lambda settings: FakeBackendLLM())
+    app = AppTest.from_file(APP, default_timeout=120).run()
+    assert not app.exception
+    assert any(c.value.startswith("Language model: ") and "openai/gpt-oss-120b" in c.value for c in app.sidebar.caption)

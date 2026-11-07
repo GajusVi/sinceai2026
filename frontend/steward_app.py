@@ -86,20 +86,27 @@ def get_steward() -> Steward:
 
 
 steward = get_steward()
+
+
+def llm_label() -> str:
+    """Which model answers. The "backend" client takes its provider from LLM_PROVIDER in .env (aitta, gemini, ...)."""
+    llm = steward.llm
+    if not llm:
+        return "off, using rules and templates"
+    if llm.provider == "backend":
+        from backend.llm import get_settings
+
+        return f"{get_settings().llm_provider} ({llm.model})"
+    return f"{llm.provider.capitalize()} ({llm.model})"
+
+
 ON_DATA_PACK = bool(kpi_index(steward.catalog)[0])  # data-pack catalog: examples and the dashboard are Bayer's
 labels = TemplateExplainer(steward.catalog)
 
 with st.sidebar:
     st.title("BI Steward")
     st.caption(f"Reference date for freshness checks: {steward.as_of}")
-    st.caption(
-        "Language model: "
-        + (
-            {"claude": f"Claude ({steward.llm.model})", "gemini": f"Gemini ({steward.llm.model})"}[steward.llm.provider]
-            if steward.llm
-            else "off, using rules and templates"
-        )
-    )
+    st.caption("Language model: " + llm_label())
     actor = st.text_input("Your name", value="demo-user")
     st.toggle("Expert mode: skip the interview", key="expert_mode")
     st.divider()
