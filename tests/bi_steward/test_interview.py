@@ -278,3 +278,37 @@ def test_skip_fills_every_open_question(pack):
     intent = state.intent
     assert state.done and intent.is_complete() and intent.products == ["All Pharma"] and intent.markets == ["Global"]
     assert intent.metric_ids and intent.decision_supported == "monitor"
+
+
+# -- T3.1 short by construction: the login prefills, two readers decide what to ask ---------------------------------
+
+
+def test_manager_plant_question_uses_the_login_plant_instead_of_asking(pack):
+    steward, prompts = pack
+    iv = Interviewer(steward.catalog, None, prompts)
+    state = iv.start("How efficiently is this plant running?", home_plant="Plant-B")
+    assert state.intent.sites == ["Plant-B"] and state.last_asked != "sites"
+    assert "your plant, Plant-B (from your login)" in state.question
+    asked = iv.start("How efficiently is this plant running?")  # no login plant: still asked
+    assert asked.last_asked == "sites"
+
+
+def test_login_plant_never_overrides_a_named_site_or_all_sites(pack):
+    steward, prompts = pack
+    iv = Interviewer(steward.catalog, None, prompts)
+    assert iv.start("How is Plant-A running?", home_plant="Plant-B").intent.sites == ["Plant-A"]
+    assert iv.start("Xarelto sales in Germany", home_plant="Plant-B").intent.sites == []
+    assert iv.start("compare all plants", home_plant="Plant-B").intent.sites == []
+
+
+def test_model_and_rules_agreeing_settles_a_field_disagreeing_asks_it(pack):
+    steward, prompts = pack
+    low = {"products": 0.5, "markets": 0.9, "metric_ids": 0.9, "decision_supported": 0.8}
+    agree = FakeLLM({"intent": {"products": ["Xarelto"], "markets": ["DE"], "metric_ids": ["net_sales"],
+                                "decision_supported": "monitor", "confidence": low}})
+    state = Interviewer(steward.catalog, agree, prompts).start("Xarelto net sales in Germany")
+    assert state.intent.confidence["products"] >= 0.9 and "products" not in state.intent.missing()
+    disagree = FakeLLM({"intent": {"products": ["Eylea"], "markets": ["DE"], "metric_ids": ["net_sales"],
+                                   "decision_supported": "monitor", "confidence": CONF}}, {"intent": {}})
+    state = Interviewer(steward.catalog, disagree, prompts).start("Xarelto net sales in Germany")
+    assert state.last_asked == "products"

@@ -249,7 +249,8 @@ def ask(text: str) -> None:
             state = steward.interviewer.answer(state, text)
         else:
             st.session_state.result = None
-            state = steward.interviewer.start(text)
+            home = user.plant if user is not None and user.role == "management" else ""  # T3.1: never ask "which plant?"
+            state = steward.interviewer.start(text, home_plant=home)
     site = other_plant(user, state.intent.sites)
     if site:  # management: own plant (and granted ones) only; the rest goes through a builder
         st.session_state.interview = None
@@ -315,7 +316,20 @@ def understood(state) -> str:
         where = ", ".join(intent.regions or [m for m in intent.markets if m != "Global"])
         scope = (", ".join(products) or "all medicines") + (f" in {where}" if where else ", all markets")
     notes = " ".join(state.notes)
-    return (f"{notes} " if notes else "") + f"Got it: {scope}, showing {', '.join(names) or 'the key numbers'}."
+    return (f"{notes} " if notes else "") + f"Got it: {scope}, showing {', '.join(names) or 'the key numbers'}." + (
+        consequence(intent)
+    )
+
+
+def consequence(intent) -> str:
+    """T3.1 confirmation: what the answer will cost before it runs (how many existing reports are checked first)."""
+    from steward.decision import fit
+
+    index = fit.coverage_index(steward.catalog)
+    carriers = set().union(*(index.get(m, set()) for m in intent.metric_ids)) if intent.metric_ids else set()
+    if not carriers:
+        return ""
+    return f" {len(carriers)} existing reports already carry these numbers; I check them before building anything."
 
 
 def plain_outcome(result: StewardResult) -> str:

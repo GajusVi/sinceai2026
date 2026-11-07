@@ -51,6 +51,8 @@ CLARIFY_TEXT = (
     "That doesn't look like a question about our data. I can show how a plant is running, sales in a country, "
     "or stock cover for a medicine. What would you like to see?"
 )
+AGREED_CONFIDENCE = 0.9  # model and rules name the same values: settled, never asked
+DISAGREED_CONFIDENCE = 0.6  # they name different values: below CONFIDENCE_MIN, so the interview asks
 DEFAULT_DECISION = "monitor"
 DEFAULT_THEME = "business_performance"
 
@@ -72,6 +74,8 @@ class InterviewState:
     asked_terms: list[str] = field(default_factory=list)  # the words the "unmapped" question asked about
     asked_choices: list[str] = field(default_factory=list)  # the likely matches offered for them
     dropped: set[int] = field(default_factory=set)  # turn indexes of off-topic messages: not part of the request
+    home_plant: str = ""  # the asker's plant from the login (T3.1): "this plant" is never asked about
+    prefilled: bool = False  # the login prefill has been said back once
 
     @property
     def done(self) -> bool:
@@ -87,8 +91,13 @@ class Interviewer:
         self.themes: dict[str, dict] = self.bank.get("themes", {})
         self.sites = _supply_sites(catalog)  # [] on the sample catalog
 
-    def start(self, text: str, mode: Mode = "novice", conflicts: list[str] | None = None) -> InterviewState:
+    def start(
+        self, text: str, mode: Mode = "novice", conflicts: list[str] | None = None, home_plant: str = ""
+    ) -> InterviewState:
+        """`home_plant`: the asker's plant from the login. A site question without a named site uses it instead of
+        asking "which site?" (T3.1: short by construction; what the login already says is never asked)."""
         state = InterviewState(Intent(text=text, mode=mode, conflicts=list(conflicts or [])), turns=[("user", text)])
+        state.home_plant = home_plant if home_plant in self.sites else ""
         return self._step(state)
 
     def answer(self, state: InterviewState, reply: str) -> InterviewState:
@@ -118,6 +127,7 @@ class Interviewer:
             self._fill_gaps(intent, state)
         else:
             intent = self._rules_intent(state)
+        self._prefill_site(intent, state)
         state.intent = intent
         kept = self._scope_replies(state)
         if state.dropped and kept:
@@ -281,6 +291,20 @@ class Interviewer:
                 if (" " in word or "-" in word) and word in low or re.search(rf"\b{re.escape(word)}\b", low):
                     return key
         return ""
+
+    def _prefill_site(self, intent: Intent, state: InterviewState) -> None:
+        """T3.1: "how is this plant doing" from a plant manager means their own plant. Only when no site, medicine or
+        market was named and the user did not ask for all sites; said back once so it can be corrected."""
+        if not state.home_plant or intent.sites or intent.products or intent.markets or intent.regions:
+            return
+        if "sites_done" in state.misses or _ALL_SITES.search(" ".join(self._scope_replies(state))):
+            return
+        if not (self._mentions_site(state) or intent.theme == "plant_efficiency"):
+            return
+        intent.sites, intent.confidence["sites"] = [state.home_plant], 1.0
+        if not state.prefilled:
+            state.notes.append(f"I'll use your plant, {state.home_plant} (from your login).")
+            state.prefilled = True
 
     def _sites_in(self, text: str) -> list[str]:
         found: list[str] = []
@@ -500,12 +524,40 @@ class Interviewer:
         """Some models hand back an empty Intent. The rules parser fills ONLY empty entity fields from the user's
         own words; whatever the model did fill is never overwritten."""
         rules = self._rules_intent(state)
+        read = self._words_say(state) if len(state.turns) == 1 else {}  # the opening request only: answers then rule
         for name in ("products", "markets", "regions", "sites", "metric_ids", "decision_supported"):
             if not getattr(intent, name) and getattr(rules, name):
                 setattr(intent, name, getattr(rules, name))
                 key = "markets" if name == "regions" else name
                 intent.confidence[name] = max(intent.confidence.get(name, 0.0), rules.confidence.get(key, 0.9))
+            elif name in read and getattr(intent, name) and read[name]:
+                self._agree(intent, read[name], name)
         self._apply_theme(intent, state)
+
+    def _words_say(self, state: InterviewState) -> dict[str, set[str]]:
+        """What the user's own words name, read by the rules alone (not seeded from the model's last answer)."""
+        text = " ".join(self._scope_replies(state))
+        terms = find_terms(text, self.catalog)
+        return {
+            "products": {self.catalog.dimension_value_label("product", p) for p in value_ids(terms, "product")},
+            "markets": set(value_ids(terms, "market")),
+            "regions": set(value_ids(terms, "region")),
+            "sites": set(self._sites_in(text)),
+            "metric_ids": set(RuleBasedParser(self.catalog).parse(text).metrics),
+        }
+
+    @staticmethod
+    def _agree(intent: Intent, read: set[str], name: str) -> None:
+        """T3.1 (gajus-attack 5.3): two independent readers decide what is worth asking. The model and the rules parser
+        read the same words; where they agree the field is settled (no question), where they name entirely different
+        values the field is asked, whatever confidence the model claimed. A partial overlap keeps the model's view."""
+        if name == "metric_ids" and intent.theme:
+            return  # a goal theme's bundle has its own confirm question
+        said = set(getattr(intent, name))
+        if said == read:
+            intent.confidence[name] = max(intent.confidence.get(name, 0.0), AGREED_CONFIDENCE)
+        elif not said & read:
+            intent.confidence[name] = min(intent.confidence.get(name, 0.0), DISAGREED_CONFIDENCE)
 
     def _scope_replies(self, state: InterviewState) -> list[str]:
         """The user's replies that describe the request. The answer to the decision question is prose, not a request."""
