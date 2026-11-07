@@ -1,6 +1,7 @@
 """BI Steward decision screen. Run: make ui  (Windows: .\\run.ps1 ui)"""
 
 import sys
+import tempfile
 from pathlib import Path
 
 import streamlit as st
@@ -272,6 +273,25 @@ def render_dashboard(result: StewardResult) -> None:
         st.caption("The lint gate is not available yet; nothing blocks approval.")
     st.download_button(
         "Download spec JSON", spec.model_dump_json(indent=2), file_name=f"spec_{key}.json", mime="application/json"
+    )
+    render_pbip_download(spec, frames)
+
+
+def render_pbip_download(spec, frames) -> None:
+    """N7: the .PBIP draft (TMDL semantic model + data). A spec that the lint gate blocks is not exported."""
+    from steward.lint import can_approve
+    from steward.pbip import export_pbip
+
+    if not can_approve(spec):
+        st.caption("No .PBIP export: the spec is blocked by the lint gate or has not been linted.")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        path = export_pbip(spec, frames, Path(tmp))
+        data = path.read_bytes()
+    st.download_button("Download .PBIP (draft)", data, file_name=path.name, mime="application/zip")
+    st.caption(
+        "DRAFT: never opened in Power BI Desktop. Infeasible KPIs (gaps) are not in the model; "
+        "the report holds no visuals yet."
     )
 
 

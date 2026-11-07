@@ -84,3 +84,23 @@ def test_app_loads_with_the_backend_llm_client(monkeypatch, tmp_path):
     app = AppTest.from_file(APP, default_timeout=120).run()
     assert not app.exception
     assert any(c.value.startswith("Language model: ") and "openai/gpt-oss-120b" in c.value for c in app.sidebar.caption)
+
+
+def test_pbip_download_is_offered_for_a_linted_spec_and_labelled_draft(app):
+    app.chat_input[0].set_value(REQ1).run()
+    assert not app.exception
+    labels = [b.proto.label for b in app.get("download_button")]
+    assert "Download .PBIP (draft)" in labels and "Download spec JSON" in labels
+    assert any(c.value.startswith("DRAFT: never opened in Power BI Desktop") for c in app.caption)
+
+
+def test_a_lint_block_hides_the_pbip_export_and_disables_approve(app, monkeypatch):
+    from steward.spec import LintResult
+
+    blocked = [LintResult(rule_id="RULE-003", status="block", message="no owner")]
+    monkeypatch.setattr("steward.lint.lint", lambda spec, catalog: blocked)
+    app.chat_input[0].set_value(REQ1).run()
+    assert not app.exception
+    assert "Download .PBIP (draft)" not in [b.proto.label for b in app.get("download_button")]
+    assert any("No .PBIP export" in c.value for c in app.caption)
+    assert next(b for b in app.button if b.label == "Approve the extension").disabled
