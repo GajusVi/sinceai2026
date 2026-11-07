@@ -21,9 +21,6 @@ uv pip install --python .venv\Scripts\python.exe -r requirements.in
 if ($LASTEXITCODE -ne 0) { Write-Host "Dependency install failed: send the error to Gajus."; exit 1 }
 uv pip install --python .venv\Scripts\python.exe -r requirements-extras.in
 
-Step "Embedding model (cached in .\models)"
-.venv\Scripts\python.exe -c "from backend.retrieval import Index; print(Index().build(['refund policy','password reset']).backend)"
-
 Step "Config"
 if (-not (Test-Path .env)) { Copy-Item .env.example .env; Write-Host "    .env created: paste your own GEMINI_API_KEY into it (notepad .env)" }
 else { Write-Host "    .env exists (left untouched)" }

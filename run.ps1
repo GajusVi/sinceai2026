@@ -18,14 +18,12 @@ try {
         "board-discord" { & $py tools\coord.py discord }
         "board"  { & $py tools\coord.py board }
         "ask"    { Live; & $py -m steward @rest }
-        "ui-old" { Live; & $py -m streamlit run frontend\app.py }
-        "api"    { Live; & $py -m uvicorn backend.main:app --reload --port 8000 }
         "eval"   { Live; & $py eval\eval.py }
         "warm"   { Live; & $py -m backend.warm; if ($LASTEXITCODE -eq 0) { & $py eval\eval.py } }
         "ping"   { Live; & $py -m backend.llm }
         "models" { Live; & $py -m backend.llm models }
         "test"   { $env:DEMO_MODE = "1"; & $py -m pytest -q }
-        default  { "tasks: ui demo bayer pack-large bayer-large board ask ui-old api eval warm ping models test" }
+        default  { "tasks: ui demo bayer pack-large bayer-large board ask eval warm ping models test" }
     }
 } finally {
     $env:DEMO_MODE = $prevDemo   # never leave demo mode on in this window

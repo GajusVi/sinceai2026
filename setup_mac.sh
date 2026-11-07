@@ -111,10 +111,6 @@ if (( WHEELHOUSE )); then
   .venv/bin/python -m pip download -q -r requirements.lock.txt -d wheelhouse && ok "wheelhouse/ (offline: pip install --no-index -f wheelhouse -r requirements.lock.txt)"
 fi
 
-step "Embedding model (offline cache in ./models)"
-BACKEND=$(.venv/bin/python -c "from backend.retrieval import Index; print(Index().build(['refund policy','password reset']).backend)" 2>/dev/null || echo failed)
-[[ "$BACKEND" == "fastembed" ]] && ok "bge-small cached" || warn "embedding model not cached (backend=$BACKEND); TF-IDF fallback works"
-
 # ---------------------------------------------------------------- docs offline
 step "Pinned docs (docs/vendor)"
 mkdir -p docs/vendor

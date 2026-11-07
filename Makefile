@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo bayer pack-large bayer-large board ui-old ask api eval eval-steward warm warm-layout app app-setup app-build test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo bayer pack-large bayer-large board ask eval eval-steward warm warm-layout app app-setup app-build test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -43,12 +43,6 @@ board:      ## team board: who is on what, open asks, commits you are behind on
 
 ask:        ## one question from the terminal: make ask Q="Net sales by market"
 	$(PY) -m steward "$(Q)"
-
-ui-old:     ## pre-event scaffold screen (backend/), kept until removed
-	$(PY) -m streamlit run frontend/app.py
-
-api:        ## FastAPI on :8000 (docs at /docs)
-	$(PY) -m uvicorn backend.main:app --reload --port 8000
 
 eval:       ## hold-out accuracy / F1 / misses -> eval/results.json
 	$(PY) eval/eval.py
