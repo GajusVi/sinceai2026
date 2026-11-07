@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 02:43
-now: interview prompt run on real model (gemini-3.5-flash); waiting for Gemini quota to re-verify one prompt rule
-done: 217088b G2/G3; b2b89f2 architecture roles + rules; interview fixes pushed (see git log)
-next: Intent/interview handover note for Donatas (chat wiring), README section 07 (G6), euro case (G5)
+updated: 2026-11-07 03:01
+now: Aitta set up for my dev/eval LLM; interview works on gpt-oss-120b
+done: 57fafb0 + 91b4f98 interview fixes and Aitta notes; e4e406f earlier interview fixes
+next: Donatas handover note for chat wiring, README section 07 (G6), euro case (G5)
 blocked: T6 conventions decision (mine, below)
