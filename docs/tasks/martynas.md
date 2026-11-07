@@ -4,6 +4,7 @@ Tell your Claude Code: "Do docs/tasks/martynas.md. Read CLAUDE.md and docs/BUILD
 
 **What changed while you slept (read this first, 5 min):** at 03:10 Gajus made the governed, rendered dashboard + .PBIP the end
 product of every verdict (BUILD_PLAN v2). To show Panu a working draft at 09:00, Gajus and Margiris drafted some of your files tonight:
+- `steward/models.py`: additive fields only (e.g. `StewardResult.spec`; Gajus, N3)
 - `steward/spec.py` v2 (contract C5, additive) + fixture `tests/bi_steward/fixtures/spec_req0001.json` (Gajus, N1)
 - `catalog/bayer/measures.json` + new `steward/semantic.py` (the semantic layer + feasibility; Gajus, N2)
 - new `steward/pbip.py`, TMDL half only (Margiris, N7)
@@ -11,7 +12,7 @@ They are yours again from 08:00. Read NOTES.md (night handover lines) and `git l
 Your files: steward/models.py, spec.py, catalog.py, semantic.py, pbip.py, catalog/, data/, templates/pbip/.
 
 ## M0 (08:00, 2 min) take your files back
-In OWNERS, change the NIGHT lines for steward/spec.py, steward/semantic.py, steward/pbip.py and catalog/bayer/measures.json back to
+In OWNERS, change the NIGHT lines for steward/models.py, steward/spec.py, steward/semantic.py, steward/pbip.py and catalog/bayer/measures.json back to
 `martynas` (delete the NIGHT text). Commit "OWNERS: Martynas takes back night files".
 
 ## M1 (08:00-09:30, P0) review the night drafts: contract + bindings
