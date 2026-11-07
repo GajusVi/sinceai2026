@@ -40,6 +40,9 @@ BAYER_EXAMPLES = [
     "Inventory coverage for Xarelto in Germany",
 ]
 
+# Empty-state chips, in business words. Pharma only (CLAUDE.md scope), so no crop examples.
+CHIPS = ["How are we doing in LATAM this quarter?", "Is supply safe for Plant-B?", "Xarelto net sales in Germany"]
+
 LINT_COLOURS = {"pass": ui.GOOD, "warn": ui.WARN, "block": ui.BAD}
 
 VERDICT_TITLES = {
@@ -82,7 +85,7 @@ APPROVE_LABELS = {
     Verdict.CREATE: "Create the report",
 }
 
-st.set_page_config(page_title="BI Steward", layout="wide")
+st.set_page_config(page_title="BI Steward", layout="wide", initial_sidebar_state="collapsed")
 ui.inject()
 
 
@@ -110,8 +113,8 @@ ON_DATA_PACK = bool(kpi_index(steward.catalog)[0])  # data-pack catalog: example
 labels = TemplateExplainer(steward.catalog)
 
 with st.sidebar:
-    st.markdown("### BI Steward")
-    st.caption("Governed analytics for Bayer Pharma: build less, build better.")
+    st.markdown("#### BI Steward")
+    st.caption("Governed analytics for Bayer Pharma. Build less, build better.")
     st.caption(f"AI model: {llm_label()}  \nData as of {steward.as_of}")
     actor = st.text_input("Your name", value="demo-user")
     st.toggle("Expert mode: skip the interview", key="expert_mode")
@@ -177,7 +180,7 @@ def _finish(result: StewardResult, novice: bool, intent=None) -> None:
     else:
         best = result.decision.best
         summary = verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else "")
-    st.session_state.messages.append({"role": "assistant", "content": summary})
+    st.session_state.messages.append({"role": "assistant", "content": summary, "summary": True})
     st.session_state.result = result
     st.session_state.novice_result = novice
     st.session_state.result_intent = intent
@@ -247,8 +250,9 @@ def render_dashboard(result: StewardResult, governance: bool = True) -> None:
             st.caption("No dashboard yet: clarify the question first.")
         return
     key = spec.provenance.get("spec_hash", "spec")
-    st.divider()
-    if governance:
+    if not governance:
+        ui.section("Dashboard preview")
+    else:
         st.markdown(f"#### Dashboard: {spec.name}")
         st.caption(
             f"{spec.change_type.upper()} · version {spec.version} · "
@@ -258,39 +262,34 @@ def render_dashboard(result: StewardResult, governance: bool = True) -> None:
         st.caption(f"Site: {spec.filters['site']} (the products and markets it supplies)")
 
     frames = get_frames()
-    products = ["All products"] + sorted(frames["dim_product"]["product_name"])
-    markets = ["Global"] + sorted(frames["dim_market"]["market_id"])
-    market_names = dict(zip(frames["dim_market"]["market_id"], frames["dim_market"]["market_name"], strict=True))
-    months = [m.strftime("%Y-%m") for m in sorted(frames["dim_month"]["month"])]
-    c1, c2, c3 = st.columns(3)
-    product = c1.selectbox("Product", products, index=_index(products, spec.filters.get("product")), key=f"flt_p_{key}")
-    market = c2.selectbox(
-        "Market", markets, index=_index(markets, spec.filters.get("market", "Global")),
-        format_func=lambda m: m if m == "Global" else f"{market_names[m]} ({m})", key=f"flt_m_{key}",
+    filters = (
+        render_filters(spec, frames, key)
+        if governance
+        else _in_expander("Change product, market or months", lambda: render_filters(spec, frames, key))
     )
-    first, last = c3.select_slider("Months", options=months, value=(months[0], months[-1]), key=f"flt_t_{key}")
-    filters = {
-        "product": "All Pharma" if product == "All products" else product,
-        "market": market, "month_from": first, "month_to": last,
-    }
     dash = render_spec(spec, frames, filters)
 
     text = get_takeaway(key, tuple(sorted(filters.items())), result.question.text, dash)
     if text:
-        ui.takeaway(text)
-        st.write("")
-    tiles = [ui.kpi_card(c.title, c.value, c.comparison, c.tone, c.note) for c in dash.cards]
-    tiles += [ui.gap_card(g.title, g.reason) for g in dash.gaps]
-    ui.card_row(tiles)
+        ui.lead(text)
+    cards = [ui.kpi_card(c.title, c.value, c.comparison, c.tone, c.note) for c in dash.cards]
+    gaps = [ui.gap_card(g.title, g.reason) for g in dash.gaps]
+    if governance:  # expert: every tile, denser
+        ui.card_row(cards + gaps, per_row=5)
+    else:  # the requester: the few KPIs that matter (3 to 5 tiles), a governed gap stays visible
+        tiles = cards[: 5 - min(1, len(gaps))] + gaps[:1]
+        ui.card_row(tiles, per_row=max(3, len(tiles)))
+    if text:
+        st.caption("Summary written by the AI from these numbers; every figure in it is checked against them.")
+    figures = dash.figures if governance else dash.figures[:2]
     fig_cols = st.columns(2)
-    for i, (_title, fig) in enumerate(dash.figures):
+    for i, (_title, fig) in enumerate(figures):
         fig_cols[i % 2].plotly_chart(fig, use_container_width=True, key=f"fig_{key}_{i}")
-    for title, table in dash.tables:
-        st.markdown(f"**{title}**")
-        if table.empty:
-            st.caption("No rows past the threshold for this selection.")
+    if dash.tables:
+        if governance:
+            render_tables(dash.tables)
         else:
-            st.dataframe(table, hide_index=True, width="stretch")
+            _in_expander("Tables", lambda: render_tables(dash.tables))
     if dash.dq:
         with st.expander("Data quality notes"):
             for note in dash.dq:
@@ -303,7 +302,39 @@ def render_dashboard(result: StewardResult, governance: bool = True) -> None:
         render_governance(spec)
 
 
-@st.cache_data(show_spinner="AI is reading the numbers...")
+def render_filters(spec, frames, key: str) -> dict:
+    products = ["All products"] + sorted(frames["dim_product"]["product_name"])
+    markets = ["Global"] + sorted(frames["dim_market"]["market_id"])
+    market_names = dict(zip(frames["dim_market"]["market_id"], frames["dim_market"]["market_name"], strict=True))
+    months = [m.strftime("%Y-%m") for m in sorted(frames["dim_month"]["month"])]
+    c1, c2, c3 = st.columns(3)
+    product = c1.selectbox("Product", products, index=_index(products, spec.filters.get("product")), key=f"flt_p_{key}")
+    market = c2.selectbox(
+        "Market", markets, index=_index(markets, spec.filters.get("market", "Global")),
+        format_func=lambda m: m if m == "Global" else f"{market_names[m]} ({m})", key=f"flt_m_{key}",
+    )
+    first, last = c3.select_slider("Months", options=months, value=(months[0], months[-1]), key=f"flt_t_{key}")
+    return {
+        "product": "All Pharma" if product == "All products" else product,
+        "market": market, "month_from": first, "month_to": last,
+    }
+
+
+def render_tables(tables) -> None:
+    for title, table in tables:
+        st.markdown(f"**{title}**")
+        if table.empty:
+            st.caption("No rows past the threshold for this selection.")
+        else:
+            st.dataframe(table, hide_index=True, width="stretch")
+
+
+def _in_expander(label: str, draw):
+    with st.expander(label):
+        return draw()
+
+
+@st.cache_data(show_spinner=False)
 def get_takeaway(spec_key: str, filters: tuple, question: str, _dash) -> str:
     """One LLM call per spec and filter selection (Streamlit reruns must not call the model again)."""
     from steward.takeaway import takeaway
@@ -380,26 +411,67 @@ def _index(options: list[str], value: str | None) -> int:
 
 
 def render_result(result: StewardResult) -> None:
-    """Novice: the answer first (plain headline + dashboard), governance details behind a toggle, then the
-    approval. Expert: the full governance view as before."""
-    verdict = getattr(result.decision.verdict, "value", result.decision.verdict)
-    st.write("")
-    if st.session_state.get("novice_result"):
-        intent = st.session_state.get("result_intent")
-        ui.verdict_banner(verdict, _headline(result, intent), plain_outcome(result))
-        render_ai(result, expanded=False)
-        render_dashboard(result, governance=False)
-        if st.toggle("Show details for the BI team", key="show_details"):
-            render_details(result, dashboard=True)
-        render_human_decision(result)
-        return
+    """The ruling, top to bottom: headline sentence, verdict strip, dashboard preview, why, approval; the BI team's
+    details (ids, lint, exports, AI trail) behind a toggle. Expert: the same order, denser, ids and details open."""
+    novice = st.session_state.get("novice_result")
     best = result.decision.best
-    ui.verdict_banner(verdict, verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else ""),
-                      plain_outcome(result))
+    word = verdict_word(result)
+    if novice:
+        ui.ruling(_headline(result, st.session_state.get("result_intent")), word, verdict_reason(result))
+        render_dashboard(result, governance=False)
+        ui.section("Why")
+        ui.why(why_sentences(result))
+        render_human_decision(result)
+        st.write("")
+        if st.toggle("Show details for the BI team", key="show_details"):
+            render_ai(result, expanded=True)
+            render_details(result, dashboard=True)
+        return
+    ui.ruling(verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else ""), word,
+              verdict_reason(result), ids=[best.artifact.id] if best else None)
+    ui.section("Why")
+    ui.why(why_sentences(result))
     render_ai(result)
     render_details(result, dashboard=False)
     render_dashboard(result)
     render_human_decision(result)
+
+
+def verdict_word(result: StewardResult) -> str:
+    """REUSE, EXTEND, CONSOLIDATE, CREATE, or MIGRATE / RESCUE when the spec's change type says so."""
+    change = (result.spec.change_type if result.spec is not None else "").upper()
+    if change in ("MIGRATE", "RESCUE"):
+        return change
+    return str(getattr(result.decision.verdict, "value", result.decision.verdict))
+
+
+def verdict_reason(result: StewardResult) -> str:
+    """One line in plain words: why this verdict, naming the report it is about."""
+    best = result.decision.best
+    title = f"'{best.artifact.title}'" if best else "An existing report"
+    word = verdict_word(result)
+    if result.spec is None:
+        return plain_outcome(result)
+    return {
+        "REUSE": f"{title} already answers this.",
+        "EXTEND": f"{title} covers most of this; this is its next version.",
+        "CONSOLIDATE": f"Several reports overlap; one combined version based on {title} replaces them.",
+        "MIGRATE": f"{title} moves to Power BI with what you asked for.",
+        "RESCUE": f"{title} answers this but has no active owner; a new owner takes it over.",
+        "CREATE": "Nothing in the catalog answers this, so this is a new draft on official data.",
+    }.get(word, plain_outcome(result))
+
+
+def why_sentences(result: StewardResult) -> list[str]:
+    """Up to three plain sentences: the rule in words, then what the AI review concluded."""
+    out = [r for r in result.decision.reasons if r][:2]
+    inv = result.investigation
+    if inv is not None:
+        if inv.agrees:
+            out.append("An AI review of the same evidence agrees with this ruling.")
+        else:
+            out.append(f"An AI review suggests {inv.recommendation or 'a different answer'} instead; a person decides.")
+    return out[:3]
 
 
 def _headline(result: StewardResult, intent) -> str:
@@ -412,7 +484,7 @@ def _headline(result: StewardResult, intent) -> str:
 
 def render_details(result: StewardResult, dashboard: bool) -> None:
     decision = result.decision
-    st.markdown("#### Why")
+    st.markdown("#### Full explanation")
     st.markdown(result.explanation)
     render_evidence(decision)
     if dashboard and result.spec is not None:
@@ -484,18 +556,16 @@ def render_human_decision(result: StewardResult) -> None:
     if decision.verdict not in APPROVE_LABELS:
         return
 
-    st.divider()
     novice = st.session_state.get("novice_result")
-    st.markdown("#### Next step: BI team approval" if novice else "#### Human decision")
-    if novice:
-        st.caption("Nothing is published until someone accountable approves it. Every decision is logged.")
+    ui.section("Next step: BI team approval" if novice else "Human decision")
     owner = None
     if decision.verdict == Verdict.CREATE or (decision.best and not decision.best.artifact.has_owner):
         owner = st.text_input("Report owner", key="owner")
     blocked = [r for r in (result.spec.lint if result.spec else []) if r.status == "block"]
     if blocked:
         st.error("Approve is disabled by the lint gate: " + "; ".join(f"{r.rule_id}: {r.message}" for r in blocked))
-    col_ok, col_no = st.columns(2)
+    reason = st.text_input("Reason, if you send it back", key="reject_reason")
+    col_ok, col_no, _ = st.columns([1, 1, 2])
     with col_ok:
         if st.button(APPROVE_LABELS[decision.verdict], type="primary", width="stretch", disabled=bool(blocked)):
             try:
@@ -505,18 +575,18 @@ def render_human_decision(result: StewardResult) -> None:
             else:
                 steward.reload()
                 created = f" New artifact: {entry.created_artifact_id}." if entry.created_artifact_id else ""
-                st.success("Decision recorded in the journal." + created)
+                st.success("Approved and recorded in the journal." + created)
                 st.session_state.result = None
     with col_no:
-        reason = st.text_input("Reason for rejecting", key="reject_reason")
-        if st.button("Reject", width="stretch"):
+        if st.button("Send back", width="stretch"):
             try:
                 steward.governance.reject(result, actor=actor, reason=reason)
             except ValueError as error:
                 st.error(str(error))
             else:
-                st.info("Rejection recorded in the journal. The catalog was not changed.")
+                st.info("Sent back and recorded in the journal. The catalog was not changed.")
                 st.session_state.result = None
+    st.caption("Nothing is published until someone accountable approves it. Every decision is logged.")
 
 
 @st.cache_data
@@ -646,74 +716,107 @@ SKIP_LABEL = "Use recommended"
 
 
 def render_options() -> None:
-    """One-click answers under the pending interview question, plus "use the recommended setup"."""
+    """The pending question's answers as flat pills, then "Use recommended" as a quiet text button."""
     state = st.session_state.get("interview")
     if state is None or state.done:
         return
-    labels = state.options + [SKIP_LABEL]
-    for i, (col, label) in enumerate(zip(st.columns(len(labels)), labels, strict=True)):
-        last = i == len(labels) - 1
-        kind = "primary" if last else "secondary"
-        if col.button(label, key=f"opt_{state.questions_asked}_{i}", width="stretch", type=kind,
-                      help="Answer every remaining question with the recommended choice" if last else None):
-            if last:
-                st.session_state.pending_skip = True
-            else:
+    with st.container(horizontal=True, key="bs-options"):
+        for i, label in enumerate(state.options):
+            if st.button(label, key=f"opt_{state.questions_asked}_{i}"):
                 st.session_state.pending_answer = label
+                st.rerun()
+        if st.button(SKIP_LABEL, key=f"opt_{state.questions_asked}_skip", type="tertiary",
+                     help="Answer every remaining question with the recommended choice"):
+            st.session_state.pending_skip = True
             st.rerun()
 
 
+def render_messages(extra: str | None = None) -> None:
+    """The conversation. The newest line rises in; the current question carries its counter. The last outcome
+    line is not repeated when the ruling below says it."""
+    from steward.intent import MAX_QUESTIONS
+
+    messages = list(st.session_state.get("messages", []))
+    if extra:
+        messages.append({"role": "user", "content": extra})
+    if st.session_state.get("result") and messages and messages[-1].get("summary"):
+        messages = messages[:-1]
+    state = st.session_state.get("interview")
+    pending = state is not None and not state.done and not extra
+    parts = []
+    for n, m in enumerate(messages):
+        last = n == len(messages) - 1
+        counter = f"Question {state.questions_asked} of {MAX_QUESTIONS}" if pending and last else ""
+        parts.append(ui.message(m["role"], m["content"], new=last, counter=counter))
+    if parts:
+        ui.html("".join(parts))
+
+
 with tab_ask:
-    if not st.session_state.get("messages") and not st.session_state.get("pending_question"):
-        ui.hero(
-            "Governed analytics assistant",
-            "Ask for a dashboard. Get the one you should have.",
-            "Describe what you need in your own words. The AI works out what you mean, checks the 360 existing "
-            "reports, and recommends reuse, an extension, a merge or a new build, on official data only.",
-        )
-    ui.pipeline_steps([("AI understands", True), ("Rules decide", False), ("AI investigates", True),
-                       ("Governed dashboard", False), ("AI takeaway", True), ("Human approves", False)])
-    typed = st.chat_input("Ask a business question, e.g. " + (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES)[0])
+    top = st.container()
+    typed = st.chat_input("Ask in your own words")
+    below = st.container()
     question = typed or st.session_state.pop("pending_answer", None) or st.session_state.pop("pending_question", None)
-    if st.session_state.pop("pending_skip", False):
-        skip_to_defaults()
-    elif question and question.strip():
-        ask(question.strip())
-    for message in st.session_state.get("messages", []):
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-    render_options()
-    if st.session_state.get("result"):
-        render_result(st.session_state.result)
+    skip = st.session_state.pop("pending_skip", False)
+    work = skip or bool(question and question.strip())
+    if work:  # the building state: the conversation so far and a still skeleton, replaced when the answer is ready
+        with top:
+            building = st.empty()
+            with building.container():
+                render_messages(extra="Use the recommended setup" if skip else question.strip())
+                ui.skeleton(full=skip or bool(st.session_state.get("expert_mode")))
+        if skip:
+            skip_to_defaults()
+        else:
+            ask(question.strip())
+        building.empty()
+    with top:
+        if not st.session_state.get("messages"):
+            ui.ask_hero("What do you need to know?")
+        else:
+            render_messages()
+            render_options()
+            if st.session_state.get("result"):
+                render_result(st.session_state.result)
+    if not st.session_state.get("messages"):
+        with below, st.container(horizontal=True, key="bs-examples"):
+            for chip in CHIPS if ON_DATA_PACK else EXAMPLES[:3]:
+                if st.button(chip, key=f"chip_{chip}"):
+                    st.session_state.pending_question = chip
+                    st.rerun()
+
+
+def render_health() -> None:
+    """The IT pain in three numbers from the catalog, then one sortable table."""
+    from steward.linking import artifact_variants
+
+    health = steward.health()
+    retire = {r.artifact_id for r in health.retire}
+    rows, low, variant_assets, no_owner = [], 0, 0, 0
+    for a in steward.catalog.artifacts.values():
+        variants = artifact_variants(a, steward.catalog)
+        owner_ok = bool(a.owner) and a.owner_active
+        low += a.views_30d < 1000
+        variant_assets += bool(variants)
+        no_owner += not owner_ok
+        rows.append({
+            "id": a.id, "report": a.title, "views (30 days)": a.views_30d,
+            "non-canonical KPIs": len(variants),
+            "owner": a.owner or "missing", "owner status": "active" if owner_ok else (a.owner_status or "missing"),
+            "platform": a.platform or "-", "retire candidate": a.id in retire,
+        })
+    ui.big_numbers([
+        (f"{low:,}", f"of {len(rows):,} reports have under 1,000 views in 30 days"),
+        (f"{variant_assets:,}", "reports use a non-canonical KPI definition"),
+        (f"{no_owner:,}", "reports have a missing or inactive owner"),
+    ])
+    st.caption(f"{len(health.duplicates)} likely duplicate pairs, {len(health.retire)} retirement candidates. "
+               "Sort any column by clicking its header.")
+    st.dataframe(rows, width="stretch", hide_index=True, height=520)
+
 
 with tab_health:
-    health = steward.health()
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Reports in catalog", health.total)
-    c2.metric("Certified", health.certified)
-    c3.metric("Duplicates", len(health.duplicates))
-    c4.metric("Retirement candidates", len(health.retire))
-
-    st.markdown("#### Candidates for retirement")
-    st.dataframe(
-        [{"report": r.title, "id": r.artifact_id, "why": "; ".join(r.reasons)} for r in health.retire],
-        width="stretch",
-        hide_index=True,
-    )
-    st.markdown("#### Duplicates")
-    st.dataframe(
-        [
-            {
-                "keep": steward.catalog.artifact(p.keep_id).title,
-                "duplicate": steward.catalog.artifact(p.duplicate_id).title,
-                "similarity": f"{p.similarity:.0%}",
-            }
-            for p in health.duplicates
-        ],
-        width="stretch",
-        hide_index=True,
-    )
-
+    render_health()
 
 with tab_orphan:
     render_orphan_rescue()
@@ -721,44 +824,36 @@ with tab_orphan:
 with tab_journal:
     entries = steward.governance.entries()
     if entries:
-        st.dataframe(
-            [
-                {
-                    "when": e.timestamp.strftime("%Y-%m-%d %H:%M"),
-                    "who": e.actor,
-                    "question": e.question,
-                    "verdict": e.verdict.value,
-                    "decision": e.action.value,
-                    "report": e.artifact_id,
-                    "created": e.created_artifact_id,
-                    "reason": e.reason,
-                    "spec": e.spec_hash,
-                    "lint": e.lint,
-                }
-                for e in reversed(entries)
-            ],
-            width="stretch",
-            hide_index=True,
-        )
+        ui.timeline([
+            (e.timestamp.strftime("%d %b %H:%M"), e.question, e.verdict.value, e.action.value, e.actor)
+            for e in reversed(entries)
+        ])
+        with st.expander("All journal fields (spec hash, lint, ids)"):
+            st.dataframe(
+                [
+                    {
+                        "when": e.timestamp.strftime("%Y-%m-%d %H:%M"), "who": e.actor, "question": e.question,
+                        "verdict": e.verdict.value, "decision": e.action.value, "report": e.artifact_id,
+                        "created": e.created_artifact_id, "reason": e.reason, "spec": e.spec_hash, "lint": e.lint,
+                    }
+                    for e in reversed(entries)
+                ],
+                width="stretch",
+                hide_index=True,
+            )
     else:
-        st.caption("No decisions yet.")
+        st.caption("No decisions yet. Approved and sent-back rulings appear here, newest first.")
 
 with tab_catalog:
-    st.dataframe(
-        [
-            {
-                "id": a.id,
-                "title": a.title,
-                "domain": a.domain,
-                "owner": a.owner,
-                "certified": a.certified,
-                "refreshed": a.last_refreshed,
-                "views": a.views_30d,
-                "status": a.status.value,
-                "version": a.version,
-            }
-            for a in steward.catalog.artifacts.values()
-        ],
-        width="stretch",
-        hide_index=True,
-    )
+    term = st.text_input("Search the catalog", placeholder="Report name, id, owner or domain").strip().lower()
+    catalog_rows = [
+        {
+            "id": a.id, "title": a.title, "domain": a.domain, "owner": a.owner, "certified": a.certified,
+            "refreshed": a.last_refreshed, "views": a.views_30d, "status": a.status.value, "version": a.version,
+        }
+        for a in steward.catalog.artifacts.values()
+    ]
+    if term:
+        catalog_rows = [r for r in catalog_rows if any(term in str(v).lower() for v in r.values())]
+    st.caption(f"{len(catalog_rows):,} reports")
+    st.dataframe(catalog_rows, width="stretch", hide_index=True, height=560)

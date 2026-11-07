@@ -1,0 +1,124 @@
+/* BI Steward: "the ruling". One stylesheet, injected once by frontend/ui.py (docs/steward/DESIGN.md).
+   Taste skill: palette white-link-blue (library/palettes.json), type Instrument Sans (library/type.json, self-hosted),
+   flat fills only, no borders, shadows, gradients or emoji. Verdict colours appear only on the verdict.
+   Motion (design-motion-principles, Emil lens): new message 150ms rise, verdict 200ms fade, button press; nothing else,
+   and nothing under prefers-reduced-motion. Contrast: every text colour >= 4.5:1 on --bg and --surface. */
+:root {
+  --bg: #ffffff; --surface: #f4f4f4; --surface-2: #ebebeb; --ink: #111111; --muted: #6b6b6b; --accent: #1a4be0;
+  --reuse: #15803d; --extend: #1a4be0; --amber: #b45309; --create: #111111; --rescue: #b91c1c;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Frame: wide, generous margins, content about 1200px at 1440. */
+.block-container { padding-top: 3.2rem; padding-bottom: 4rem; max-width: 1200px; }
+[data-testid="stDecoration"] { display: none; }
+h1, h2, h3, h4, h5 { letter-spacing: -0.028em; color: var(--ink); }
+[data-testid="stCaptionContainer"], .bs-muted { color: var(--muted); }
+.bs-muted { font-size: 0.85rem; }
+.bs-num, .bs-kpi-value, .bs-kpi-delta, .bs-big b, [data-testid="stMetricValue"] { font-variant-numeric: tabular-nums; }
+
+/* Empty state: one large question. */
+.bs-ask { padding: 9vh 0 1.4rem 0; }
+.bs-ask h1 { font-size: clamp(2.2rem, 4.4vw, 3.4rem); font-weight: 600; line-height: 1.05; margin: 0; padding: 0; }
+
+/* Flat pills: example chips and interview answers (st.container keys bs-examples / bs-options). */
+.st-key-bs-examples button, .st-key-bs-options button[kind="secondary"] {
+  border: none; background: var(--surface); color: var(--ink); border-radius: 999px; padding: 0.35rem 0.95rem;
+  min-height: 2.5rem;
+}
+.st-key-bs-examples button:hover, .st-key-bs-options button[kind="secondary"]:hover {
+  background: var(--surface-2); color: var(--ink);
+}
+.st-key-bs-options button[kind="tertiary"] { color: var(--accent); min-height: 2.5rem; }
+
+/* Chat input: a flat field, a visible ring only for keyboard focus. */
+[data-testid="stChatInput"] > div { border: none; background: var(--surface); box-shadow: none; }
+[data-testid="stChatInput"] textarea { font-size: 1.02rem; }
+[data-testid="stChatInput"]:focus-within > div { box-shadow: 0 0 0 2px var(--accent); }
+
+/* Conversation: the steward speaks in ink, the user's answers stay above, muted. */
+.bs-msg { margin: 0 0 0.9rem 0; max-width: 72ch; }
+.bs-msg.ai { color: var(--ink); font-size: 1.06rem; line-height: 1.5; }
+.bs-msg.me { color: var(--muted); font-size: 0.95rem; }
+.bs-msg.me::before { content: "You: "; }
+.bs-count { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.04em; margin-bottom: 0.2rem; }
+
+/* The ruling: headline sentence, then the verdict strip. */
+.bs-ruling { margin: 1.6rem 0 1.2rem 0; }
+.bs-headline { font-size: clamp(1.7rem, 2.8vw, 2.25rem); font-weight: 600; line-height: 1.12; margin: 0 0 0.9rem 0;
+  padding: 0; max-width: 30ch; }
+.bs-verdict { display: flex; gap: 0.8rem; align-items: baseline; flex-wrap: wrap; background: var(--surface);
+  border-radius: 0.6rem; padding: 0.85rem 1.1rem; }
+.bs-verdict .w { font-weight: 700; font-size: 0.82rem; letter-spacing: 0.08em; }
+.bs-verdict .r { color: var(--ink); font-size: 1rem; }
+.bs-lead { font-size: 1.12rem; line-height: 1.55; color: var(--ink); max-width: 70ch; margin: 0.2rem 0 1.1rem 0; }
+
+/* Dashboard preview: flat tiles, a faint fill on the white ground. */
+.bs-card { background: var(--surface); border-radius: 0.6rem; padding: 1rem 1.1rem; min-height: 7.2rem; }
+.bs-kpi-label { color: var(--muted); font-size: 0.82rem; font-weight: 500; }
+.bs-kpi-value { font-size: 1.7rem; font-weight: 600; color: var(--ink); line-height: 1.2; margin-top: 0.25rem; }
+.bs-kpi-delta { font-size: 0.82rem; font-weight: 600; margin-top: 0.15rem; }
+.bs-gap .bs-kpi-label { color: var(--ink); }
+.bs-gap .bs-kpi-value { color: var(--muted); font-size: 1.05rem; }
+
+/* Why, sections, ids. */
+.bs-section { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 2rem 0 0.5rem 0; }
+.bs-why p { margin: 0 0 0.45rem 0; max-width: 72ch; font-size: 1rem; line-height: 1.55; }
+.bs-chip { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--muted);
+  background: var(--surface); border-radius: 0.3rem; padding: 0.05rem 0.4rem; margin-right: 0.25rem;
+  white-space: nowrap; }
+.bs-badge { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; }
+.bs-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; display: inline-block; flex: none; }
+
+/* AI trail (BI team details). */
+.bs-trail { margin: 0.4rem 0 0 0; padding: 0; list-style: none; }
+.bs-trail li { position: relative; padding: 0 0 0.85rem 2rem; }
+.bs-trail li::before { content: attr(data-n); position: absolute; left: 0; top: 0.05rem; width: 1.35rem;
+  height: 1.35rem; border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 0.72rem;
+  font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.bs-trail .f { color: var(--ink); font-size: 0.93rem; line-height: 1.45; }
+
+/* Building state: a quiet, still skeleton of the result layout. */
+.bs-skel { background: var(--surface); border-radius: 0.5rem; }
+.bs-skel-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
+
+/* Catalog health and journal. */
+.bs-big { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 0.6rem 0 1.6rem 0; }
+.bs-big div { background: var(--surface); border-radius: 0.6rem; padding: 1.2rem 1.3rem; }
+.bs-big b { display: block; font-size: 2.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
+.bs-big span { color: var(--muted); font-size: 0.92rem; }
+.bs-tl { list-style: none; margin: 0.6rem 0 0 0; padding: 0; }
+.bs-tl li { margin: 0; display: grid; grid-template-columns: 9.5rem 1fr; gap: 1.2rem; padding: 0.8rem 0; }
+.bs-tl li + li { box-shadow: 0 -1px 0 var(--surface-2); }
+.bs-tl time { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.bs-tl .q { color: var(--ink); }
+
+/* Flat Streamlit parts: expanders, secondary buttons and inputs on a faint fill, no outlines. */
+[data-testid="stExpander"] details { border: none; background: var(--surface); border-radius: 0.6rem; }
+[data-testid="stExpander"] summary:hover { color: var(--accent); }
+div[data-testid="stButton"] button[kind="secondary"] { border: none; background: var(--surface); }
+div[data-testid="stButton"] button[kind="secondary"]:hover { background: var(--surface-2); color: var(--ink); }
+.bs-headline, .bs-ask h1 { letter-spacing: -0.022em; }
+
+/* Buttons step on hover (theme) and press on click. */
+div[data-testid="stButton"] button { transition: transform 150ms var(--ease), background-color 150ms var(--ease); }
+div[data-testid="stButton"] button:active { transform: scale(0.97); }
+
+/* Motion: only these two entrances. */
+@keyframes bs-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes bs-fade { from { opacity: 0; } to { opacity: 1; } }
+.bs-msg.new { animation: bs-rise 150ms var(--ease) both; }
+.bs-ruling .bs-verdict { animation: bs-fade 200ms var(--ease) 80ms both; }
+
+@media (max-width: 640px) {
+  .block-container { padding-left: 1rem; padding-right: 1rem; }
+  .bs-big, .bs-skel-row { grid-template-columns: 1fr; }
+  .bs-tl li { grid-template-columns: 1fr; gap: 0.2rem; }
+  .bs-ask { padding-top: 4vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bs-msg.new, .bs-ruling .bs-verdict { animation: none; }
+  div[data-testid="stButton"] button { transition: none; }
+  div[data-testid="stButton"] button:active { transform: none; }
+}
