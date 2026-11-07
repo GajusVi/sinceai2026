@@ -120,7 +120,22 @@ def test_pbip_download_is_offered_for_a_linted_spec_and_labelled_draft(app):
     assert not app.exception
     labels = [b.proto.label for b in app.get("download_button")]
     assert "Download .PBIP (draft)" in labels and "Download spec JSON" in labels
-    assert any(c.value.startswith("DRAFT: never opened in Power BI Desktop") for c in app.caption)
+    assert any(c.value.startswith("Checked in Power BI Desktop 2.159") for c in app.caption)
+    assert not any("never opened" in c.value for c in app.caption)  # true only until the first Desktop check
+    assert "Download .PBIP with live refresh" not in labels  # live refresh is opt-in: nothing starts until it is ticked
+
+
+def test_live_refresh_is_opt_in_and_the_service_starts_only_then(app, tmp_path, monkeypatch):
+    from steward import pbip_server
+
+    monkeypatch.setattr(pbip_server, "DEFAULT_PORT", 0)  # a free port: the tests must not fight for 8765
+    app.chat_input[0].set_value(REQ1).run()
+    box = next(c for c in app.checkbox if c.label.startswith("Live refresh"))
+    assert not box.value and not (tmp_path / "pbip_live").exists()
+    box.check().run()
+    assert not app.exception
+    assert "Download .PBIP with live refresh" in [b.proto.label for b in app.get("download_button")]
+    assert list((tmp_path / "pbip_live").glob("*.json"))  # the approved spec was registered for the service
 
 
 def test_a_lint_block_hides_the_pbip_export_and_disables_approve(app, monkeypatch):

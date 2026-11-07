@@ -9,6 +9,7 @@ eval/                   margiris
 backend/ingest.py       martynas
 backend/models.py       martynas
 data/                   martynas
+frontend/steward_app.py martynas   (TEMP, Gajus OK 1107-213136: render_pbip_download only; back to gajus in the next commit)
 frontend/               gajus   (design + AI blocks; Donatas OK 1107-094359, he keeps demo/, submission/, render.py, pitch)
 frontend/steward.css    donatas   (T2.6 UX design, Gajus OK 1107-210507)
 frontend/ui.py          donatas   (T2.6 UX design, Gajus OK 1107-210507)

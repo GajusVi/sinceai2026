@@ -505,16 +505,40 @@ def render_pbip_download(spec, frames) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         path = export_pbip(spec, frames, Path(tmp))
         data = path.read_bytes()
+    spec_key = spec.provenance.get("spec_hash", "spec")
     st.download_button(
         "Download .PBIP (draft)",
         data,
         file_name=path.name,
         mime="application/zip",
-        key=f"dl_pbip_{spec.provenance.get('spec_hash', 'spec')}",
+        key=f"dl_pbip_{spec_key}",
     )
+    if st.checkbox(
+        "Live refresh: the report loads its data from this app (needs this app running)", key=f"pbip_live_{spec_key}"
+    ):
+        from steward import pbip_server  # the service starts here, on first use, inside this process
+
+        try:
+            live = pbip_server.register(spec, steward.data_dir, pbip_server.ensure_running(steward.data_dir))
+            with tempfile.TemporaryDirectory() as tmp:
+                live_path = export_pbip(spec, frames, Path(tmp), live=live)
+                live_data = live_path.read_bytes()
+            st.download_button(
+                "Download .PBIP with live refresh",
+                live_data,
+                file_name=live_path.name,
+                mime="application/zip",
+                key=f"dl_pbip_live_{spec_key}",
+            )
+            st.caption(
+                f"Start this app first, open the file in Power BI Desktop, click Refresh. The first Refresh asks for "
+                f"credentials for {live.base_url}: choose Anonymous. Not a login: the key only separates exports."
+            )
+        except RuntimeError as exc:
+            st.caption(str(exc))
     st.caption(
-        "DRAFT: never opened in Power BI Desktop. Infeasible KPIs (gaps) are not in the model; "
-        "the report holds no visuals yet."
+        "Checked in Power BI Desktop 2.159 (the REQ-0001 export and all 12 governed measures). "
+        "Infeasible KPIs (gaps) are not in the model."
     )
 
 
