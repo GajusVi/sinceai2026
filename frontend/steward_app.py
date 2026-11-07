@@ -21,7 +21,7 @@ from steward.governance import JOURNAL_FILE  # noqa: E402
 from steward.linking import kpi_index  # noqa: E402
 from steward.models import GapKind, StewardResult, Verdict  # noqa: E402
 from steward.render import render as render_spec  # noqa: E402
-from steward.worker import log_request, other_plant, read_log, refusal  # noqa: E402
+from steward.worker import log_request, other_plant, own_plant_scope, read_log, refusal  # noqa: E402
 
 EXAMPLES = [
     "What is herbicide revenue in LATAM vs plan for Q3?",
@@ -223,6 +223,7 @@ def _continue(state) -> None:
         st.session_state.messages.append({"role": "assistant", "content": state.question})
         return
     st.session_state.interview = None
+    state.intent = own_plant_scope(user, state.intent)  # management: no plant named -> own plant (supply data)
     st.session_state.messages.append({"role": "assistant", "content": understood(state)})
     result = steward.investigate(steward.ask_intent(state.intent), state.intent)
     _finish(steward.build(result, state.intent, user), novice=True, intent=state.intent)

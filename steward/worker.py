@@ -134,6 +134,20 @@ class WorkerAnswer:
     refused: str = ""  # plain-words reason when the question is out of the worker's scope
 
 
+# Plant-level metrics (catalog/bayer/metrics.json domain "Supply Chain", fact_supply has a supply_source per row).
+SITE_METRICS = frozenset({"on_time_in_full", "inventory_coverage", "demand_forecast_accuracy", "demand_forecast_bias",
+                          "units_shipped"})
+
+
+def own_plant_scope(user: User, intent):
+    """Management (Gajus 1107, option A): a supply question that names no plant is scoped to the user's own plant,
+    never company-wide. Sales / market questions are not plant data and stay as asked. Builders see everything."""
+    if user is None or user.role != "management" or intent.sites or not SITE_METRICS & set(intent.metric_ids):
+        return intent
+    confidence = {**intent.confidence, "sites": 1.0}
+    return intent.model_copy(update={"sites": [user.plant], "confidence": confidence})
+
+
 def other_plant(user: User, sites: list[str]) -> str:
     """A plant the user may not open (empty if none). Workers never; management only its own or granted plants."""
     if user.role == "builder":

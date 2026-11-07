@@ -167,3 +167,18 @@ def test_gaps_are_flagged_by_code_and_duplicate_requests_join(env):
     second = request_entry(login("Worker22", "Worker123"), "report", "supplier lead times ")
     assert same_request([first], second) is first  # one card per need per plant
     assert same_request([first], request_entry(worker, "access", "Supplier lead times", "Quality Ops")) is None
+
+
+def test_manager_supply_question_without_a_plant_is_scoped_to_the_own_plant():
+    from steward.auth import login
+    from steward.intent import Intent
+    from steward.worker import own_plant_scope
+
+    manager, builder = login("Manager07", "Manage123"), login("Builder12", "Admin123")
+    supply = Intent(text="Is supply safe?", metric_ids=["on_time_in_full"])
+    assert own_plant_scope(manager, supply).sites == [manager.plant]  # never company-wide plant data
+    assert own_plant_scope(builder, supply).sites == []  # the BI team sees every plant
+    sales = Intent(text="LATAM net sales", metric_ids=["net_sales"])
+    assert own_plant_scope(manager, sales).sites == []  # market data is not plant data: unchanged
+    named = Intent(text="Plant-B supply", metric_ids=["on_time_in_full"], sites=["Plant-B"])
+    assert own_plant_scope(manager, named) is named
