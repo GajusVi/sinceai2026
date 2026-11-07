@@ -1,33 +1,36 @@
 {
+  "asks_about": "",
   "intent": {
-    "role": "commercial lead",
-    "decision_supported": "monitor market access and sales growth",
+    "audience": "",
     "cadence": "",
-    "products": [
-      "Nubeqa"
-    ],
+    "comparison": null,
+    "confidence": {
+      "markets": 0.9,
+      "metric_ids": 0.9,
+      "products": 0.9
+    },
+    "conflicts": [],
+    "decision_supported": "",
+    "grain": "month",
+    "ignored_terms": [],
     "markets": [
       "Global"
     ],
-    "regions": [],
-    "sites": [],
-    "theme": "",
     "metric_ids": [
       "net_sales_growth",
       "forecast_variance",
       "market_access_coverage"
     ],
-    "unmapped_terms": [],
-    "grain": "month",
-    "comparison": "forecast",
-    "audience": "",
-    "conflicts": [],
-    "confidence": {
-      "products": 0.9,
-      "markets": 0.9,
-      "metric_ids": 0.9
-    }
+    "mode": "expert",
+    "products": [
+      "Nubeqa"
+    ],
+    "regions": [],
+    "role": "commercial owner",
+    "sites": [],
+    "text": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
+    "theme": "",
+    "unmapped_terms": []
   },
-  "next_question": null,
-  "asks_about": null
+  "next_question": null
 }

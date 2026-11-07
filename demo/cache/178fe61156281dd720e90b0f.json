@@ -1,35 +1,32 @@
 {
-  "asks_about": "theme_confirm",
   "intent": {
-    "audience": "",
+    "role": "plant_manager",
+    "decision_supported": "monitor",
     "cadence": "",
-    "comparison": null,
-    "confidence": {
-      "decision_supported": 0.0,
-      "metric_ids": 0.6,
-      "markets": 0.0,
-      "products": 0.0,
-      "regions": 0.0,
-      "sites": 0.9,
-      "theme": 0.9
-    },
-    "decision_supported": "",
-    "grain": "month",
+    "products": [],
     "markets": [],
+    "regions": [],
+    "sites": [
+      "Plant-B"
+    ],
+    "theme": "supply_health",
     "metric_ids": [
       "on_time_in_full",
       "inventory_coverage",
       "demand_forecast_accuracy"
     ],
-    "mode": "novice",
-    "products": [],
-    "regions": [],
-    "role": "plans stock and supply for medicines across countries",
-    "sites": [
-      "Plant-B"
-    ],
-    "theme": "supply_health",
-    "unmapped_terms": []
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": null,
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "sites": 0.95,
+      "theme": 0.9,
+      "metric_ids": 0.6,
+      "decision_supported": 0.5
+    }
   },
-  "next_question": "To check supply safety at Plant-B, I would look at on-time deliveries, stock cover, and forecast accuracy (supplier lead times are not tracked here). Are these the numbers you need, or are you looking for something else?"
+  "next_question": "To track supply safety for Plant-B, I can look at delivery performance, weeks of stock cover, and forecast accuracy. Is that the picture you need, or are you looking at something else?",
+  "asks_about": "theme_confirm"
 }

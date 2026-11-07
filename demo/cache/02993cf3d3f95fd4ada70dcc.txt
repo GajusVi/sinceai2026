@@ -1,0 +1,3 @@
+A new report needs to be created to answer your question regarding LATAM performance this quarter. The closest existing option is "All Pharma Net Sales New" (owned by Sofia Rossi, uncertified, last refreshed on June 10, 2026), but it only covers Net Sales Growth, regional filtering, and monthly data. It lacks essential requested metrics: Net Sales, Forecast Variance, and On-Time In-Full. 
+
+Additionally, please note that "All Pharma Net Sales New" uses Net Sales v2, which is not the official Net Sales metric and is calculated differently, so do not compare those numbers directly.

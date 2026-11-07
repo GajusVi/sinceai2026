@@ -1,6 +1,6 @@
 {
   "intent": {
-    "role": "executive",
+    "role": "country manager",
     "decision_supported": "monitor",
     "cadence": "quarterly",
     "products": [],
@@ -17,17 +17,17 @@
       "on_time_in_full"
     ],
     "unmapped_terms": [],
-    "grain": "month",
-    "comparison": "forecast",
+    "grain": "quarter",
+    "comparison": null,
     "audience": "",
     "conflicts": [],
     "confidence": {
       "regions": 0.9,
-      "theme": 0.8,
+      "theme": 0.6,
       "metric_ids": 0.6,
-      "decision_supported": 0.5
+      "decision_supported": 0.3
     }
   },
-  "next_question": "To see how we are doing in Latin America, I can show Net Sales, sales growth, performance vs forecast, and delivery reliability. Is that the picture you need, or are you focusing on specific products?",
+  "next_question": "To track Latin America's quarterly performance, I would look at Net Sales, sales growth, variance to forecast, and on-time delivery. Is that the picture you need, or are you looking for something else?",
   "asks_about": "theme_confirm"
 }

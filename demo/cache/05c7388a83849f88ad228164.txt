@@ -1,0 +1,1 @@
+A new report must be created to answer whether supply is safe for Plant-B. The existing report carrying these metrics, "AST-0335-v4", cannot be used because it is recommended for retirement. Note that supplier lead times are not yet measured in governed data and must be defined by a domain owner first.

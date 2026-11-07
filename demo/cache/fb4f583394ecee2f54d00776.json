@@ -1,46 +1,49 @@
 {
   "steps": [
     {
-      "finding": "The user requested a global dashboard for Nubeqa covering net_sales_growth, forecast_variance, and market_access_coverage.",
+      "finding": "The user requested a global Nubeqa dashboard tracking net sales growth, forecast variance, and market access coverage.",
       "record_ids": []
     },
     {
-      "finding": "The top search result AST-0015 covers 60% of the request and includes KPI-004, but lacks forecast_variance and market_access_coverage, with low trust of 0.35 and 0 avg monthly users under active owner OWN-022.",
+      "finding": "The closest match found in the search is AST-0015 ('All Pharma Net Sales New'), which covers 60% of the request, uses Power BI, and has an active owner (OWN-022) with healthy refresh on semantic model SM-041.",
       "record_ids": [
         "AST-0015",
-        "KPI-004",
         "OWN-022"
       ]
     },
     {
-      "finding": "Other high-coverage search assets AST-0335-v4 and AST-0143 have governance issues such as an inactive owner OWN-043 or a refresh warning on SM-019.",
+      "finding": "AST-0015 currently lacks key metrics: forecast_variance and market_access_coverage, and records 0 average monthly users.",
       "record_ids": [
-        "AST-0335-v4",
-        "OWN-043",
-        "AST-0143",
-        "SM-019"
+        "AST-0015"
       ]
     },
     {
-      "finding": "High-usage certified asset AST-0239 has 259 avg monthly users on healthy model SM-062, but lacks an owner and missing 3 requested metrics.",
+      "finding": "Other Nubeqa assets like AST-0239 have certified models and high usage (259 avg monthly users) but lack an owner and miss all three requested metrics.",
       "record_ids": [
-        "AST-0239",
-        "SM-062"
+        "AST-0239"
       ]
     },
     {
-      "finding": "Multiple governance warnings under RULE-002 highlight KPI definition conflicts and duplicate candidates across legacy estate assets.",
+      "finding": "Governance rules highlighted KPI conflicts (RULE-002) across other estate assets like AST-0006, AST-0008, and AST-0018 regarding net sales growth and market access coverage definitions.",
       "record_ids": [
-        "RULE-002"
+        "RULE-002",
+        "AST-0006",
+        "AST-0008",
+        "AST-0018",
+        "KPI-004",
+        "KPI-005",
+        "KPI-027",
+        "KPI-028",
+        "KPI-029"
       ]
     }
   ],
   "recommendation": "CREATE",
   "best_asset_id": "AST-0015",
   "agrees": true,
-  "why": "No single existing asset covers all required Nubeqa KPIs with proper governance. Creating a new dashboard using AST-0015's governed foundation allows us to incorporate missing metrics safely.",
+  "why": "No existing dashboard covers all three required Nubeqa metrics under a single governed model. AST-0015 provides a healthy, active baseline model (SM-041) to build upon.",
   "risks": [
-    "AST-0015 currently has 0 avg monthly users and low trust score.",
-    "Forecast variance and market access coverage metrics must be newly integrated into the governed model."
+    "AST-0015 currently has 0 average monthly users and requires addition of forecast variance and market access coverage metrics.",
+    "Multiple non-canonical KPI definitions exist across the estate (RULE-002) for net sales growth and market access coverage."
   ]
 }

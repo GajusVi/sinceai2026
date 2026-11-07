@@ -1,0 +1,21 @@
+{
+ "reason": "This sequence prioritizes a quick glance at key performance cards followed by a line visual to show timing trends, adhering to the four-visual limit without deep-dive tables.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What are our net sales in Latin America this quarter"
+  },
+  {
+   "id": "card:KPI-004",
+   "question": "How fast are our net sales growing"
+  },
+  {
+   "id": "card:KPI-042",
+   "question": "How close are we to our sales forecast"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the sales trend change"
+  }
+ ]
+}

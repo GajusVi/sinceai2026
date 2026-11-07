@@ -1,7 +1,7 @@
 {
   "intent": {
-    "role": "commercial controller",
-    "decision_supported": "",
+    "role": "controller",
+    "decision_supported": "monitor",
     "cadence": "",
     "products": [
       "Xarelto"
@@ -21,11 +21,12 @@
     "audience": "",
     "conflicts": [],
     "confidence": {
-      "products": 1.0,
-      "markets": 1.0,
-      "metric_ids": 1.0
+      "products": 0.9,
+      "markets": 0.9,
+      "metric_ids": 0.9,
+      "decision_supported": 0.5
     }
   },
-  "next_question": "Are you reviewing this for your monthly sales check, adjusting local targets, or something else?",
+  "next_question": "Are you tracking Xarelto sales in Germany for a monthly business review, or to check performance against forecast?",
   "asks_about": "decision_supported"
 }

@@ -1,6 +1,6 @@
 {
   "intent": {
-    "role": "owns sales, budget and gross-to-net reporting",
+    "role": "country_manager",
     "decision_supported": "",
     "cadence": "",
     "products": [
@@ -23,10 +23,7 @@
     "confidence": {
       "products": 0.9,
       "markets": 0.9,
-      "regions": 1.0,
-      "sites": 1.0,
-      "metric_ids": 0.9,
-      "decision_supported": 0.0
+      "metric_ids": 0.9
     }
   },
   "next_question": null,

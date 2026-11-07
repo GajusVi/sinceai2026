@@ -1,8 +1,8 @@
 {
   "intent": {
-    "role": "executive",
-    "decision_supported": "monitor business performance",
-    "cadence": "quarterly",
+    "role": "shareholder",
+    "decision_supported": "",
+    "cadence": "",
     "products": [],
     "markets": [],
     "regions": [
@@ -23,8 +23,8 @@
     "conflicts": [],
     "confidence": {
       "regions": 0.9,
-      "metric_ids": 0.6,
-      "theme": 0.8
+      "theme": 0.6,
+      "metric_ids": 0.6
     }
   },
   "next_question": null,

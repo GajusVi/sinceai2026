@@ -5,12 +5,11 @@
     "cadence": "",
     "comparison": null,
     "confidence": {
-      "decision_supported": 0.6,
       "metric_ids": 0.6,
       "sites": 0.9
     },
     "conflicts": [],
-    "decision_supported": "monitor supply risk",
+    "decision_supported": "",
     "grain": "month",
     "markets": [],
     "metric_ids": [
@@ -20,7 +19,7 @@
     ],
     "products": [],
     "regions": [],
-    "role": "plant_head",
+    "role": "runs or oversees a manufacturing site",
     "sites": [
       "Plant-B"
     ],

@@ -1,0 +1,29 @@
+{
+  "reason": "The flow starts with key metric cards, follows with the net sales trend to show timing, breaks down performance, and ends with actionable forecast exceptions.",
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "How are our overall sales performing this quarter"
+    },
+    {
+      "id": "card:KPI-042",
+      "question": "How far are we missing our forecast target"
+    },
+    {
+      "id": "card:KPI-004",
+      "question": "Is our sales momentum improving or declining"
+    },
+    {
+      "id": "card:KPI-020",
+      "question": "Are we delivering orders to customers on time"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did the sales gap against forecast happen"
+    },
+    {
+      "id": "table:KPI-042",
+      "question": "Which specific countries need immediate management intervention"
+    }
+  ]
+}

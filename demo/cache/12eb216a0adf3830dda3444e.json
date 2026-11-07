@@ -1,0 +1,29 @@
+{
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "What is our total net sales for this region"
+    },
+    {
+      "id": "card:KPI-042",
+      "question": "How far are we from our forecast"
+    },
+    {
+      "id": "card:KPI-004",
+      "question": "How did sales grow compared to last month"
+    },
+    {
+      "id": "card:KPI-020",
+      "question": "Are we delivering our orders on time"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did the sales trend change during the quarter"
+    },
+    {
+      "id": "table:KPI-042",
+      "question": "Which specific countries are missing their forecast target"
+    }
+  ],
+  "reason": "This sequence follows a logical management overview starting with high-level sales and delivery metrics before tracking the monthly trend and pinpointing country-level exceptions."
+}
