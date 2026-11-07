@@ -50,6 +50,7 @@ class ArtifactStatus(str, Enum):
     ACTIVE = "active"
     DRAFT = "draft"
     SUPERSEDED = "superseded"
+    PROVISIONAL = "provisional"  # approved here, not yet earned: searchable, no trust, outside the RETIRE funnel, expires
 
 
 class UsageMonth(BaseModel):
@@ -89,6 +90,7 @@ class Artifact(BaseModel):
     version: int = 1
     previous_id: str | None = None
     status: ArtifactStatus = ArtifactStatus.ACTIVE
+    expires_at: date | None = None  # PROVISIONAL assets only (DECISION C4/A4): dropped from the catalog after this date
     source_tables: list[str] = Field(default_factory=list)
     # Data-pack fields (all defaulted so the sample catalog keeps loading)
     platform: str = ""
