@@ -12,7 +12,7 @@ from .catalog import Catalog
 from .config import DUPLICATE_THRESHOLD, LOW_USAGE_VIEWS, STALE_AFTER_DAYS
 from .decision.minhash import MinHashCalculator
 from .decision.signals import trust
-from .linking import artifact_covered_metrics
+from .linking import artifact_covered_metrics, kpi_index
 from .models import Artifact
 
 
@@ -35,6 +35,10 @@ class CatalogHealth(BaseModel):
     stale: list[str]
     no_owner: list[str]
     retire: list[RetireCandidate]
+    # Data pack only (BUILD_PLAN 2.2): reports a person must review before any retirement, and the rule's funnel counts
+    human_review: list[RetireCandidate] = []
+    retire_funnel: dict[str, int] = {}
+    ownership: dict[str, int] = {}
 
 
 def _features(artifact: Artifact, catalog: Catalog) -> tuple[frozenset[str], frozenset[str]]:
@@ -93,6 +97,8 @@ def catalog_health(catalog: Catalog, as_of: date) -> CatalogHealth:
         RetireCandidate(artifact_id=artifact_id, title=catalog.artifact(artifact_id).title, reasons=r)
         for artifact_id, r in reasons.items()
     ]
+    if kpi_index(catalog)[0]:  # data pack: the retire rule is BUILD_PLAN 2.2 (steward/decision/lifecycle.py)
+        return _datapack_health(catalog, as_of, artifacts, duplicates, stale, no_owner)
     return CatalogHealth(
         total=len(artifacts),
         certified=sum(a.certified for a in artifacts),
@@ -100,4 +106,31 @@ def catalog_health(catalog: Catalog, as_of: date) -> CatalogHealth:
         stale=stale,
         no_owner=no_owner,
         retire=retire,
+    )
+
+
+def _datapack_health(catalog, as_of, artifacts, duplicates, stale, no_owner) -> CatalogHealth:
+    from .decision.lifecycle import estate
+
+    e = estate(catalog, as_of)
+
+    def candidates(found: dict[str, list[str]]) -> list[RetireCandidate]:
+        return [RetireCandidate(artifact_id=i, title=catalog.artifact(i).title, reasons=r) for i, r in found.items()]
+
+    return CatalogHealth(
+        total=len(artifacts),
+        certified=sum(a.certified for a in artifacts),
+        duplicates=duplicates,
+        stale=stale,
+        no_owner=no_owner,
+        retire=candidates(e.retire),
+        human_review=candidates(e.human_review),
+        retire_funnel=e.funnel,
+        ownership={
+            "inactive_owner": e.inactive_owner,
+            "no_owner": e.no_owner,
+            **{f"tier_{k}": v for k, v in e.tiers.items()},
+            "failed_refresh": e.failed_refresh,
+            "certified_on_failed_refresh": e.certified_on_failed_refresh,
+        },
     )

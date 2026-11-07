@@ -143,3 +143,27 @@ def test_migrate_evidence_only_for_tableau_and_says_claim(catalog, ref):
     assert "A claim, not a fact" in claims
     powerbi = next(a for a in catalog.active_artifacts() if a.platform == "Power BI")
     assert migrate_evidence(powerbi, ref) == []
+
+
+# -- L6: the Catalog health view uses the same rule and its counts match docs/challenge/03_DATA_PACK.md -------------
+
+
+def test_estate_numbers_match_the_data_pack_doc(catalog):
+    from steward.decision.lifecycle import estate
+
+    e = estate(catalog, AS_OF)
+    assert e.inactive_owner == 65 and e.no_owner == 21  # 86 assets without an accountable active owner
+    assert e.tiers == {"a": 23, "b": 21, "c": 21, "no_owner": 21}
+    assert e.certified_on_failed_refresh == 16
+    steps = [e.funnel[k] for k in ("assets", "old_enough", "low_use", "quiet", "reason", "not_critical")]
+    assert steps == sorted(steps, reverse=True) and steps[0] == 360  # a funnel only narrows
+    assert len(e.retire) == steps[-1] == 21 and e.human_review == {}
+
+
+def test_catalog_health_on_the_data_pack_reports_the_lifecycle_rule(catalog):
+    from steward.health import catalog_health
+
+    h = catalog_health(catalog, AS_OF)
+    assert len(h.retire) == 21 and h.retire_funnel["assets"] == 360
+    assert h.ownership["certified_on_failed_refresh"] == 16
+    assert all("Never automatic" in " ".join(c.reasons) for c in h.retire)

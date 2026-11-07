@@ -386,3 +386,54 @@ def add_lifecycle(decision: Decision, catalog: Catalog, as_of: date) -> Decision
     decision.flags = list(dict.fromkeys([*decision.flags, *flags]))
     decision.evidence = [*decision.evidence, *evidence]
     return decision
+
+
+# -- estate view (Catalog health tab, L6) ---------------------------------------------------------------------------
+
+
+@dataclass
+class Estate:
+    """BUILD_PLAN 2.2 applied to every active asset. `funnel` counts assets that pass each condition cumulatively."""
+
+    retire: dict[str, list[str]] = field(default_factory=dict)  # asset id -> reasons (evidence claims)
+    human_review: dict[str, list[str]] = field(default_factory=dict)
+    funnel: dict[str, int] = field(default_factory=dict)
+    inactive_owner: int = 0
+    no_owner: int = 0
+    tiers: dict[str, int] = field(default_factory=dict)  # a_same_scope, b_other_scope, c_vacant, no_owner
+    failed_refresh: int = 0
+    certified_on_failed_refresh: int = 0
+
+
+FUNNEL_STEPS = ("old_enough", "low_use", "quiet", "reason", "not_critical")
+
+
+def estate(catalog: Catalog, as_of: date) -> Estate:
+    ref = reference()
+    cuts, holders = bottom_cuts(catalog), kpi_holders(catalog)
+    out = Estate(
+        funnel=dict.fromkeys(("assets", *FUNNEL_STEPS), 0), tiers=dict.fromkeys(("a", "b", "c", "no_owner"), 0)
+    )
+    for a in catalog.active_artifacts():
+        out.funnel["assets"] += 1
+        r = assess_retire(a, catalog, as_of, ref, cuts, holders)
+        for step in FUNNEL_STEPS:
+            if not r.checks[step]:
+                break
+            out.funnel[step] += 1
+        if r.retire or r.human_review:
+            claims = [e.claim for e in retire_evidence(a, r, catalog, as_of)]
+            (out.retire if r.retire else out.human_review)[a.id] = claims
+        if proposal := reassign_owner(a, ref):
+            claim = proposal[0].claim
+            if a.owner_status == "inactive":
+                out.inactive_owner += 1
+                key = "a" if "Proposed successor" in claim else "b" if "steward picks" in claim else "c"
+            else:
+                out.no_owner += 1
+                key = "no_owner"
+            out.tiers[key] += 1
+        if a.refresh_status == "failed":
+            out.failed_refresh += 1
+            out.certified_on_failed_refresh += a.endorsement == "certified"
+    return out
