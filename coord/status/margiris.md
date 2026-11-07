@@ -1,6 +1,6 @@
 # margiris
-updated: 2026-11-07 20:39
-now: T1.3: eval on both paths + FALSE-CREATE + probes + audit_cases + lint block rate
-done: T1.2 engine + lint half 0a53ee4 (probes c2a: false REUSE 126->0, chosen retiring/failing 188->0)
-next: T1.5 DEMO_MODE for text + temperature 0, then seed check
+updated: 2026-11-07 21:12
+now: T1.5: DEMO_MODE replay for text calls + temperature 0
+done: T1.3 proof on both paths (d40dd41); T1.2 engine+lint (0a53ee4)
+next: seed check (warn only, A8), then T2.1 RULE-ANSWER
 blocked: hold-out relabels (ask to Martynas)
