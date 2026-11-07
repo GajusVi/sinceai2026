@@ -3,7 +3,7 @@
 Drafted by Gajus's Claude, Sat 7 Nov 19:20.
 - Sources: the four audits and four attacks in docs/audit/ (plus gajus-chain.md).
 - Every item names its source and an owner.
-- **Status: DRAFT; C1-C6 DECIDED by Gajus 19:35 (all as recommended, see the table).** Each Claude replies on the board within 20 minutes: `ok` or an objection with evidence.
+- **Status: SIGNED by Gajus 19:45. C1-C6 decided, amendments A1-A9 accepted (below). The build resumes now with Tier 1.** Margiris's reply was still pending at signing; any objection from him becomes a follow-up, not a blocker. Each Claude replies on the board within 20 minutes: `ok` or an objection with evidence.
   Items marked **CONTESTED** are decided by Gajus.
 - The build resumes from this file once Gajus signs it. Dibs rules still apply: claim a file you do not hold,
   Gajus OKs it, and you change OWNERS in the same commit.
@@ -42,7 +42,7 @@ Drafted by Gajus's Claude, Sat 7 Nov 19:20.
 | T1.1 | `make demo` and `make ui` load the data pack (Makefile, run.ps1). | Gajus | 10 min | `make demo` shows REQ-0001's dashboard |
 | T1.2 | **"Does it already exist", one PR** (details below the table). Owners: Gajus for the intent half, Margiris for engine and lint. | Gajus + Margiris | M, 3 h | T1.3 probes: Intent-path false CREATE <= 4/40, false REUSE 0 |
 | T1.3 | **Proof on the real path** (details below the table). | Margiris + Martynas | S-M, 2 h | results.json shows both paths |
-| T1.4 | Open Martynas's 12-measure check export in Desktop; compare with the expected values. | Martynas (needs Windows + Desktop) | 5 min | 12/12 match or bugs filed |
+| T1.4 | Open Martynas's 12-measure check export in Desktop; compare with the expected values (**non-blocking**, A1). | Martynas (needs Windows + Desktop) | 5 min | 12/12 match or bugs filed |
 | T1.5 | **Stage insurance** (details below the table). | Margiris (llm), Donatas (warm) | S, 1.5 h | 429 shows a badge, not a hang |
 | T1.6 | **Approvals do not poison search** (details below the table). | Donatas (governance), Margiris (seed check) | S-M, 2 h | a rehearsal cannot change a stage verdict |
 
@@ -162,6 +162,29 @@ Drafted by Gajus's Claude, Sat 7 Nov 19:20.
 - Self + company benchmark (not peers: 4 plants leak).
 - Counts, not costs, for carrying load (Z2).
 
+## Amendments accepted by Gajus (19:45)
+- **A1 (Martynas):** T1.4, the Desktop check, is non-blocking: it changes no code and needs a human with Desktop.
+- **A2 (Martynas):** `data/build_probes.py` stays independent of the engine (no imports from steward.decision or
+  signals). Its labels carry two rule columns (today, C2), and the baseline run is committed **before** T1.2 merges.
+- **A3 (Martynas, C3 gap):** paths that cannot ask (worker fast path, rules / LLM-off, API) read "this quarter" as
+  **the last 3 complete months**, printed on the card ("Applied: Aug-Oct 2026"). The interview still asks when the
+  period is ambiguous.
+- **A4 (Martynas):** `provisional` is its own state with `expires_at`, outside the RETIRE funnel (which exempts assets
+  younger than 3 months).
+- **A5 (Martynas):** the layout ranks by **relative %** deviation x `better_is`, never absolute deviation. Criticality
+  is the first key; the deviation decides ties.
+- **A6 (Martynas), the T2.4 decision-hash definition:**
+  - decision = verdict, change_type, base_asset_ids, kpi_ids, measures (name, kpi_id, expression, feasible), filters,
+    owner_id, changes, source_model_id;
+  - view = pages (order, steps, questions), with layout and provenance excluded.
+- **A7 (Martynas):** H-05/H-06 are relabelled CREATE-with-labelled-gaps in the same commit as the C1 rule; the old
+  label is kept as `label_v1`.
+- **A8 (Donatas):** the seed check **warns** loudly; it never refuses to start (a refusal on stage is worse).
+- **A9 (Donatas):** the shared JSON inbox (T2.3) moves to Gajus. Pitch, pipeline slide and demo video get
+  **02:00-06:00** on the frozen build.
+- **Dependency:** T1.5 "warm covers text calls" needs an LLM key with quota (Gemini returned 429 all evening). Whoever
+  has quota runs it, or warm runs on another provider.
+
 ## CONTESTED: decided by Gajus (19:35)
 - **C1 A:** EXTEND needs at least half of the requested KPIs (REQ-0001 -> CREATE; update golden + hold-out labels in the same commit).
 - **C2 mixed:** RETIRE or failed refresh blocks REUSE and demotes an EXTEND base; inactive owner = REUSE + REASSIGN_OWNER; endorsement = attached "certify" action.
@@ -195,4 +218,5 @@ Drafted by Gajus's Claude, Sat 7 Nov 19:20.
 - **20:00:** Gajus signs C1-C6 and the build resumes with Tier 1.
 - **22:30:** Tier 1 green; Tier 2 starts.
 - **02:00:** freeze; Tier 3 only if Tier 2 is done.
+- **02:00-06:00:** pitch, pipeline slide and demo video on the frozen build (Donatas, A9).
 - **Sun 08:00:** submission.
