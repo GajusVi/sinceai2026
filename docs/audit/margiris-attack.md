@@ -142,6 +142,8 @@ tell the story as "an honest CREATE with RULE-001 proof that nothing covers it",
 | Merge interview + investigate is impossible (investigate needs the decision) | **Conceded.** He is right: pipeline.py:110 passes `result.decision`. Withdrawn; investigate + explain merged instead (his alternative). |
 | Net-zero: soften the hard rule | Already withdrawn (section 0, Gajus Z2 first). His version (net change on every card, typed reason when net-positive) is the one to build. |
 | Drop-and-show needs a guard | Agree; the guard is the negatives list on both paths (my optimisation 6) plus the receipt. |
+| (donatas-attack.md) 10 s timeout fails every Aitta call (~25 s) | **Accept.** Timeout per provider in backend/config.py, not one number. |
+| (donatas-attack.md) clean data dir belongs to governance.py + demo targets | **Accept: Donatas owns it**; I keep the seed check (section 7.3) and the ranking side of the gate. |
 | Disagreement hold-out "best new idea" | Thanks; his 5.3 (two-path agreement as the interview's confidence) uses the same log: build them as one component. |
 
 ## 7. Combined proposals (new; checked against all four audits and gajus-attack.md)
@@ -168,6 +170,6 @@ of the chain"), pushed first.
 2. **F2 full scan + hard gate (owner inactive / RETIRE / failed refresh) + metric-share EXTEND rule, one commit**
    (decision owner + me; goldens move: ESCALATE). Same as Gajus's attack order item 1, plus N-B.
 3. Period honesty + RULE-ANSWER lint (Donatas, Martynas model side, me for lint).
-4. Approvals as a pending change set (Gajus) + seed dir + seed check (me, Donatas).
+4. Approvals as a pending change set (Gajus's idea) + seed dir (Donatas, owner) + seed check (me).
 5. Verify 12 measures in Desktop (Martynas, 5 min, can run in parallel with everything).
 6. Circuit breaker + DEMO_MODE for text + fan-out (me).
