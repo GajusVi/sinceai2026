@@ -1,6 +1,6 @@
 # margiris
-updated: 2026-11-07 20:10
-now: T1.2 engine + lint: full scan + C1 metric share + C2 gate + lifecycle before choice + containment; plus T1.6 provisional in decision/
-done: audit, attack, DECISION review
-next: T1.3 eval both paths, then T1.5, then seed check (warn only)
-blocked: same OWNERS fix as ask 1107-184644 (donatas -> gajus)
+updated: 2026-11-07 20:39
+now: T1.3: eval on both paths + FALSE-CREATE + probes + audit_cases + lint block rate
+done: T1.2 engine + lint half 0a53ee4 (probes c2a: false REUSE 126->0, chosen retiring/failing 188->0)
+next: T1.5 DEMO_MODE for text + temperature 0, then seed check
+blocked: hold-out relabels (ask to Martynas)
