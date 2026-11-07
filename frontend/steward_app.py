@@ -108,8 +108,10 @@ def render_login() -> None:
             else:
                 st.session_state.user = account
                 st.rerun()
-        st.caption("Demo login, mocked (not real authentication). Accounts:  \n"
-                   + "  \n".join(f"{name} / {pw} ({role})" for name, pw, role in DEMO_ACCOUNTS))
+        st.caption(
+            "Demo login, mocked (not real authentication). Accounts:  \n"
+            + "  \n".join(f"{name} / {pw} ({role})" for name, pw, role in DEMO_ACCOUNTS)
+        )
 
 
 user = st.session_state.get("user")
@@ -147,8 +149,10 @@ with st.sidebar:
     st.caption(f"AI model: {llm_label()}  \nData as of {steward.as_of}")
     plants = "all (company)" if user.plants == COMPANY else ", ".join(user.plants)
     st.markdown(f"**{user.username}** · {user.role.capitalize()}")
-    st.caption(f"{user.name}, {user.location}  \nPlant: {plants}"
-               + (f"  \nDepartment: {user.department}" if user.department else ""))
+    st.caption(
+        f"{user.name}, {user.location}  \nPlant: {plants}"
+        + (f"  \nDepartment: {user.department}" if user.department else "")
+    )
     if st.button("Log out", width="stretch"):  # the approval queue stays: the demo hands it to a builder
         for key in ("user", "messages", "interview", "result", "result_intent", "novice_result", "requested_by"):
             st.session_state.pop(key, None)
@@ -186,7 +190,9 @@ def ask(text: str) -> None:
     if st.session_state.get("interview") is None:  # a new question: the asker's own, or a floor request picked up
         st.session_state.requested_by = st.session_state.pop("next_requested_by", None)
     if st.session_state.get("expert_mode"):
-        _finish(steward.build(steward.ask(text)), novice=False)  # W3-W6: the dashboard this decision implies
+        _finish(
+            steward.build(steward.ask(text), None, user), novice=False
+        )  # W3-W6: the dashboard this decision implies
         return
     state = st.session_state.get("interview")
     if state is not None and not state.done:
@@ -203,7 +209,7 @@ def ask(text: str) -> None:
 
 
 def skip_to_defaults() -> None:
-    """"Skip - use recommended": fill every open question with its default and build."""
+    """ "Skip - use recommended": fill every open question with its default and build."""
     state = st.session_state.get("interview")
     if state is None or state.done:
         return
@@ -219,7 +225,7 @@ def _continue(state) -> None:
     st.session_state.interview = None
     st.session_state.messages.append({"role": "assistant", "content": understood(state)})
     result = steward.investigate(steward.ask_intent(state.intent), state.intent)
-    _finish(steward.build(result, state.intent), novice=True, intent=state.intent)
+    _finish(steward.build(result, state.intent, user), novice=True, intent=state.intent)
 
 
 def _finish(result: StewardResult, novice: bool, intent=None) -> None:
@@ -255,17 +261,19 @@ def plain_outcome(result: StewardResult) -> str:
     title = f"'{best.artifact.title}'" if best else "an existing report"
     if result.spec is None:
         if verdict == "NOT_FEASIBLE":
-            return ("Those numbers aren't in official data yet, so I can't show anything reliable. "
-                    "The BI team can see what's missing under the details.")
+            return (
+                "Those numbers aren't in official data yet, so I can't show anything reliable. "
+                "The BI team can see what's missing under the details."
+            )
         return "I couldn't build this one. The BI team can see why under the details."
     return {
         "REUSE": f"This already exists: {title}. Here it is, on official data.",
         "EXTEND": f"{title} already covers most of this. Below is its next version with what you asked for; "
-                  "the report owner approves it before it goes live.",
+        "the report owner approves it before it goes live.",
         "CONSOLIDATE": f"Several reports overlap here. Below is one combined version based on {title}; "
-                       "the BI team approves it before the duplicates are retired.",
+        "the BI team approves it before the duplicates are retired.",
         "CREATE": "Nothing like this exists yet, so here is a new draft on official data. "
-                  "The BI team approves it before it's published.",
+        "The BI team approves it before it's published.",
     }.get(verdict, "Here is your dashboard.")
 
 
@@ -325,8 +333,14 @@ def render_dashboard(result: StewardResult, governance: bool = True, takeaway: b
     if governance:  # expert: every tile, denser
         ui.card_row(cards + gaps, per_row=5)
     else:  # the requester: the few KPIs that matter (3 to 5 tiles), a governed gap stays visible
-        tiles = cards[: 5 - min(1, len(gaps))] + gaps[:1]
-        ui.card_row(tiles, per_row=max(3, len(tiles)))
+        keep = max(2, 5 - len(gaps))  # every labelled gap stays visible; the KPI tiles make room
+        tiles = cards[:keep] + gaps
+        ui.card_row(tiles, per_row=min(5, max(3, len(tiles))))
+    cut = [p for p in spec.provenance.get("layout_hidden", "").split("; ") if p]
+    if not governance:
+        cut += [c.title for c in dash.cards[max(2, 5 - len(dash.gaps)) :]]
+    if cut:  # never a silent drop (Martynas's review): say what this view leaves out
+        st.caption(f"Not shown for your role: {', '.join(dict.fromkeys(cut))}.")
     if text:
         st.caption("Summary written by the AI from these numbers; every figure in it is checked against them.")
     figures = dash.figures if governance else dash.figures[:2]
@@ -358,13 +372,18 @@ def render_filters(spec, frames, key: str) -> dict:
     c1, c2, c3 = st.columns(3)
     product = c1.selectbox("Product", products, index=_index(products, spec.filters.get("product")), key=f"flt_p_{key}")
     market = c2.selectbox(
-        "Market", markets, index=_index(markets, spec.filters.get("market", "Global")),
-        format_func=lambda m: m if m == "Global" else f"{market_names[m]} ({m})", key=f"flt_m_{key}",
+        "Market",
+        markets,
+        index=_index(markets, spec.filters.get("market", "Global")),
+        format_func=lambda m: m if m == "Global" else f"{market_names[m]} ({m})",
+        key=f"flt_m_{key}",
     )
     first, last = c3.select_slider("Months", options=months, value=(months[0], months[-1]), key=f"flt_t_{key}")
     return {
         "product": "All Pharma" if product == "All products" else product,
-        "market": market, "month_from": first, "month_to": last,
+        "market": market,
+        "month_from": first,
+        "month_to": last,
     }
 
 
@@ -424,12 +443,17 @@ def render_governance(spec) -> None:
     st.markdown("##### Lint gate (RULE-001..008, FOCUS, DATA)")
     if spec.lint:
         for r in spec.lint:
-            ui.html(f"{ui.badge(r.status.upper(), LINT_COLOURS.get(r.status, ui.MUTED))} "
-                    f"<b>{r.rule_id}</b> <span class='bs-muted'>{escape(r.message)}</span>")
+            ui.html(
+                f"{ui.badge(r.status.upper(), LINT_COLOURS.get(r.status, ui.MUTED))} "
+                f"<b>{r.rule_id}</b> <span class='bs-muted'>{escape(r.message)}</span>"
+            )
     else:
         st.caption("The lint gate is not available yet; nothing blocks approval.")
     st.download_button(
-        "Download spec JSON", spec.model_dump_json(indent=2), file_name=f"spec_{key}.json", mime="application/json",
+        "Download spec JSON",
+        spec.model_dump_json(indent=2),
+        file_name=f"spec_{key}.json",
+        mime="application/json",
         key=f"dl_spec_{key}",
     )
     render_pbip_download(spec, get_frames())
@@ -446,8 +470,13 @@ def render_pbip_download(spec, frames) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         path = export_pbip(spec, frames, Path(tmp))
         data = path.read_bytes()
-    st.download_button("Download .PBIP (draft)", data, file_name=path.name, mime="application/zip",
-                       key=f"dl_pbip_{spec.provenance.get('spec_hash', 'spec')}")
+    st.download_button(
+        "Download .PBIP (draft)",
+        data,
+        file_name=path.name,
+        mime="application/zip",
+        key=f"dl_pbip_{spec.provenance.get('spec_hash', 'spec')}",
+    )
     st.caption(
         "DRAFT: never opened in Power BI Desktop. Infeasible KPIs (gaps) are not in the model; "
         "the report holds no visuals yet."
@@ -475,8 +504,12 @@ def render_result(result: StewardResult) -> None:
             render_ai(result, expanded=True)
             render_details(result, dashboard=True)
         return
-    ui.ruling(verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else ""), word,
-              verdict_reason(result), ids=[best.artifact.id] if best else None)
+    ui.ruling(
+        verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else ""),
+        word,
+        verdict_reason(result),
+        ids=[best.artifact.id] if best else None,
+    )
     ui.section("Why")
     ui.why(why_sentences(result))
     render_ai(result)
@@ -659,10 +692,15 @@ def render_send_to_bi(result: StewardResult) -> None:
         return
     label = "Request this from the BI team" if user.role == "worker" else "Send to the BI team for approval"
     if st.button(label, type="primary"):
-        queue.append({
-            "result": result, "intent": st.session_state.get("result_intent"),
-            "novice": st.session_state.get("novice_result"), "from": user.label, "plant": user.plant,
-        })
+        queue.append(
+            {
+                "result": result,
+                "intent": st.session_state.get("result_intent"),
+                "novice": st.session_state.get("novice_result"),
+                "from": user.label,
+                "plant": user.plant,
+            }
+        )
         st.rerun()
     st.caption("Only a builder (BI team) can approve. Demo: log out and log in as a builder to review it.")
 
@@ -678,15 +716,22 @@ def render_queue() -> None:
     ui.section(f"Waiting for your approval ({len(queue)})")
     for i, item in enumerate(queue):
         text, col = st.columns([5, 1])
-        text.markdown(f"**{item['result'].question.text}**  \n"
-                      f"{verdict_title(item['result'].decision.verdict)} · from {item['from']}, {item['plant']}")
+        text.markdown(
+            f"**{item['result'].question.text}**  \n"
+            f"{verdict_title(item['result'].decision.verdict)} · from {item['from']}, {item['plant']}"
+        )
         if col.button("Review", key=f"review_{i}", width="stretch"):
             queue.pop(i)
             st.session_state.update(
-                result=item["result"], result_intent=item["intent"], novice_result=item["novice"],
-                requested_by=item["from"], interview=None,
-                messages=[{"role": "user", "content": item["result"].question.text},
-                          {"role": "assistant", "content": f"Request from {item['from']} at {item['plant']}."}],
+                result=item["result"],
+                result_intent=item["intent"],
+                novice_result=item["novice"],
+                requested_by=item["from"],
+                interview=None,
+                messages=[
+                    {"role": "user", "content": item["result"].question.text},
+                    {"role": "assistant", "content": f"Request from {item['from']} at {item['plant']}."},
+                ],
             )
             st.rerun()
 
@@ -712,11 +757,15 @@ def render_floor_requests() -> None:
         else:
             also = f" +{len(req['also'])} more" if req.get("also") else ""
             who = f"{req['username']}{also} ({req['from_department']}, {req['plant']})"
-            text.markdown(f"**{req['need']}** for {who}  \n"
-                          "No report they can open has it yet")
+            text.markdown(f"**{req['need']}** for {who}  \nNo report they can open has it yet")
             if ok.button("Start it", key=f"start_{i}", width="stretch"):
-                st.session_state.update(pending_question=f"{req['need']} for {req['plant']}",
-                                        next_requested_by=req["who"], interview=None, messages=[], result=None)
+                st.session_state.update(
+                    pending_question=f"{req['need']} for {req['plant']}",
+                    next_requested_by=req["who"],
+                    interview=None,
+                    messages=[],
+                    result=None,
+                )
                 _decide_request(req, "started")
         if no.button("Decline", key=f"decline_{i}", width="stretch"):
             _decide_request(req, "declined")
@@ -856,8 +905,13 @@ def render_orphan_rescue() -> None:
 
 
 # Tabs by role (steward/auth.py ACTIONS): maintenance is the BI team's, the journal is management's and up.
-TABS = [("Ask", "ask"), ("Catalog health", "maintain"), ("Orphan rescue", "maintain"), ("Journal", "view_journal"),
-        ("Catalog", "view")]
+TABS = [
+    ("Ask", "ask"),
+    ("Catalog health", "maintain"),
+    ("Orphan rescue", "maintain"),
+    ("Journal", "view_journal"),
+    ("Catalog", "view"),
+]
 _names = [name for name, action in TABS if user.can(action)]
 _tabs = dict(zip(_names, st.tabs(_names), strict=True))
 tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog = (_tabs.get(name) for name, _ in TABS)
@@ -875,8 +929,12 @@ def render_options() -> None:
             if st.button(label, key=f"opt_{state.questions_asked}_{i}"):
                 st.session_state.pending_answer = label
                 st.rerun()
-        if st.button(SKIP_LABEL, key=f"opt_{state.questions_asked}_skip", type="tertiary",
-                     help="Answer every remaining question with the recommended choice"):
+        if st.button(
+            SKIP_LABEL,
+            key=f"opt_{state.questions_asked}_skip",
+            type="tertiary",
+            help="Answer every remaining question with the recommended choice",
+        ):
             st.session_state.pending_skip = True
             st.rerun()
 
@@ -909,8 +967,9 @@ with tab_ask:
         top = st.container()
         typed = st.chat_input("Ask in your own words")
         below = st.container()
-        question = (typed or st.session_state.pop("pending_answer", None)
-                    or st.session_state.pop("pending_question", None))
+        question = (
+            typed or st.session_state.pop("pending_answer", None) or st.session_state.pop("pending_question", None)
+        )
         skip = st.session_state.pop("pending_skip", False)
         work = skip or bool(question and question.strip())
         if work:  # the building state: the conversation so far and a still skeleton, replaced when the answer is ready
@@ -955,19 +1014,29 @@ def render_health() -> None:
         low += a.views_30d < 1000
         variant_assets += bool(variants)
         no_owner += not owner_ok
-        rows.append({
-            "id": a.id, "report": a.title, "views (30 days)": a.views_30d,
-            "non-canonical KPIs": len(variants),
-            "owner": a.owner or "missing", "owner status": "active" if owner_ok else (a.owner_status or "missing"),
-            "platform": a.platform or "-", "retire candidate": a.id in retire,
-        })
-    ui.big_numbers([
-        (f"{low:,}", f"of {len(rows):,} reports have under 1,000 views in 30 days"),
-        (f"{variant_assets:,}", "reports use a non-canonical KPI definition"),
-        (f"{no_owner:,}", "reports have a missing or inactive owner"),
-    ])
-    st.caption(f"{len(health.duplicates)} likely duplicate pairs, {len(health.retire)} retirement candidates. "
-               "Sort any column by clicking its header.")
+        rows.append(
+            {
+                "id": a.id,
+                "report": a.title,
+                "views (30 days)": a.views_30d,
+                "non-canonical KPIs": len(variants),
+                "owner": a.owner or "missing",
+                "owner status": "active" if owner_ok else (a.owner_status or "missing"),
+                "platform": a.platform or "-",
+                "retire candidate": a.id in retire,
+            }
+        )
+    ui.big_numbers(
+        [
+            (f"{low:,}", f"of {len(rows):,} reports have under 1,000 views in 30 days"),
+            (f"{variant_assets:,}", "reports use a non-canonical KPI definition"),
+            (f"{no_owner:,}", "reports have a missing or inactive owner"),
+        ]
+    )
+    st.caption(
+        f"{len(health.duplicates)} likely duplicate pairs, {len(health.retire)} retirement candidates. "
+        "Sort any column by clicking its header."
+    )
     st.dataframe(rows, width="stretch", hide_index=True, height=520)
 
 
@@ -1027,17 +1096,26 @@ if tab_orphan is not None:
 def render_journal() -> None:
     entries = steward.governance.entries()
     if entries:
-        ui.timeline([
-            (e.timestamp.strftime("%d %b %H:%M"), e.question, e.verdict.value, e.action.value, e.actor)
-            for e in reversed(entries)
-        ])
+        ui.timeline(
+            [
+                (e.timestamp.strftime("%d %b %H:%M"), e.question, e.verdict.value, e.action.value, e.actor)
+                for e in reversed(entries)
+            ]
+        )
         with st.expander("All journal fields (spec hash, lint, ids)"):
             st.dataframe(
                 [
                     {
-                        "when": e.timestamp.strftime("%Y-%m-%d %H:%M"), "who": e.actor, "question": e.question,
-                        "verdict": e.verdict.value, "decision": e.action.value, "report": e.artifact_id,
-                        "created": e.created_artifact_id, "reason": e.reason, "spec": e.spec_hash, "lint": e.lint,
+                        "when": e.timestamp.strftime("%Y-%m-%d %H:%M"),
+                        "who": e.actor,
+                        "question": e.question,
+                        "verdict": e.verdict.value,
+                        "decision": e.action.value,
+                        "report": e.artifact_id,
+                        "created": e.created_artifact_id,
+                        "reason": e.reason,
+                        "spec": e.spec_hash,
+                        "lint": e.lint,
                     }
                     for e in reversed(entries)
                 ],
@@ -1054,23 +1132,49 @@ if tab_journal is not None:
         floor_log = read_log(steward.data_dir)
         if floor_log:
             with st.expander(f"Requests from the floor ({len(floor_log)} log lines)"):
-                st.dataframe([{k: r.get(k) for k in ("logged_at", "who", "kind", "department", "need", "cadence",
-                                                    "status", "decided_by")} for r in reversed(floor_log)],
-                             width="stretch", hide_index=True)
+                st.dataframe(
+                    [
+                        {
+                            k: r.get(k)
+                            for k in (
+                                "logged_at",
+                                "who",
+                                "kind",
+                                "department",
+                                "need",
+                                "cadence",
+                                "status",
+                                "decided_by",
+                            )
+                        }
+                        for r in reversed(floor_log)
+                    ],
+                    width="stretch",
+                    hide_index=True,
+                )
 
 with tab_catalog:
     term = st.text_input("Search the catalog", placeholder="Report name, id, owner or domain").strip().lower()
     catalog_rows = [
         {
-            "id": a.id, "title": a.title, "domain": a.domain, "owner": a.owner, "certified": a.certified,
-            "refreshed": a.last_refreshed, "views": a.views_30d, "status": a.status.value, "version": a.version,
+            "id": a.id,
+            "title": a.title,
+            "domain": a.domain,
+            "owner": a.owner,
+            "certified": a.certified,
+            "refreshed": a.last_refreshed,
+            "views": a.views_30d,
+            "status": a.status.value,
+            "version": a.version,
         }
         for a in steward.catalog.artifacts.values()
         if can_see(user, a.product_scope, a.market_scope, supply_rows())
     ]
     if user.plants != COMPANY:
-        st.caption(f"Reports for {', '.join(user.plants)}: the products and markets your plant supplies. "
-                   "Other plants and company-wide reports come through a builder.")
+        st.caption(
+            f"Reports for {', '.join(user.plants)}: the products and markets your plant supplies. "
+            "Other plants and company-wide reports come through a builder."
+        )
     if term:
         catalog_rows = [r for r in catalog_rows if any(term in str(v).lower() for v in r.values())]
     st.caption(f"{len(catalog_rows):,} reports")

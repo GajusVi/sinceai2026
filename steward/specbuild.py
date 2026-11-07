@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from functools import lru_cache
 
 import pandas as pd
@@ -23,6 +24,8 @@ from .models import Artifact, Decision, Verdict
 from .semantic import ASSET_LEVEL_KPIS as ASSET_LEVEL
 from .semantic import Feasibility, grain_of, measure, star_schema
 from .spec import DashboardSpec, Measure, Page, SpecChange, Visual
+
+logger = logging.getLogger(__name__)
 
 MAX_CARDS = 4
 # Exception tables the template can add: kpi_id -> (threshold, title template). A fixed menu, not a free choice.
@@ -329,12 +332,30 @@ def _menu(measures: list[Measure], intent: Intent, catalog: Catalog, dimension: 
     return out
 
 
+def _legal(options: list[Option], measures: list[Measure], intent: Intent) -> list[Option]:
+    """Drop the menu entries the data in this scope cannot show (semantic.check_visual: a trend needs enough months,
+    a ranking 3..20 members of its dimension). Cards always stay (a gap is a labelled gap card). If the data cannot be
+    profiled (sample catalog, missing frames) the menu is returned unchanged."""
+    try:
+        from .semantic import check_visual, profile
+
+        profiles = profile(measures, None, _filters(intent))
+    except Exception as exc:  # noqa: BLE001 - profiling is an extra check, never a reason to fail the build
+        logger.debug("layout profile skipped: %s", exc)
+        return options
+    return [
+        o
+        for o in options
+        if o.visual.type == "card" or not check_visual(profiles, o.visual.type, o.visual.measures, o.visual.dimension)
+    ]
+
+
 def _page(
     measures: list[Measure], intent: Intent, catalog: Catalog, dimension: str, layouter: Layouter | None = None
 ) -> Page:
     """The template layout of BUILD_PLAN 5.1 (<= 4 cards, 1 trend, 1 breakdown, 1 exceptions table). With a `layouter`
     the order, the density and the choice from the menu follow the viewer (layout.py); without one: template."""
-    options = _menu(measures, intent, catalog, dimension)
+    options = _legal(_menu(measures, intent, catalog, dimension), measures, intent)
     first = lambda kind: next((o.visual for o in options if o.visual.type == kind), None)  # noqa: E731
     cards = [o.visual for o in options if o.visual.type == "card"][:MAX_CARDS]
     visuals = cards + [v for v in (first("line"), first("bar"), first("table")) if v]

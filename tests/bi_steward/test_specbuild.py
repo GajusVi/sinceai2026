@@ -26,7 +26,9 @@ def steward(tmp_path_factory):
 
 
 def spec_for(steward, text):
-    result = steward.build(steward.ask(text))
+    from steward.auth import login
+
+    result = steward.build(steward.ask(text), user=login("Builder12", "Admin123"))  # builder = the full template
     return result.decision, result.spec
 
 

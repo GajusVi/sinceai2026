@@ -50,7 +50,10 @@ def steward(tmp_path_factory):
     mp.undo()
 
 
-def built(steward, text, llm=None, user=None):
+BUILDER = login("Builder12", "Admin123")
+
+
+def built(steward, text, llm=None, user=BUILDER):
     asked = steward.ask(text)  # without a model: the fake one answers the layout call only
     steward.llm = llm
     try:
@@ -202,11 +205,65 @@ def test_the_verdict_is_untouched_by_the_layout(steward):
     asked = steward.ask(REQ1)
     steward.llm = FakeLLM(None, RuntimeError("down"))
     try:
-        result = steward.build(asked)
+        result = steward.build(asked, user=BUILDER)
     finally:
         steward.llm = None
     assert result.decision.verdict == Verdict.EXTEND and result.spec is not None
 
 
 def test_layouter_without_a_model_is_the_template():
-    assert Layouter().info == {} and Layouter().role == "builder"
+    assert Layouter().info == {} and Layouter().role == "worker"  # fails closed: no viewer = the narrowest envelope
+
+
+# Martynas's review 1107-173424: (1) role cut is never silent, (2) fail closed, (3) data shape, (5) disk cache.
+def test_role_cut_is_recorded_and_a_gap_card_always_stays(steward):
+    worker = login("Worker21", "Worker123")
+    spec = built(steward, REQ1, user=worker)
+    shown = {m for v in spec.pages[0].visuals for m in v.measures}
+    hidden = spec.provenance.get("layout_hidden", "")
+    assert hidden and all(name not in shown for name in hidden.split("; "))  # 4 asked cards, worker sees 3
+    gap_spec = built(steward, GAP_REQ, user=worker)
+    gap = next(m for m in gap_spec.measures if not m.feasible)
+    assert any(gap.name in v.measures for v in gap_spec.pages[0].visuals)  # the labelled gap is never cut
+
+
+def test_no_viewer_or_unknown_role_gets_the_narrowest_envelope(steward):
+    class Stranger:
+        role, plant, department = "intern", "Plant-A", None
+
+    for user in (None, Stranger()):
+        spec = built(steward, REQ1, user=user)
+        assert spec.provenance["layout_role"] == "worker"
+        assert set(types(spec)) <= ENVELOPES["worker"].types
+
+
+def test_menu_offers_only_what_the_data_can_show(steward):
+    from steward.semantic import check_visual, profile
+    from steward.specbuild import _filters, _legal
+    from steward.intent import intent_from_parsed
+
+    text = "Xarelto net sales in Germany"  # one market: a bar by market would have one bar
+    spec = built(steward, text)
+    intent = intent_from_parsed(steward.ask(text).question, steward.catalog)
+    profiles = profile(spec.measures, None, _filters(intent))
+    for v in spec.pages[0].visuals:
+        if v.type != "card":
+            assert not check_visual(profiles, v.type, v.measures, v.dimension), v
+    legal = _legal(_menu(spec.measures, intent, steward.catalog, "market"), spec.measures, intent)
+    assert not [o for o in legal if o.visual.type == "bar" and o.visual.dimension == "market"]
+
+
+def test_a_validated_proposal_replays_from_disk(steward):
+    llm = FakeLLM(steps(("card:KPI-001", "How big is it?")))
+    first = built(steward, REQ1, llm)
+    layout._CACHE.clear()  # a fresh process: memory is gone, the disk copy answers
+    again = built(steward, REQ1, FakeLLM(None, RuntimeError("429")))
+    assert llm.calls == 1 and again.pages == first.pages and again.provenance.get("layout_cache") == "disk"
+
+
+def test_loaded_wording_never_reaches_the_subtitle(steward):
+    llm = FakeLLM(steps(("card:KPI-001", "Why are sales collapsing?"), ("line:KPI-001", "When did it move?")))
+    spec = built(steward, REQ1, llm)
+    questions = [v.question or v.purpose for v in spec.pages[0].visuals]
+    assert "Why are sales collapsing?" not in questions and "When did it move?" in questions
+    assert all(v.title and "collaps" not in v.title for v in spec.pages[0].visuals)  # the title is always code

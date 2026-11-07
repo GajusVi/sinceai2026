@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo bayer pack-large bayer-large board ui-old ask api eval eval-steward warm test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo bayer pack-large bayer-large board ui-old ask api eval eval-steward warm warm-layout test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -48,6 +48,9 @@ eval-steward: ## BI Steward eval: false-REUSE, accuracy, intent F1, lint pass ra
 
 warm:       ## record live outputs for demo inputs + hold-out into demo/cache (run Saturday)
 	$(PY) -m backend.warm && $(PY) eval/eval.py
+
+warm-layout: ## cache the AI dashboard layout for the demo questions x roles (steward/layout_cache, live LLM)
+	$(PY) tools/warm_layout.py
 
 ping:       ## one-token call to check key + model
 	$(PY) -m backend.llm
