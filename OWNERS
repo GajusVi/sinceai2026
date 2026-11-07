@@ -12,6 +12,10 @@ data/                   martynas
 frontend/               gajus   (design + AI blocks; Donatas OK 1107-094359, he keeps demo/, submission/, render.py, pitch)
 frontend/steward.css    donatas   (T2.6 UX design, Gajus OK 1107-210507)
 frontend/ui.py          donatas   (T2.6 UX design, Gajus OK 1107-210507)
+frontend/static/fonts/GeistMono-Regular.ttf donatas   (Gajus OK 1107-230254)
+frontend/static/fonts/GeistMono-Medium.ttf donatas   (Gajus OK 1107-230254)
+frontend/static/fonts/GeistMono-OFL.txt donatas   (Gajus OK 1107-230254)
+.streamlit/config.toml  donatas   ([theme] only; Gajus OK 1107-230254)
 app/shell/              donatas   (T2.6 login + loader design; Gajus wires app/main.py)
 steward/models.py       martynas
 steward/spec.py         gajus
