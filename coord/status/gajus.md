@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 16:40
-now: Production resumed: ownership open (dibs + Gajus OK); dynamic dashboard task to Margiris + Martynas
-done: 8d4219e mock login + roles, 0584544 worker fast path
-next: review their dynamic-layout proposal, OK dibs
+updated: 2026-11-07 17:59
+now: Layout review fixes done (8fe651b)
+done: 8fe651b layout fixes 1-5
+next: manager plant-scope decision; run make warm-layout before the demo
 blocked: T6 conventions decision (mine, below)
