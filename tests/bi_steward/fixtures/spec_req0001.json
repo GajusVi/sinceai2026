@@ -1,0 +1,267 @@
+{
+  "name": "Nubeqa: sales growth, forecast variance and market access",
+  "entities": [
+    "fact_pmm",
+    "dim_product",
+    "dim_market",
+    "dim_month"
+  ],
+  "columns": {
+    "fact_pmm": [
+      "product_id",
+      "market_id",
+      "month",
+      "net_sales_m_eur_syn",
+      "forecast_m_eur_syn",
+      "units_shipped_syn",
+      "forecast_variance_pct",
+      "market_access_coverage_pct_syn",
+      "otif_pct_syn",
+      "inventory_weeks_syn"
+    ],
+    "dim_product": [
+      "product_id",
+      "product_name",
+      "therapeutic_area"
+    ],
+    "dim_market": [
+      "market_id",
+      "market_name",
+      "region"
+    ],
+    "dim_month": [
+      "month"
+    ]
+  },
+  "grain": {
+    "fact_pmm": "month"
+  },
+  "relationships": [
+    {
+      "from_entity": "fact_pmm",
+      "to_entity": "dim_product",
+      "cardinality": "many_to_one",
+      "key": "product_id"
+    },
+    {
+      "from_entity": "fact_pmm",
+      "to_entity": "dim_market",
+      "cardinality": "many_to_one",
+      "key": "market_id"
+    },
+    {
+      "from_entity": "fact_pmm",
+      "to_entity": "dim_month",
+      "cardinality": "many_to_one",
+      "key": "month"
+    }
+  ],
+  "measures": [
+    {
+      "name": "Net Sales",
+      "kpi_id": "KPI-001",
+      "expression": "SUM(fact_pmm[net_sales_m_eur_syn])",
+      "format": "EUR M",
+      "unit": "EUR",
+      "source": "fact_pmm.net_sales_m_eur_syn",
+      "aggregation": "sum",
+      "definition_status": "canonical",
+      "feasible": true,
+      "gap_reason": ""
+    },
+    {
+      "name": "Net Sales Growth",
+      "kpi_id": "KPI-004",
+      "expression": "DIVIDE([Net Sales] - CALCULATE([Net Sales], DATEADD(dim_month[month], -1, MONTH)), CALCULATE([Net Sales], DATEADD(dim_month[month], -1, MONTH)))",
+      "format": "0.0%",
+      "unit": "%",
+      "source": "derived",
+      "aggregation": "derived",
+      "definition_status": "canonical",
+      "feasible": true,
+      "gap_reason": ""
+    },
+    {
+      "name": "Forecast Variance",
+      "kpi_id": "KPI-042",
+      "expression": "SUM(fact_pmm[net_sales_m_eur_syn]) - SUM(fact_pmm[forecast_m_eur_syn])",
+      "format": "EUR M",
+      "unit": "EUR",
+      "source": "derived",
+      "aggregation": "derived",
+      "definition_status": "canonical",
+      "feasible": true,
+      "gap_reason": ""
+    },
+    {
+      "name": "Market Access Coverage",
+      "kpi_id": "KPI-027",
+      "expression": "AVERAGE(fact_pmm[market_access_coverage_pct_syn])",
+      "format": "0.0",
+      "unit": "%",
+      "source": "fact_pmm.market_access_coverage_pct_syn",
+      "aggregation": "avg",
+      "definition_status": "canonical",
+      "feasible": true,
+      "gap_reason": ""
+    }
+  ],
+  "pages": [
+    {
+      "name": "What needs attention",
+      "visuals": [
+        {
+          "type": "card",
+          "title": "Nubeqa net sales",
+          "measures": [
+            "Net Sales"
+          ],
+          "dimension": null,
+          "purpose": "Headline: are we on forecast",
+          "comparison": "forecast",
+          "threshold": null
+        },
+        {
+          "type": "card",
+          "title": "Sales growth vs last month",
+          "measures": [
+            "Net Sales Growth"
+          ],
+          "dimension": null,
+          "purpose": "Is momentum rising or falling",
+          "comparison": "prior_month",
+          "threshold": null
+        },
+        {
+          "type": "card",
+          "title": "Gap to forecast",
+          "measures": [
+            "Forecast Variance"
+          ],
+          "dimension": null,
+          "purpose": "How far off is the plan",
+          "comparison": "forecast",
+          "threshold": null
+        },
+        {
+          "type": "card",
+          "title": "Market access coverage",
+          "measures": [
+            "Market Access Coverage"
+          ],
+          "dimension": null,
+          "purpose": "Is access growing in launch markets",
+          "comparison": "prior_month",
+          "threshold": null
+        },
+        {
+          "type": "line",
+          "title": "Nubeqa net sales vs forecast, by month",
+          "measures": [
+            "Net Sales"
+          ],
+          "dimension": "month",
+          "purpose": "See when sales fell behind plan",
+          "comparison": "forecast",
+          "threshold": null
+        },
+        {
+          "type": "bar",
+          "title": "Nubeqa net sales, by country",
+          "measures": [
+            "Net Sales"
+          ],
+          "dimension": "market",
+          "purpose": "Which countries carry the sales",
+          "comparison": null,
+          "threshold": null
+        },
+        {
+          "type": "table",
+          "title": "Countries more than 10% off forecast",
+          "measures": [
+            "Forecast Variance"
+          ],
+          "dimension": "market",
+          "purpose": "Which countries to call first",
+          "comparison": null,
+          "threshold": 10.0
+        }
+      ],
+      "purpose": "Spot where Nubeqa sales or forecast accuracy need action this month"
+    }
+  ],
+  "filters": {
+    "product": "Nubeqa"
+  },
+  "kpi_ids": [
+    "KPI-001",
+    "KPI-004",
+    "KPI-042",
+    "KPI-027"
+  ],
+  "source_model_id": "SM-069",
+  "owner_id": "OWN-004",
+  "rationale": "AST-0335 already holds Net Sales and Market Access Coverage; growth and forecast variance are the two requested measures it lacks.",
+  "verdict": "EXTEND",
+  "change_type": "extend",
+  "base_asset_ids": [
+    "AST-0335"
+  ],
+  "version": 2,
+  "changes": [
+    {
+      "kind": "add_measure",
+      "detail": "Add Net Sales Growth (KPI-004), requested and missing from AST-0335",
+      "record_ids": [
+        "AST-0335",
+        "KPI-004"
+      ]
+    },
+    {
+      "kind": "add_measure",
+      "detail": "Add Forecast Variance (KPI-042), requested and missing from AST-0335",
+      "record_ids": [
+        "AST-0335",
+        "KPI-042"
+      ]
+    },
+    {
+      "kind": "add_breakdown",
+      "detail": "Add net sales by country (market), the requested 'by country' view",
+      "record_ids": [
+        "AST-0335",
+        "dim_market"
+      ]
+    },
+    {
+      "kind": "add_breakdown",
+      "detail": "Add exceptions table: countries with |forecast variance %| above 10",
+      "record_ids": [
+        "AST-0335",
+        "KPI-042"
+      ]
+    },
+    {
+      "kind": "assign_owner",
+      "detail": "Owner OWN-043 is inactive; first same-role successor OWN-004 (must accept)",
+      "record_ids": [
+        "AST-0335",
+        "OWN-043",
+        "OWN-004"
+      ]
+    }
+  ],
+  "audience": "Bayer Pharma commercial leadership",
+  "decision_supported": "Where Nubeqa sales or forecast accuracy need attention, by country",
+  "cadence": "monthly",
+  "platform": "Power BI",
+  "lint": [],
+  "data_label": "Synthetic data from the Bayer SinceAI 2026 data pack, not Bayer performance",
+  "provenance": {
+    "layout_source": "template",
+    "model": "",
+    "prompt": "",
+    "spec_hash": ""
+  }
+}
