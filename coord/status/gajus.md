@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 18:23
-now: Build paused; preparing an audit brief for all four Claudes
-done: 8fe651b, 0903371
-next: post the audit brief
+updated: 2026-11-07 18:35
+now: AUDIT phase 1 (blind): my deep stretch 0-3, 6, 8
+done: dfed228 audit brief posted
+next: post AUDIT DONE by 20:00, then attack the others, then draft DECISION.md
 blocked: T6 conventions decision (mine, below)
