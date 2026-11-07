@@ -3,13 +3,16 @@
 import json
 from datetime import date
 
-from steward.catalog import CHANGES_FILE, Catalog, apply_changes
+from steward.catalog import CHANGES_FILE, apply_changes
 from steward.config import ROOT_DIR
+from steward.datapack import DEFAULT_XLSX, load_artifacts, load_catalog
 from steward.models import Artifact, ArtifactStatus
+
+BAYER = ROOT_DIR / "catalog" / "bayer"
 
 
 def _base() -> list[Artifact]:
-    return [Artifact.model_validate(a) for a in json.loads((ROOT_DIR / "catalog" / "artifacts.json").read_text("utf-8"))]
+    return load_artifacts(DEFAULT_XLSX)  # the data pack: no dependency on the invented sample catalog
 
 
 def _added(base: list[Artifact], new_id: str, status: ArtifactStatus, expires: date | None) -> dict:
@@ -50,10 +53,10 @@ def test_without_as_of_everything_is_kept_and_the_expiry_day_itself_is_still_val
     assert "NEW-EXPIRED" not in {a.id for a in apply_changes(base, tmp_path, as_of=date(2026, 11, 2))}
 
 
-def test_provisional_stays_searchable_and_catalog_load_passes_as_of(tmp_path):
+def test_provisional_stays_searchable_and_load_catalog_passes_as_of(tmp_path):
     base = _base()
     _write(tmp_path, [_added(base, "NEW-LIVE", ArtifactStatus.PROVISIONAL, date(2026, 12, 1))])
-    live = Catalog.load(ROOT_DIR / "catalog", tmp_path, as_of=date(2026, 11, 7))
+    live = load_catalog(DEFAULT_XLSX, BAYER, tmp_path, as_of=date(2026, 11, 7))
     assert "NEW-LIVE" in {a.id for a in live.active_artifacts()}  # a repeat request can REUSE it
-    gone = Catalog.load(ROOT_DIR / "catalog", tmp_path, as_of=date(2027, 1, 1))
+    gone = load_catalog(DEFAULT_XLSX, BAYER, tmp_path, as_of=date(2027, 1, 1))
     assert "NEW-LIVE" not in gone.artifacts
