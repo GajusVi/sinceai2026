@@ -46,5 +46,7 @@ def test_to_parsed_question_adapter():
     q = _full(regions=["EMEA"], markets=[]).to_parsed_question()
     assert q.metrics == ["net_sales"]
     assert q.filters == {"product": "Nubeqa", "region": "EMEA"}
-    assert q.dimensions == ["month"]
-    assert _full(products=["Nubeqa", "Xarelto"]).to_parsed_question().dimensions == ["product", "month"]
+    assert q.dimensions == []  # a time breakdown is required only when the text asks for one (audit F1)
+    assert _full(products=["Nubeqa", "Xarelto"]).to_parsed_question().dimensions == ["product"]
+    monthly = _full(text="Nubeqa net sales by month", products=["Nubeqa", "Xarelto"])
+    assert monthly.to_parsed_question().dimensions == ["product", "month"]

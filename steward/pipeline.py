@@ -194,7 +194,7 @@ class Steward:
         """The interview's end: the confirmed Intent goes through the same search -> decide -> explain as `ask`;
         then `build(result, intent)` makes the dashboard. A site scope (Plant-B) has no asset-level equivalent:
         search runs on the metrics and the site becomes a data filter of the dashboard (semantic._scope)."""
-        question = intent.to_parsed_question()
+        question = intent.to_parsed_question(self.catalog)
         hits = self.search.search(question)
         decision = decide(question, hits, self.catalog, self.as_of)
         if intent.sites:

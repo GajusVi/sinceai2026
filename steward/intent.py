@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -69,17 +71,23 @@ class Intent(BaseModel):
             return False
         return self.mode == "expert" or self.is_complete()
 
-    def to_parsed_question(self) -> ParsedQuestion:
-        """Adapter so the current engine runs on an Intent: one value -> filter, several -> breakdown dimension."""
+    def to_parsed_question(self, catalog=None) -> ParsedQuestion:
+        """Adapter so the current engine runs on an Intent: one value -> filter, several -> breakdown dimension.
+
+        The Intent keeps display names ("Xarelto"); the engine and the assets use ids ("P-XAR"). With `catalog`, every
+        filter value is mapped to its id here, the one boundary (audit F1: names here turned REUSE into CREATE). "All
+        Pharma" is no product filter, as in the rules parser. Without a catalog (unit tests only) values pass as they are."""
         filters: dict[str, str] = {}
         dimensions: list[str] = []
         for dim, values in (("product", self.products), ("market", self.markets), ("region", self.regions)):
             if len(values) == 1:
-                filters[dim] = values[0]
+                value = value_id(catalog, dim, values[0]) if catalog is not None else values[0]
+                if not (dim == "product" and value.lower() == ALL_PHARMA.lower()):
+                    filters[dim] = value
             elif len(values) > 1:
                 dimensions.append(dim)
-        if self.grain not in dimensions:
-            dimensions.append(self.grain)
+        if self.grain not in dimensions and _TIME_WORDS.search(self.text or ""):
+            dimensions.append(self.grain)  # a time breakdown is required only when the user asked for one (audit F1)
 
         extra = {}  # fields added to ParsedQuestion by contract C3; set only if present
         if "unmapped_terms" in ParsedQuestion.model_fields:
@@ -94,6 +102,21 @@ class Intent(BaseModel):
             parser=f"intent:{self.mode}",
             **extra,
         )
+
+
+_TIME_WORDS = re.compile(r"\b(month|monthly|quarter|quarterly|week|weekly|trend|over time|by period)\b", re.I)
+ALL_PHARMA = "All Pharma"  # = steward.datapack.ALL_PHARMA (not imported: datapack pulls in pandas)
+
+
+def value_id(catalog, dimension: str, value: str) -> str:
+    """The catalog id for a dimension value given as id or label, any case ("Xarelto" -> "P-XAR", "germany" -> "DE").
+    Unknown values are returned unchanged (the engine then reports them; nothing is silently dropped here)."""
+    dim = getattr(catalog, "dimensions", {}).get(dimension)
+    wanted = value.strip().lower()
+    for v in getattr(dim, "values", []) or []:
+        if wanted in (v.id.lower(), v.label.lower()):
+            return v.id
+    return value
 
 
 def intent_from_parsed(question: ParsedQuestion, catalog) -> Intent:

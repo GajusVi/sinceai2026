@@ -180,7 +180,7 @@ def reuse_only(steward, user: User, metric_ids: list[str], text: str, supply, pr
         metric_ids=list(metric_ids), sites=[user.plant], text=text, decision_supported="monitor",
         confidence={"metric_ids": 1.0, "sites": 1.0, "decision_supported": 1.0},
     )
-    hits = steward.search.search(intent.to_parsed_question(), limit=len(steward.catalog.artifacts))
+    hits = steward.search.search(intent.to_parsed_question(steward.catalog), limit=len(steward.catalog.artifacts))
     best, covered = None, []
     for rank, hit in enumerate(hits):  # most covered numbers, then certified, Power BI, most used, search order
         a = hit.artifact
@@ -200,7 +200,7 @@ def reuse_only(steward, user: User, metric_ids: list[str], text: str, supply, pr
     missing = [m for m in metric_ids if m not in covered]
     shown = intent.model_copy(update={"metric_ids": covered})
     result = StewardResult(
-        question=shown.to_parsed_question(), decision=Decision(verdict=Verdict.REUSE, best=candidate),
+        question=shown.to_parsed_question(steward.catalog), decision=Decision(verdict=Verdict.REUSE, best=candidate),
         explanation="", as_of=steward.as_of,
     )
     return WorkerAnswer(result=steward.build(result, shown, user), covered=covered, missing=missing)
