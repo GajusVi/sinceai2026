@@ -2,6 +2,41 @@
 
 > **Skeleton-era document.** Written with Vlada's bi-steward skeleton (vladafink/bi-steward), before the Bayer brief was released. The flow and the verdict logic still describe the app. Out of date: the running example (herbicide revenue in LATAM) comes from the invented sample catalog and is Crop Science, which the challenge excludes; the current build also adds an intake check (request text vs its metadata, CLARIFY on conflict), KPI matching by ID on the data pack, and the Orphan rescue tab. Current decisions: NOTES.md and docs/BUILD_PLAN.md.
 
+## The Dashboard Factory (plan v2, Sat 7 Nov)
+
+**The Dashboard Factory (plan v2).** Every request ends in one governed decision and the dashboard that decision implies.
+Yellow steps use a language model; everything else is deterministic Python. Gates stop the flow until they pass.
+
+```mermaid
+flowchart TD
+    IN["W0 Request<br/>chat, voice, request form, orphan asset, estate finding"]:::user
+    INT["W1 Interview<br/>situation questions until the intent is clear"]:::llm
+    KPI["W2 KPI resolution<br/>words to canonical KPI ids, variants flagged"]:::code
+    FEA{"W3 Feasibility<br/>can governed data answer it?"}:::code
+    EV{"W4 Evidence + verdict<br/>reuse before build"}:::code
+    SPEC["W5 Spec<br/>dashboard for the verdict: reuse, extend,<br/>consolidate, create, migrate, rescue"]:::llm
+    LINT{"W6 Lint gate<br/>RULE-001..008, focus, data"}:::code
+    REN["W7 Render<br/>KPI cards, trend, breakdown, exceptions,<br/>governance footer"]:::code
+    HUM{"W8 Human approval<br/>reason required"}:::user
+    PUB["W9 Publish<br/>new version, journal, lineage, .PBIP"]:::code
+
+    IN --> INT --> KPI --> FEA
+    FEA -->|"no measure buildable: NOT_FEASIBLE + nearest offer"| INT
+    FEA -->|buildable| EV
+    EV -->|"CLARIFY"| INT
+    EV -->|"REUSE / EXTEND / CONSOLIDATE / CREATE"| SPEC --> LINT
+    LINT -->|"block: fix the spec"| SPEC
+    LINT -->|"pass / warn"| REN --> HUM
+    HUM -->|approve| PUB
+    HUM -->|"reject, journaled"| IN
+
+    classDef llm fill:#fff3bf,stroke:#b08900
+    classDef code fill:#d3f9d8,stroke:#2b8a3e
+    classDef user fill:#ffe8cc,stroke:#d9480f
+```
+
+Stages, gates, owners, per-verdict specs and lint rules: docs/BUILD_PLAN.md sections 0-5. The rest of this document describes W4-W8.
+
 ## The idea in one paragraph
 
 AI builds new dashboards in minutes, and companies drown in hundreds of overlapping reports with different numbers and no owners. BI Steward works the other way round: for every business question it first looks for what already exists, checks whether it can be trusted, and proposes reuse or an extension. A new report is created only when nothing suitable exists, and only with an owner and the official metric definition. A human always has the final word.

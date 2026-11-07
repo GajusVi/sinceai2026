@@ -1,45 +1,46 @@
-# Donatas: tonight 00:05 → 01:00 (screen shell)
+# Donatas: Saturday from 08:00 (plan v2, the Dashboard Factory)
 
-Tell your Claude Code: "Do docs/tasks/donatas.md. Read CLAUDE.md and docs/BUILD_PLAN.md section 0 and 2 first."
-File: `frontend/steward_app.py` (yours). Don't wait for anyone: use a fake evidence list until `decision.evidence` exists.
+Tell your Claude Code: "Do docs/tasks/donatas.md. Read CLAUDE.md and docs/BUILD_PLAN.md sections 0-6 first."
 
-## T1 (A1 shell) chat-style Ask tab
-- Replace the text_input + Ask button with `st.chat_input`; keep a history in `st.session_state.messages`
-  (user turn = question, assistant turn = one-line verdict summary). Latest result still renders below with `render_result`
-  (keep approve / reject / reason / journal exactly as they are).
-- Sidebar: `st.toggle("Expert mode: skip the interview")` stored in session state (no behaviour yet; Gajus's interview uses it).
-- Evidence cards under the verdict: one card per item with claim, rule id badge (e.g. RULE-003), record ids, value; severity colour
-  (info / warning / blocker). Source: `getattr(decision, "evidence", [])`; if empty show `FAKE_EVIDENCE` (3 dicts in the C3 shape:
-  claim, rule_id, record_ids, value, severity) with a small "sample evidence" caption so nothing fake is ever unlabelled.
-- Add titles for the new verdicts so the screen never KeyErrors: CONSOLIDATE "Consolidate duplicates", NOT_FEASIBLE "Not possible with governed data"
-  (use `VERDICT_TITLES.get(verdict, verdict.value)`).
-- "Claimed vs observed" placeholder row on the recommended report (lifecycle label vs usage) – fill later.
+**What changed while you slept (read this first, 5 min):** at 03:10 Gajus made the governed, rendered dashboard + .PBIP the end
+product of every verdict (BUILD_PLAN v2). To show Panu a working draft at 09:00, Gajus drafted tonight:
+- new `steward/render.py` (spec → KPI cards, trend, breakdown, exceptions, gap cards, governance footer; Plotly)
+- a dashboard panel in `frontend/steward_app.py` under the decision (filters, lint panel, approve writes the spec hash to the journal,
+  spec JSON download). Your existing tabs were kept.
+Both are yours again from 08:00. Read NOTES.md (night handover lines) and `git log --since=03:00` first.
+You now own what the jury sees: the dashboard is the centre of the screen. **Saturday is for quality and design.**
+Your files: frontend/, demo/, submission/, steward/render.py.
 
-## T2 (A7) Reset demo
-Sidebar button "Reset demo": delete `data/steward/catalog_changes.json` and `data/steward/journal.jsonl` if present,
-`st.cache_resource.clear()`, clear session state, `st.rerun()`.
+## D0 (08:00, 2 min) take your files back
+In OWNERS, change the NIGHT lines for frontend/steward_app.py and steward/render.py back to `donatas` (delete the NIGHT text; the
+frontend/steward_app.py line can go, frontend/ covers it). Commit "OWNERS: Donatas takes back night files".
 
-## T3 smoke test `tests/bi_steward/test_app.py`
-Streamlit AppTest: open the app with `STEWARD_USE_LLM=off`, send one chat message, assert no exception.
-This makes the pre-push hook protect the screen for everyone.
+## D1 (08:00-09:00) review the draft, then Panu Q&A with Gajus at 09:00 (Joki)
+Run `make bayer`, ask the REQ-0001 text, approve. Note everything that looks rough. Gajus shows the draft to Panu at 09:00; write
+down what Panu says about the screen.
 
-Done when: `make demo` shows the chat, a fake-evidence card, reset works twice, `make test` green, pushed.
-## 00:55 handover
-Push, then 3 lines in NOTES.md: done / half-done / next. Saturday: 08:30 S2, 09:00 Q&A with Gajus, then wire to the real engine + A3 KPI card.
+## A2/A3 (09:00-11:00, P0) evidence + KPI card on the real engine
+Evidence cards from `decision.evidence` (rule id badge, record ids, severity colour); drop FAKE_EVIDENCE when real evidence exists.
+KPI disambiguation card: canonical vs variants (status, owner), canonical preselected, choosing a variant needs a reason.
 
----
-# EXTRA (Sat 00:05 → 01:00), added after your first handover
-## T4 (A4) Orphan rescue tab, on the real data pack
-Run with `make bayer` (Windows `.\run.ps1 bayer`) = STEWARD_CATALOG=datapack. New tab "Orphan rescue" in frontend/steward_app.py:
-- Asset picker (default **AST-0091 "Hyrnuo Growth - US"**), searchable by id or name.
-- Panels, all from `steward.catalog.artifact(id)` fields (already loaded by Gajus's loader):
-  Owner: owner_id, role, scope, **status** (inactive in red), `successor_candidates` with names from the Owners data;
-  Trust: endorsement, model refresh_status (warning/failed in amber/red), platform;
-  Usage: `st.line_chart` of monthly unique_users from `usage` (months since creation only);
-  Signals + data_quality flags as small chips; "Claimed vs observed": `lifecycle_claimed` next to the usage tier,
-  and a name-vs-scope note when data_quality has the mismatch flag.
-- Buttons "Propose successor" and "Retire candidate": for now they only write a journal entry via `steward.governance`
-  (reason required), clearly labelled "proposal". Real logic comes from Margiris's rules on Saturday.
-- If the catalog is the sample one (no `owner_status`), show "Run make bayer to load the Bayer data pack" instead of crashing.
-- Extend tests/bi_steward/test_app.py: the tab opens on the data pack with AST-0091 without exceptions.
-Done when: AST-0091 shows inactive owner, successors, refresh warning, usage chart. Push + 3 lines in NOTES.md by 00:55.
+## R2 (11:00-15:00, P0) dashboard polish and design
+- Layout: the dashboard reads in 10 s by an outsider. Headline cards on top, trend and breakdown side by side, exceptions below.
+- Filters (product, market/region, month range) applied to every visual.
+- EXTEND: elements added by `spec.changes` get a "new" badge and a highlight; CONSOLIDATE shows the retire list.
+- Lint panel: pass / warn / block per rule with its message; any block disables approve and says why.
+- Gap cards stay grey with the reason, never a number. Footer on every page.
+- Design: our palette, no default Streamlit look where it hurts; consistent number formats (EUR m, %, weeks).
+Test: the fixture `tests/bi_steward/fixtures/spec_req0001.json` renders; a gap measure renders as a gap card.
+
+## R3 (15:00-21:00, P1)
+- "Dashboards" tab: every approved spec rendered as a gallery card (what the factory produced, and how many requests needed nothing new).
+- Estate door: a health-tab item (consolidate / migrate / retire) → "Build the merged dashboard" → same W5-W9 path.
+- Orphan rescue tab: after successor acceptance, render the repaired version.
+- .PBIP download (Martynas's `export_pbip`) next to the spec JSON.
+- Demo cache: `make warm` on **Gemini** (not Aitta: the cache key ignores the model) for the 5 demo beats (BUILD_PLAN section 8).
+
+## A9 (Sun 06:00, P0) video ≈2 min
+Must show the rendered dashboard, the lint gate and the .PBIP download (or the labelled fallback). English narration, captions,
+screen recording, label anything mocked, no invented numbers.
+
+Post `done` to all after A2/A3 and R2 (commit ids, how to use it, what is still missing).

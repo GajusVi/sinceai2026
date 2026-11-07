@@ -1,91 +1,37 @@
-# Martynas: tonight 00:05 → 01:00 (contracts + dictionaries)
+# Martynas: Saturday from 08:00 (plan v2, the Dashboard Factory)
 
-Tell your Claude Code: "Do docs/tasks/martynas.md. Read CLAUDE.md and docs/BUILD_PLAN.md section 2 first."
-Order matters: **T1 first and push it by 00:30**, Gajus's loader and Margiris's logic import these fields.
-Rule for every new field: **give it a default**, so the old sample catalog and the 28 tests keep passing.
+Tell your Claude Code: "Do docs/tasks/martynas.md. Read CLAUDE.md and docs/BUILD_PLAN.md sections 0-6 first."
 
-## T1 (C1 + C3 fields) `steward/models.py`, push by 00:30
-Add, keep every existing field:
-```python
-class UsageMonth(BaseModel):
-    month: date
-    views: int = 0
-    unique_users: int = 0
-    exports: int = 0
-    subscriptions: int = 0
-    query_errors: int = 0
+**What changed while you slept (read this first, 5 min):** at 03:10 Gajus made the governed, rendered dashboard + .PBIP the end
+product of every verdict (BUILD_PLAN v2). To show Panu a working draft at 09:00, Gajus and Margiris drafted some of your files tonight:
+- `steward/spec.py` v2 (contract C5, additive) + fixture `tests/bi_steward/fixtures/spec_req0001.json` (Gajus, N1)
+- `catalog/bayer/measures.json` + new `steward/semantic.py` (the semantic layer + feasibility; Gajus, N2)
+- new `steward/pbip.py`, TMDL half only (Margiris, N7)
+They are yours again from 08:00. Read NOTES.md (night handover lines) and `git log --since=03:00` first.
+Your files: steward/models.py, spec.py, catalog.py, semantic.py, pbip.py, catalog/, data/, templates/pbip/.
 
-class Evidence(BaseModel):          # C3: one cited reason behind a decision (RULE-008)
-    claim: str                      # "Owner OWN-018 is inactive"
-    rule_id: str | None = None      # "RULE-003"
-    record_ids: list[str] = Field(default_factory=list)   # ["AST-0091", "OWN-018"]
-    value: str | None = None        # "309 users/month"
-    severity: str = "info"          # info | warning | blocker
-```
-`Artifact` gets (all with defaults): `platform: str = ""`, `workspace_id: str = ""`, `model_id: str = ""`,
-`product_scope: str = ""` (product name or "All Pharma"), `market_scope: str = ""` (market_id or "Global"),
-`kpi_ids: list[str]`, `endorsement: str = "none"` (certified|promoted|none), `lifecycle_claimed: str = ""` (data-pack label, NOT trusted),
-`created_date: date | None = None`, `owner_id: str = ""`, `owner_role: str = ""`, `owner_scope: str = ""`,
-`owner_status: str = ""` (active|inactive|"" = missing), `successor_candidates: list[str]`, `usage: list[UsageMonth]`,
-`refresh_status: str = ""` (semantic model: healthy|warning|failed), `model_endorsement: str = ""`,
-`signals: list[str]` ("CODE:severity:status"), `data_quality: list[str]` (DQ ids), `upstream_ids: list[str]`, `downstream_ids: list[str]`.
-`Verdict` gets `CONSOLIDATE` and `NOT_FEASIBLE`. `Decision` gets `evidence: list[Evidence]` and `flags: list[str]`
-(REASSIGN_OWNER, RETIRE, MIGRATE, FIX_REFRESH, CONSOLIDATE). `ParsedQuestion` gets `unmapped_terms: list[str]` and `conflicts: list[str]`.
-Done when: `make test` green, pushed, one line in NOTES.md.
+## M0 (08:00, 2 min) take your files back
+In OWNERS, change the NIGHT lines for steward/spec.py, steward/semantic.py, steward/pbip.py and catalog/bayer/measures.json back to
+`martynas` (delete the NIGHT text). Commit "OWNERS: Martynas takes back night files".
 
-## T2 (C4) new file `steward/spec.py`
-Pydantic: `Relationship(from_entity, to_entity, cardinality="many_to_one", key="")`,
-`Measure(name, kpi_id, expression="", format="")`, `Visual(type, title, measures: list[str], dimension: str | None)`,
-`Page(name, visuals: list[Visual])`, `DashboardSpec(name, entities, columns: dict[str, list[str]], grain: dict[str, str],
-relationships, measures, pages, filters: dict[str, str], kpi_ids, source_model_id, owner_id, rationale="")`.
-Add `tests/bi_steward/test_spec.py` with one hand-written example (Nubeqa, Germany, Net Sales KPI-001 + Forecast Variance KPI-042, monthly).
+## M1 (08:00-09:30, P0) review the night drafts: contract + bindings
+- spec.py: matches BUILD_PLAN section 3 (C5)? All new fields defaulted? Anything you would name differently, change it now, before
+  others build more on it (tell Gajus, Margiris and Donatas with `say all`).
+- measures.json: check each of the 18 bindings against the xlsx (BUILD_PLAN section 4: 12 bound, 6 gaps). Units right (KPI-042 is EUR
+  in KPI_Catalog; data has EUR difference and %)? DAX expressions plausible? Trap 14 handling present?
+- semantic.py: feasibility returns the expected results (REQ-0001 = 3 buildable; template 2 = 1 buildable + 2 gaps); tests cover it.
+Done when: NOTES.md line "contract + bindings reviewed: <changes>" by 09:30.
 
-## T3 (D2) new file `catalog/bayer/metrics.json` (do NOT touch catalog/metrics.json, the tests use it)
-One entry per canonical metric (18), shaped like the existing file plus extra keys:
-`{"id": "net_sales", "name": "Net Sales", "kpi_id": "KPI-001", "formula": "governed definition KPI-001 (synthetic: no formula in data pack)",
-"owner": "OWN-041", "domain": "Commercial", "synonyms": [...], "variants": [{"kpi_id": "KPI-002", "kpi_name": "Net Sales Local",
-"definition_status": "definition_conflict", "approval_status": "unapproved", "owner_id": "OWN-004"}, ...]}`
-Generate ids/kpi/variants from the KPI_Catalog sheet with a script; then review these **draft synonyms** (lowercase, they are word-start stems):
-net_sales: net sales, sales, revenue, turnover · net_sales_growth: sales growth, growth · demand_forecast_accuracy: forecast accuracy ·
-demand_forecast_bias: forecast bias · units_shipped: units shipped, units, volume, shipments · inventory_coverage: inventory coverage,
-inventory, stock cover, weeks of supply · on_time_in_full: otif, on-time in-full, on time in full · launch_adoption_index: launch adoption, adoption, uptake ·
-market_access_coverage: market access · reimbursement_status_coverage: reimbursement · gross_to_net_rate: gross-to-net, gross to net, gtn ·
-operating_contribution: operating contribution, contribution · budget_variance: budget variance, vs budget, budget ·
-forecast_variance: forecast variance, vs forecast · commercial_reach_index: commercial reach · digital_engagement_index: digital engagement ·
-report_adoption: report adoption, report usage · certified_asset_share: certified asset share, certification rate.
-Deliberately NOT synonyms (ambiguous, must go to CLARIFY): "coverage", "forecast", "performance", "first sales", "readiness".
-**Bad-name trap:** "Inventory Coverage Mgmt", "Gross-to-Net Rate Legacy", "Forecast Variance Adjusted", "Launch Adoption Index Adjusted" each exist twice with different ids: keep both ids in variants.
+## M3 (09:30-11:00, P0) Power BI Desktop templates
+Install Power BI Desktop (free, Microsoft Store). Options → Preview features: enable Power BI Project (.pbip) save, TMDL, PBIR.
+Save into `templates/pbip/`: (a) an empty project; (b) a project on a small CSV with exactly one card, one line chart, one clustered bar
+and one table. These files are the ground truth for the format: never hand-write PBIR from memory. Commit, with the Desktop version in a README line.
 
-## T4 (D3) new files `catalog/bayer/dimensions.json` + `catalog/bayer/regions.json`
-dimensions.json (same shape as catalog/dimensions.json): `product` (values P-NUB..P-HYR, label = name, synonyms = lowercase name;
-dimension synonyms: by product, product, brand, medicine), `market` (14 values, label = market_name, synonyms = lowercase full names
-plus "usa", "united states", "britain"; **no 2-letter codes**: the linker matches word starts, so "it" would match "items"),
-`region` (EMEA, North America, Asia Pacific + "apac", Latin America + "latam"), `month` (by month, monthly), `quarter` (quarterly, by quarter).
-regions.json: `{"EMEA": ["DE","FR","IT","ES","FI","SE","UK"], "North America": ["US","CA"], "Asia Pacific": ["JP","CN","AU"], "Latin America": ["BR","MX"]}`.
+## M4 (11:00-18:00, P0) finish `steward/pbip.py`
+Keep Margiris's TMDL half (fix it against your saved template). Add the PBIR report half: one page per spec page, visuals copied from
+the template of the same type with field references replaced. Open the zip in Desktop; screenshot to `submission/pbip_open.png`.
+**18:00 fallback (BUILD_PLAN section 7):** if it does not open, ship the TMDL model + spec JSON, labelled "not verified in Desktop".
+Write which in NOTES.md either way. Post `done` to all.
 
-## 00:55 handover
-Push, then 3 lines in NOTES.md under Decisions: done / half-done / next. Saturday 08:00: D5 hold-out labelling with Margiris, then D6 preview.
-
----
-# EXTRA (Sat 00:05 → 01:00), added after your first handover
-## T5 (10 min, push first: unblocks Margiris's L2 and Donatas's KPI card) `steward/models.py`
-`MetricDefinition` silently drops `kpi_id` and `variants` from catalog/bayer/metrics.json (no such fields). Add, with defaults:
-```python
-class MetricVariant(BaseModel):
-    kpi_id: str
-    kpi_name: str
-    definition_status: str   # duplicate_candidate | local_variant | definition_conflict
-    approval_status: str     # local | draft | unapproved
-    owner_id: str = ""
-```
-`MetricDefinition.kpi_id: str = ""` and `MetricDefinition.variants: list[MetricVariant] = Field(default_factory=list)`.
-Test: with STEWARD_CATALOG=datapack, `inventory_coverage` has kpi_id KPI-016 and variants incl. KPI-018 and KPI-019. Push, tell Margiris.
-
-## T6 (rest of the hour) intent labels for the hold-out: `data/holdout/requests_intent.jsonl`
-40 Business_Requests, 4 per template (10 templates, see docs/challenge/03_DATA_PACK.md). One JSON line each:
-`{"request_id", "text", "product_context", "market_context", "expected_products": [...], "expected_markets": [...],
-"expected_regions": [...], "expected_metric_ids": [...], "expected_grain": "month", "metadata_conflict": true/false, "notes": ""}`
-Pre-fill with a script (parse the text with the data-pack rule parser), then **check every line by hand**: the expected values come from
-the request TEXT, not the parser. `metadata_conflict` = the text names a different product than product_context, or says global/a region
-while market_context is a country (or the reverse). Label intent only, no verdicts (those wait for Margiris's rules).
-This is the input for Gajus's request-intake test and Margiris's intent F1. Push + 3 lines in NOTES.md by 00:55.
+## M5 (after M4, P1, with Margiris) 20 hold-out rows with expected verdict + best asset
+`data/holdout/`: 2 per request template, labelled before any threshold tuning.

@@ -1,53 +1,249 @@
-# BUILD PLAN: BI Steward for Bayer (Fri 6 Nov 22:00 to Sun 8 Nov 08:00)
+# BUILD PLAN v2: the governed Dashboard Factory (Sat 7 Nov 03:30 → Sun 8 Nov 08:00)
 
-One page to run the weekend from. Context: docs/challenge/ (brief, Panu's framework, data-pack traps).
-Owners follow OWNERS / NOTES.md: **Gajus** product + pitch + docs · **Margiris** model, logic + proof ·
-**Martynas** data · **Donatas** app, demo + submission. Each task: ID, owner, done-when. P0 = no demo without it.
+**Now:** night shift (section 6.1): Gajus + Margiris build a rough full draft by 08:30. Martynas + Donatas start at 08:00 with docs/tasks/<name>.md (review + take back + harden).
 
-## 0. What we are building (one sentence, lock in S1)
-For a Bayer business user or BI lead, BI Steward turns a spoken or typed analytics request into one governed decision
-(reuse, extend, consolidate, create or clarify) with cited evidence, and only builds a new dashboard spec when nothing
-trustworthy exists, so the company gets fewer, owned, KPI-consistent dashboards.
+**v2 change (Gajus, Sat 03:10):** the end product is a **governed, rendered dashboard plus a .PBIP project**, for every verdict.
+v1 ended at the verdict, with spec + preview as P1 and .PBIP as the first cut. That missed Panu's framework (Prompt in, .PBIP out).
+Everything built so far stays (interview, intent, KPI ids, evidence engine, trust, approval, journal, orphan rescue). It becomes the
+first half of one flow that ends in a dashboard. The S1 decisions (section 11) are unchanged.
+
+Owners follow OWNERS / NOTES.md: **Gajus** product, spec builder, docs, pitch · **Margiris** verdict engine, lint gate, eval ·
+**Martynas** data, semantic layer, spec contract, .PBIP · **Donatas** renderer, app, demo, submission.
+Tell your Claude Code: **"Do docs/tasks/<name>.md. Read CLAUDE.md and docs/BUILD_PLAN.md sections 0-6 first."**
+
+## 0. What we build (one sentence)
+For a Bayer business user or BI lead, BI Steward turns a spoken or typed analytics request into one governed decision and the
+**dashboard that decision implies**: the existing one (REUSE), its next version (EXTEND), the merged one (CONSOLIDATE), its Power BI
+successor (MIGRATE) or a new one (CREATE). Each is rendered on governed KPIs, checked against RULE-001..008, approved by a human and
+exported as a .PBIP project. So the company gets fewer, owned, KPI-consistent dashboards, and every one it does get is built right.
 
 ```
-voice/text ─▶ INTERVIEW (local or cloud LLM) ─▶ Intent ─▶ EVIDENCE ENGINE (code) ─▶ Decision + evidence cards
-                 asks only what's missing         │            KPI ids, scope, usage, owner,      │
-                                                  │            refresh, lineage, signals          ▼
-                                    expert mode skips interview              human approve / reject ─▶ journal
-                                                                             CREATE/EXTEND ─▶ DashboardSpec ─▶ preview + .PBIP skeleton
-ORPHAN RESCUE: pick an asset ─▶ reverse-engineer into Intent ─▶ same engine        ESTATE HEALTH: retire / consolidate / migrate queue
+ W0 ENTRY            W1 INTERVIEW        W2 KPI RESOLUTION     W3 FEASIBILITY         W4 EVIDENCE + VERDICT
+ typed / voice  ──▶  /grill-me (LLM) ──▶ words → canonical ──▶ can governed data  ──▶ /explore: search, coverage,
+ request row         situation Qs        KPI ids; variants      answer it? measure      trust, scope, lineage, usage
+ orphan asset        stop rule           → disambiguation       bindings, scope,        → REUSE | EXTEND | CONSOLIDATE
+ estate finding      ◀── G1: intent clear ◀── G2: KPIs governed  ◀── G3: buildable ──┐    | CREATE (+ MIGRATE/RETIRE/
+        ▲                                                         (else NOT_FEASIBLE   │    REASSIGN/FIX_REFRESH flags)
+        │                                                          + nearest offer) ───┘    | CLARIFY → back to W1
+        │
+        │   W5 SPEC (/to-spec)       W6 LINT GATE           W7 RENDER             W8 HUMAN GATE        W9 PUBLISH
+        └── verdict → DashboardSpec ─▶ RULE-001..008 +   ─▶ deterministic      ─▶ approve / reject  ─▶ catalog version,
+            per branch (section 2);     FOCUS + DATA rules   Python: KPI cards,    with reason;         journal (spec hash,
+            LLM proposes layout from    pass / warn / block  trend, breakdown,     block = no approve    lint, model, prompt),
+            a fixed menu, code checks   on the SPEC itself    exceptions, filters,                      .PBIP zip (TMDL +
+                                                              governance footer                         PBIR), lineage edges
+ W10 LIFECYCLE LOOP: estate health (retire / consolidate / migrate / reassign) feeds W5-W9 too: a consolidation produces the merged dashboard.
 ```
-Scoring weights we build against: 30% fit · 25% governance · 20% tech/AI · 15% usability (business AND IT) · 10% scale/demo.
+Yellow (LLM) steps: W1 interview, W5 layout proposal + titles, explanation text. Everything else is deterministic Python.
+Verdict, feasibility, lint and render are code: same input, same output, testable (Panu: "the final render can be plain code").
 
-## TONIGHT (Fri 23:45 → Sat 03:00): revised shift
-**S1 accepted 23:40.** Per-person briefs: docs/tasks/<name>.md (tell your Claude Code: "do docs/tasks/<name>.md").
-Martynas + Donatas leave ~01:00, so they take short, self-contained tasks that unblock others.
-Gajus + Margiris stay to ~03:00 and take the long chain (loader → matching → no-silent-drops).
+## 1. The stages, gates and owners
+| Stage | What happens | Output | Gate (blocks the next stage) | Owner | Status |
+|---|---|---|---|---|---|
+| W0 Entry | 4 doors: chat (novice/expert), Business_Requests row with its metadata, orphan asset, estate finding | text + context | – | Donatas (UI), Gajus (requests.py) | chat + rescue tab done; estate door new |
+| W1 Interview | situation questions, conflict question, stop rule | `Intent` | **G1** intent clear: stop rule met, no open blocker conflict | Gajus | done (Gemini + Aitta) |
+| W2 KPI resolution | metric words → canonical approved KPI ids; variants → disambiguation card | `Intent.metric_ids` + conflicts | **G2** every KPI canonical+approved, or exception with reason | Margiris (linking), Donatas (card A3) | ids done; card open |
+| W3 Feasibility | each KPI bound to a measure in the semantic layer? products/markets present in the facts? month grain? | `Feasibility` | **G3** ≥ 1 buildable measure; else NOT_FEASIBLE + nearest governed alternative, loop to W1 | Martynas | **new** |
+| W4 Evidence + verdict | search, coverage, trust 2.3, scope 2.4, usage, lineage, signals | `Decision` + evidence + flags | CLARIFY → W1 | Margiris | REUSE/EXTEND/CREATE/CLARIFY done; CONSOLIDATE, NOT_FEASIBLE, flags open (L5) |
+| W5 Spec | per-verdict spec builder (section 2) + layout rules (section 5); LLM proposes layout from a fixed menu, code validates, template fallback | `DashboardSpec` v2 | – | Gajus | **new** |
+| W6 Lint gate | rules on the spec itself (section 5.2) | `LintResult[]` on the spec | any `block` → approve disabled | Margiris | **new** |
+| W7 Render | deterministic: spec + semantic frames + filters → dashboard | `RenderedDashboard` | – | Donatas | **new** |
+| W8 Human gate | approve / reject with reason; owner required; exception reasons | journal entry | – | Donatas (governance.py) | approve/reject done; spec link new |
+| W9 Publish | catalog version (EXTEND v{N}, CREATE draft, CONSOLIDATE keeper + retire list), journal with spec hash + lint + model/prompt, .PBIP zip, lineage edges | files + journal | – | Martynas (.PBIP), Donatas (journal) | **new** |
+| W10 Lifecycle | estate queue items run W5-W9 | dashboards for consolidations/migrations | – | Margiris (L6/L7), Donatas (A8) | health done; queue → spec new |
 
-| Time | Gajus | Margiris | Martynas (→ 01:00) | Donatas (→ 01:00) |
+## 2. Verdict → dashboard (what W5 builds for each branch)
+| Verdict / flag | Base | What the spec contains | What the human approves | Published as |
 |---|---|---|---|---|
-| 23:45-00:05 | **S1, all four, 20 min**: accept/override section 2, nothing else | S1 | S1 | S1 |
-| 00:05-01:00 | C2 `steward/intent.py` stub; start **D1 loader** in new file steward/datapack.py (no edit to Martynas's catalog.py) | C3 Decision.evidence stub; **L1** LLM client via backend/llm.py | **C1** Artifact fields + **C4** DashboardSpec stub; **D2** synonyms for the 18 canonical metrics; **D3** products/markets/regions | **A1 shell**: chat input + decision screen rendering a hard-coded fake Decision with evidence cards (C3 shape); **A7** Reset-demo button |
-| 00:05-01:00 EXTRA | T3a request intake (conflict check) | lighter: LLM prompt part moved to Sat | T5 MetricDefinition kpi_id + variants (unblocks L2), T6 intent labels for 40 requests | T4 Orphan rescue tab on the data pack (AST-0091) |
-| 00:55 | handover: M + D push, write 3 lines in NOTES ("done / half-done / next") | | push + NOTES | push + NOTES |
-| 01:00-03:00 | finish **D1** (360 assets load, counts test); **D4** goldens on data pack (with Margiris) | **L2** KPI-id matching; **L3** unmapped terms → CLARIFY (REQ-0001 test) | off | off |
-| 03:00 | checkpoint: app runs on data pack, REQ-0001 → CLARIFY. Sleep. | | | |
+| **REUSE** | the matching asset | `spec_from_asset(best)`: its canonical KPIs, scope, model; filtered to the question | "Open this" (nothing new is built) | journal only; the render shows the existing dashboard on governed data |
+| **EXTEND** | best compatible asset | base spec + `changes`: add missing measures / breakdowns, swap variant KPIs to canonical (RULE-002), owner/certify/refresh fixes | the new version, with a **diff** (new elements highlighted) | asset v{N+1}; old version `superseded`; .PBIP |
+| **CONSOLIDATE** | the most trusted asset of the duplicate cluster | union of the cluster's canonical KPIs, `merge_from` changes; retire list with downstream impact (RULE-004) | keeper version + each retirement (30-day reversible) | keeper v{N+1}; others → retire queue; .PBIP |
+| **CREATE** | none | from Intent + Feasibility on the best governed semantic model (Power BI, certified/promoted, refresh healthy, scope fits: 15 such models in the pack) | the new dashboard; owner mandatory (default = model owner, editable) | draft asset + lineage edge model→asset; .PBIP |
+| **MIGRATE** flag (Tableau best) | the Tableau asset | Power BI spec of the *rationalised* asset: canonical KPIs only, duplicates merged first, target model from Migration_Backlog only if healthy (RULE-006) | the Power BI successor | new PBI asset; Tableau → retire queue; .PBIP |
+| **RESCUE** (orphan door) | the orphan asset | `spec_from_asset(orphan)` + REASSIGN_OWNER successor + canonical swaps | successor accepts; repaired version | v{N+1} with new owner; .PBIP |
+| **NOT_FEASIBLE** | – | no spec. Shows which KPIs are governed but have no source data (e.g. KPI-034 Gross-to-Net) + the nearest buildable alternative | user accepts the alternative (→ W1) or files a data request (journaled) | journal |
+| **CLARIFY** | – | no spec; back to W1 with the blocking terms/conflicts | – | – |
 
-Saturday 08:00 restart: Martynas → D5 hold-out labelling (with Margiris), D6 preview; Donatas → wire A1/A2 to the real engine, A3 disambiguation card;
-Gajus → S2 at 08:30, Q&A 09:00 with Donatas; Margiris → L4, L5.
+## 3. Contracts v2 (additive, every new field defaulted; all tests stay green)
+**C5 `steward/spec.py` (owner Martynas; drafted tonight by Gajus as N1, pushed by 04:00 with a fixture `tests/bi_steward/fixtures/spec_req0001.json`)**
+```python
+class Measure(BaseModel):            # existing fields kept: name, kpi_id, expression, format
+    unit: str = ""                   # EUR | % | weeks | units | index
+    source: str = ""                 # "fact_pmm.net_sales_m_eur_syn" or "derived"
+    aggregation: str = "sum"         # sum | avg | ratio | derived
+    definition_status: str = "canonical"
+    feasible: bool = True
+    gap_reason: str = ""             # "KPI-034 is governed but no governed model holds its source data"
+class Visual(BaseModel):             # existing: type, title, measures, dimension
+    purpose: str = ""                # the decision it supports, one line
+    comparison: str | None = None    # measure name shown against it (forecast, prior month)
+    threshold: float | None = None   # for exception tables / colouring
+class Page(BaseModel):               # existing: name, visuals
+    purpose: str = ""
+class SpecChange(BaseModel):
+    kind: str                        # add_measure | add_breakdown | swap_variant | merge_from | assign_owner | migrate_platform | remove_visual
+    detail: str
+    record_ids: list[str] = []
+class LintResult(BaseModel):
+    rule_id: str                     # RULE-001..008 | FOCUS | DATA
+    status: str                      # pass | warn | block
+    message: str
+    record_ids: list[str] = []
+class DashboardSpec(BaseModel):      # existing fields kept
+    verdict: str = ""
+    change_type: str = "create"      # reuse | extend | consolidate | create | migrate | rescue
+    base_asset_ids: list[str] = []
+    version: int = 1
+    changes: list[SpecChange] = []
+    audience: str = ""
+    decision_supported: str = ""
+    cadence: str = ""
+    platform: str = "Power BI"
+    lint: list[LintResult] = []
+    data_label: str = "Synthetic data from the Bayer SinceAI 2026 data pack, not Bayer performance"
+    provenance: dict[str, str] = {}  # layout_source llm|template, model, prompt file, spec_hash
+```
+**C6 `catalog/bayer/measures.json` + `steward/semantic.py` (owner Martynas; draft N2 by Gajus, 05:00):** the governed semantic layer (section 4).
+`load_frames() -> dict[str, pd.DataFrame]` (cached), `star_schema() -> (entities, columns, relationships)`,
+`feasibility(intent) -> Feasibility(buildable: list[Measure], gaps: list[Measure], scope_ok: bool, nearest: list[str])`.
+**C7 `steward/specbuild.py` (Gajus; N3 tonight: REUSE/EXTEND/CREATE):** `build_spec(decision, intent, catalog, feasibility) -> DashboardSpec | None` (None for CLARIFY/NOT_FEASIBLE), `spec_from_asset(asset)`.
+**C8 `steward/lint.py` (Margiris; N5 tonight):** `lint(spec, catalog) -> list[LintResult]`; `can_approve(spec) = no block`.
+**C9 `steward/render.py` (owner Donatas; draft N4 by Gajus tonight):** `render(spec, frames, filters) -> RenderedDashboard(cards, figures, tables, footer, gaps)`; Plotly (installed), no new packages.
+**C10 `steward/pbip.py` (owner Martynas; TMDL draft N7 by Margiris tonight, report half Saturday):** `export_pbip(spec, frames, out_dir) -> Path` (zip). Built from templates saved by Power BI Desktop (section 6, M4).
+**Pipeline:** `Steward.ask(...)` result gains `spec: DashboardSpec | None`; `Steward.build(decision, intent)` runs W3, W5, W6. Shared file `steward/pipeline.py`: Gajus wires it.
 
-## 1. Team sessions (everyone, timeboxed; output written to NOTES.md)
+## 4. Semantic layer: what the governed data can show (W3)
+Star schema built from the data pack (all synthetic, labelled on every render):
+`fact_pmm` Product_Market_Monthly (product × market × month, 980 rows) · `fact_supply` Supply_Operations · `fact_access` Market_Access ·
+`fact_launch` Launch_Milestones · `fact_usage` Asset_Usage + Analytics_Assets (BI-governance KPIs) · `dim_product` (7) · `dim_market` (14 → 4 regions) · `dim_month` (Jan-Oct 2026).
+Relationships: every fact many-to-one to dim_product, dim_market, dim_month on product_id / market_id / month.
+
+| Canonical KPI | Binding (Martynas confirms each) |
+|---|---|
+| KPI-001 Net Sales | fact_pmm.net_sales_m_eur_syn, sum |
+| KPI-004 Net Sales Growth | derived: net sales vs prior month |
+| KPI-006 Demand Forecast Accuracy | fact_supply.forecast_accuracy_pct_syn, avg |
+| KPI-010 Demand Forecast Bias | derived: (net sales − forecast) / forecast |
+| KPI-014 Units Shipped | fact_pmm.units_shipped_syn, sum |
+| KPI-016 Inventory Coverage | fact_pmm.inventory_weeks_syn, avg |
+| KPI-020 On-Time In-Full | fact_pmm.otif_pct_syn, avg |
+| KPI-027 Market Access Coverage | fact_pmm.market_access_coverage_pct_syn, avg |
+| KPI-031 Reimbursement Status Coverage | fact_access: share of markets "listed" |
+| KPI-042 Forecast Variance | fact_pmm net sales − forecast (EUR), plus forecast_variance_pct |
+| KPI-051 Report Adoption | fact_usage unique users |
+| KPI-054 Certified Asset Share | Analytics_Assets endorsement share |
+| KPI-023 Launch Adoption Index | **gap** (milestone table only, no index values) |
+| KPI-034 Gross-to-Net, KPI-037 Operating Contribution, KPI-039 Budget Variance, KPI-046 Commercial Reach, KPI-049 Digital Engagement | **gap**: governed KPI, no source data. NOT_FEASIBLE for that measure (Panu's feedback loop) |
+So 12 of 18 bind. Request template 2 ("net sales, gross-to-net and budget variance", 20 rows) is the demo of a partial feasibility gap.
+Data-quality rules carried in (trap 14): zero-sales rows with null variance are excluded from averages and shown as a DQ note, not hidden.
+
+## 5. Dashboard design rules (W5) and the lint gate (W6)
+### 5.1 Layout (Panu: "the fixed set of KPIs the shift sees when they walk in"; human factors in scope)
+- **One page** by default: "What needs attention". At most 4 KPI cards (headline canonical measures, each against its comparison:
+  forecast, prior month, or threshold), 1 trend (headline measure by month with comparison), 1 breakdown (by the intent's "by" dimension:
+  market, region or product), 1 exceptions table (rows past a threshold: OTIF < 90%, inventory < 4 weeks, |forecast variance| > 10%).
+- A second "Detail" page only when more than 4 measures are requested. Max 7 visuals per page, 2 pages.
+- Titles in business language, answer first ("Nubeqa net sales vs forecast, by country"). No jargon, no KPI ids in titles (ids in the footer).
+- Governance footer on every page: KPI ids + status, source model id + endorsement + refresh, owner, version, data label.
+- **LLM role (W5):** picks the headline measure, the comparison and the exception threshold from a fixed menu, and writes the name,
+  titles and rationale (`prompts/to_spec.yaml`). Code rejects anything outside the menu or any number in the text. Template layout on failure.
+### 5.2 Lint rules on the spec (block = approve disabled)
+| Rule | Check | Fail |
+|---|---|---|
+| RULE-001 Reuse before build | CREATE: no compatible asset with canonical-KPI Jaccard ≥ 0.6 on the same scope | block |
+| RULE-002 Canonical KPI first | every measure canonical + approved, or an exception with reason | block |
+| RULE-003 Owner required | owner set and active | block |
+| RULE-004 Lineage required | source_model_id set; CONSOLIDATE/RETIRE list downstream impact | block |
+| RULE-005 High reach requires trust | high audience → model certified/promoted; refresh failed → block, warning → warn | warn / block |
+| RULE-006 Do not migrate waste | MIGRATE: canonical only, duplicates merged, no low-use 1:1 copy | block |
+| RULE-007 AI-ready semantics | every visual's measures bound with an expression; month date axis; business names | warn |
+| RULE-008 Explain every action | every SpecChange carries record ids | block |
+| FOCUS | ≤ 7 visuals per page, ≤ 2 pages, ≤ 4 KPI cards | warn |
+| DATA | an infeasible measure is rendered only as a labelled gap, never with numbers | block |
+
+## 6. Timeline: rough full draft tonight, harden and design on Saturday
+**Goal by 08:30:** a rough but complete W0→W9 draft that runs on the data pack, so Panu sees a real dashboard at the 09:00 Q&A and
+Saturday is spent on his feedback, quality and design, not on first builds. Martynas and Donatas are offline until 08:00, so tonight
+**Gajus and Margiris build drafts of every new module, including files the others own**. Those files are handed back at 08:00
+(OWNERS has the NIGHT lines; the owner reviews, keeps or rewrites). Rough is fine: plain layout, template text, few tests. It must run.
+
+### 6.1 Night shift (Sat 03:30 → 08:30)
+Two tracks, no shared files, so the two Claude Codes never collide. Track A alone already gives an end-to-end draft;
+Track B adds the lint gate, the missing verdicts and the export. **If Margiris has not confirmed by 03:45, Gajus runs N5 after N4
+and N6/N7 move to the morning owners.**
+
+| Order | Task | Track A: Gajus | Track B: Margiris | Push by | Done when |
+|---|---|---|---|---|---|
+| 1 | **N1** spec.py v2 (section 3, C5, additive) + fixture `tests/bi_steward/fixtures/spec_req0001.json` | ✔ (night owner of spec.py) | | 04:00 | fixture validates, tests green, `say all done` |
+| 2 | **N2** measures.json + semantic.py: load_frames, star_schema, feasibility (section 4) | ✔ | | 05:00 | REQ-0001 = 3 buildable; template 2 = 1 buildable + 2 gaps |
+| 3 | **N3** specbuild.py: REUSE, EXTEND, CREATE with the template layout (5.1) + `Steward.build()` in pipeline.py | ✔ | | 06:15 | specs for the 3 cases in a test |
+| 4 | **N4** render.py + dashboard panel in the Ask flow: cards, line, bar, exceptions table, gap cards, footer; lint panel; approve writes spec hash + lint to the journal; spec JSON download | ✔ (night owner of frontend/steward_app.py) | | 08:00 | REQ-0001 W0→W8 on screen in `make bayer` |
+| 1 | **N5** lint.py, all rules of 5.2 (simple checks first) | | ✔ starts on the fixture at 04:00 | 06:00 | pass + fail test per rule |
+| 2 | **N6** L5: CONSOLIDATE + NOT_FEASIBLE (uses semantic.feasibility from N2) | | ✔ | 07:30 | template 2 → NOT_FEASIBLE gaps as Evidence; a duplicate cluster → CONSOLIDATE |
+| 3 | **N7** pbip.py rough: TMDL semantic model (tables, measures, relationships) + spec JSON in a zip; report half is Martynas's in the morning | | ✔ (night owner of pbip.py) | 08:00 | zip downloads from the app; folder layout matches the Microsoft PBIP docs |
+| 08:15 | **Handover**: each pushes, `tools/coord.py status`, 3 lines in NOTES.md (done / rough / missing) | ✔ | ✔ | | |
+
+Until N1 lands, Margiris codes N5 against the contract in section 3 (field names are final). Until N2 lands, N6 uses CREATE logic only.
+
+### 6.2 Saturday (feedback, hardening, design)
+| Time | Gajus | Margiris | Martynas | Donatas |
+|---|---|---|---|---|
+| 08:00-09:00 | S2; demo the draft to the team; Panu questions incl. new Q2 | sleep or N-task leftovers | **review** N1/N2 (bindings vs xlsx, contract), take back spec.py, semantic.py, pbip.py | **review** N4, take back frontend + render.py |
+| 09:00-12:00 | **Panu Q&A with the running draft** (with Donatas); log feedback | lint/verdict hardening (L5 flags, L11 edge cases) | M3 Desktop templates → M4 report half of .PBIP, open in Desktop | R2 polish: filters, EXTEND diff badges, layout design |
+| 12:00 | **S3**: apply Panu's feedback list; cut list | | | |
+| 12:00-21:00 | G9 rest: CONSOLIDATE/MIGRATE/RESCUE specs; G10 LLM layout; G11 numbers; README | L8 eval v1 (lint pass rate, dashboards avoided), L6/L7 | M4 verified in Desktop or 18:00 fallback; M5 labels | R3 Dashboards tab, estate door, design pass, demo cache on Gemini |
+| 14:30 | **S4: Panu sees the improved version** | | | |
+| 21:00 | **S5 demo-path review** · Sun 02:00 freeze · 06:00 video + README · 08:00 submit | | | |
+
+**New Q2 for Panu (09:00):** "We render the dashboard deterministically from a spec and export a .PBIP (TMDL model + PBIR report). Do you
+want to see it open in Power BI Desktop, or are the spec, the rendered preview and the files enough?" Log the answer in NOTES.md; it decides M4 effort.
+
+## 7. Saturday task list per person (after the night draft; done-when)
+| ID | P | Owner | Task | Done when |
+|---|---|---|---|---|
+| M1 | P0 | Martynas | review N1 spec contract + N2 measures.json bindings against the xlsx; fix or confirm | NOTES line "contract + bindings reviewed" by 09:30 |
+| M3 | P0 | Martynas | Power BI Desktop (free, Windows): enable PBIP, TMDL and PBIR preview features; save templates: empty project + one report with one card, one line, one bar, one table on a CSV | `templates/pbip/` committed |
+| M4 | P0 | Martynas | pbip.py: add the PBIR report half from the templates to Margiris's TMDL draft; open in Desktop | screenshot in submission/; fallback at 18:00 below |
+| M5 | P1 | Martynas (+Margiris) | 20 hold-out rows with expected verdict + best asset | committed before tuning |
+| G9 | P0 | Gajus | specbuild: CONSOLIDATE, MIGRATE, RESCUE branches on top of the night's REUSE/EXTEND/CREATE | 6 cases in tests |
+| G10 | P1 | Gajus | prompts/to_spec.yaml + validator (menu-only, no numbers) | LLM layout passes lint on 3 cases; template fallback tested |
+| G11 | P1 | Gajus | headline numbers from code over 150 requests | numbers in README/pitch, script committed |
+| G6 | P0 | Gajus | README (brief section 07) incl. the factory, assumptions, lint rules, PBIP status; swap the herbicide example | reviewed at S7 |
+| L5 | P0 | Margiris | remaining flags MIGRATE/RETIRE/REASSIGN/FIX_REFRESH with evidence ids; batch-yield known_gap removed | goldens green |
+| L11 | P0 | Margiris | harden lint (RULE-001 Jaccard on real search, RULE-004 with lineage impact) | edge-case tests |
+| L8 | P0 | Margiris | eval: verdict accuracy, false-REUSE rate, **spec lint pass rate, dashboards avoided** | eval/results.json at S3 (v1) and freeze (v2) |
+| L6/L7 | P1 | Margiris | retire rule 2.2, lineage impact for CONSOLIDATE/RETIRE | numbers match 03_DATA_PACK.md |
+| R2 | P0 | Donatas | dashboard panel polish: filters, EXTEND diff highlighting, lint panel (block disables approve), design | outsider understands it in 10 s |
+| R3 | P1 | Donatas | Dashboards tab (approved specs), estate door → spec, .PBIP download, demo cache warm on Gemini | demo runs offline twice |
+| A2/A3 | P0 | Donatas | evidence cards on the real engine, KPI disambiguation card | as v1 |
+| A9 | P0 | Donatas | video (≈2 min) shows a rendered dashboard and the .PBIP | uploaded by 08:00 Sun |
+
+**PBIP fallback (decide Sat 18:00):** if the export does not open in Desktop, ship the semantic model only (TMDL) plus the
+spec JSON and the rendered preview, labelled "skeleton, not verified in Desktop". Never claim it opens unless someone opened it.
+
+## 8. Demo story (5 beats, replaces S1 item 9)
+1. **REQ-0001 arrives** with its form: the text says global Nubeqa, the form says Beyonttra/EMEA → interview asks one situation question and the conflict question → Intent.
+2. **KPI resolution**: "forecast variance" → canonical KPI-042; a variant on the candidate asset is shown and swapped.
+3. **Reuse before build**: evidence cards; verdict EXTEND on an existing asset (record ids, trust, owner, usage), not a new dashboard.
+4. **The dashboard**: the extended version renders with the new elements highlighted, the lint gate passes, approve → v{N+1}, journal, .PBIP downloaded.
+5. **The estate**: "of 150 requests, X% need no new dashboard" (from code); one consolidation renders the merged dashboard with its retire list;
+   orphan AST-0091 gets a successor and a repaired version. Template 2 shows the honest gap: Gross-to-Net is governed but has no data → NOT_FEASIBLE for that measure.
+
+## 9. Cut order if behind (decide at S3)
+Cut first → last: A6 voice · L9 fastembed · G10 LLM layout (template layout stays) · R3 Dashboards tab · RESCUE/MIGRATE spec branches (verdict stays) · M4 report half of .PBIP (keep TMDL model).
+**Never cut:** W5 spec for REUSE/EXTEND/CREATE, W6 lint gate, W7 render, W8 approval with spec in the journal, L3 no-silent-drops, L2 KPI ids, L8 eval number, A7 demo mode, G6 README.
+
+## 10. Sessions (everyone, timeboxed; output in NOTES.md)
 | ID | When | Session | Output |
 |---|---|---|---|
-| S1 | Fri 22:15-23:00 | **Logic lock** (agenda in section 2) | verdict table, thresholds, Intent fields, demo story, local-LLM decision |
-| S2 | Sat 08:30-09:00 | Q&A prep | 5 questions for Panu (docs/challenge/05_SYNTHESIS.md), who goes (Gajus + Donatas) |
-| S3 | Sat 12:00-12:30 | **Structure checkpoint** | eval v1 number, what works end to end, cut list |
-| S4 | Sat 14:30-15:30 | Show Panu real outputs | his reaction on 3 decisions + 1 spec, adjustments |
-| S5 | Sat 21:00-21:30 | Demo-path review | the exact 5-beat demo runs on one laptop |
-| S6 | Sun 02:00 | **Code freeze** + dry run | tagged commit `demo-freeze`, only fixes after |
-| S7 | Sun 07:00-07:45 | Submission review | page, video, README checked against brief section 07 |
+| S2 | Sat 08:30-09:00 | Q&A prep | Panu questions incl. new Q2 |
+| S3 | Sat 12:00-12:30 | **Structure checkpoint** | REQ-0001 W0→W7 on screen, eval v1, cut list |
+| S4 | Sat 14:30-15:30 | Show Panu | rendered dashboard + spec + lint + .PBIP; his reaction logged |
+| S5 | Sat 21:00-21:30 | Demo-path review | section 8 runs offline on one laptop |
+| S6 | Sun 02:00 | **Code freeze** + dry run | tag `demo-freeze` |
+| S7 | Sun 07:00-07:45 | Submission review | page, video, README vs brief section 07 |
 
-## 2. S1 agenda: decide these together (proposals to accept or change)
+## 11. S1 decisions (locked Fri 23:45; still valid)
 1. **Verdicts for a question.** Proposal:
    | Verdict | Rule (all on approved KPI ids, never on names) |
    |---|---|
@@ -82,94 +278,11 @@ Gajus → S2 at 08:30, Q&A 09:00 with Donatas; Margiris → L4, L5.
 6. **Intent fields** (Pydantic, contract between interview and engine): role, decision_supported, cadence, products[], markets[], regions[], metric_ids[] (canonical), unmapped_terms[], grain, comparison (target/forecast/prior), audience, conflicts[], confidence{field: 0-1}, mode (novice/expert/rescue).
 7. **Interview stop rule:** all of products, markets, ≥ 1 metric, decision_supported filled with confidence ≥ 0.7, or 5 questions asked; expert mode asks only on conflicts.
 8. **Local LLM decision:** Gajus's Intel Mac cannot run a useful local model. Proposal: interview runs on Ollama (small Gemma) on Donatas's M4 for the "raw words stay on device" story; everything else on Gemini Flash (free student credits, MLH Gemini tick). One env switch back to cloud.
-9. **Demo story** (5 beats, docs/steward/demo-script.md rewritten): REQ-0001 conflict → consolidate Nubeqa duplicates → expert asks "Inventory Coverage Mgmt" → disambiguation → orphan AST-0091 rescue → one CREATE with spec + preview, approve, journal.
+9. **Demo story:** replaced by section 8 (v2).
 
-## 3. Contracts first (Fri 23:00-00:00): stub code everyone builds against
-| ID | Owner (+ reviewer) | File | Done when |
-|---|---|---|---|
-| C1 | Martynas (+Margiris) | steward/models.py: `Artifact` gets platform, workspace_id, model_id, product_scope, market_scope, kpi_ids, endorsement, lifecycle_claimed, owner_id, owner_role, owner_scope, owner_status, successor_candidates, usage (views/users by month), refresh_status, signals, data_quality, upstream/downstream ids | pydantic model merged, old fields kept or mapped |
-| C2 | Gajus (+Margiris) | steward/intent.py: `Intent` (section 2.6) | merged; ParsedQuestion = Intent or adapter |
-| C3 | Margiris (+Donatas) | steward/models.py `Decision` gains `evidence: list[Evidence]` (claim, rule_id, record_ids, value) + `flags` | merged; UI can render a fake one |
-| C4 | Martynas (+Donatas) | steward/spec.py: `DashboardSpec` (name, entities, columns, grain, relationships, measures, pages, rationale, owner, kpi_ids, source_model_id) | merged with one hand-written example |
-
-## 4. Workstreams
-
-### Martynas: data (catalog from the data pack)
-| ID | P | Task | Done when |
-|---|---|---|---|
-| D1 | P0 | `steward/catalog.py` loads the xlsx: Analytics_Assets + Owners + Asset_KPI_Map + Asset_Usage + Semantic_Models + Lineage_Edges + Governance_Signals + Data_Quality → 360 Artifacts | `Catalog.load()` returns 360, test asserts counts from docs/challenge/03_DATA_PACK.md |
-| D2 | P0 | Metric dictionary: 18 canonical metrics from KPI_Catalog (canonical row = official), variants mapped with definition_status/approval_status/owner; **hand-write synonyms** per canonical metric (sales, revenue, GTN, OTIF, stock cover...) | `catalog/metrics.json` generated + synonyms reviewed by Gajus |
-| D3 | P0 | Dimensions: products (7 + "All Pharma"), markets (14), regions (4 → markets rollup), grain = month | linking finds "Germany", "DE", "EMEA", "Nubeqa" |
-| D4 | P0 | Retire the invented catalog: tests/bi_steward goldens move to data-pack records (with Margiris) | `make test` green on data pack only |
-| D5 | P1 | Label hold-out with Margiris: 40 Business_Requests (4 per template) + 10 hand-written expert/edge requests, expected verdict + best asset + expected metrics | `eval/holdout_steward.jsonl` committed **before** threshold tuning |
-| D6 | P1 | Spec renderer (after C4): `DashboardSpec` → Plotly preview from Product_Market_Monthly (synthetic numbers labelled) | preview renders for 3 specs |
-| D7 | P2 | `.PBIP` skeleton writer: folder with report + semantic model definition files from the spec (label as skeleton) | folder created + zipped in UI; verify format in docs before claiming Power BI opens it |
-
-### Margiris: logic, LLM plumbing, proof
-| ID | P | Task | Done when |
-|---|---|---|---|
-| L1 | P0 | `steward/llm.py`: add an OpenAI-compatible client that reuses `backend/llm.py` / `backend/config.py` → Gemini and Ollama work with **no new install**, JSON validated, demo cache works | `make ask` shows provider gemini with the team .env |
-| L2 | P0 | Matching by KPI id: metric counts only via the canonical approved KPI; variants → conflict card (replaces formula-string matching in linking.py / conflicts.py) | "Inventory Coverage Mgmt" yields KPI-018/019 conflict, canonical KPI-016 suggested |
-| L3 | P0 | **No silent drops:** parser returns unmapped_terms; they count in the coverage denominator; any unmapped or text/metadata conflict → CLARIFY | REQ-0001 no longer returns REUSE |
-| L4 | P0 | Coverage + trust on real fields (section 2.3-2.4), Tableau never REUSE; scope from fields only, name/scope mismatch → DQ flag (trap 18) | unit tests for 3 hand-picked assets |
-| L5 | P0 | Verdict engine: REUSE/EXTEND/CONSOLIDATE/CREATE/CLARIFY/NOT_FEASIBLE + lifecycle flags; every reason carries rule_id + record ids (RULE-008) | Decision.evidence filled for every verdict |
-| L6 | P1 | Health on real data: RETIRE rule from section 2.2 (age, relative monthly users, subscriptions, dependants), REASSIGN_OWNER with successor resolution (23 / 21 / 21 + 21 null), vacant roles, 16 certified-on-failed-refresh, duplicate clusters, Tableau re-triage vs Migration_Backlog | numbers match 03_DATA_PACK.md |
-| L7 | P1 | Lineage impact: upstream model + downstream assets (ASSET_TO_ASSET, MODEL_TO_MODEL) for any RETIRE/CONSOLIDATE | "retiring X affects Y, Z" shown |
-| L8 | P1 | **Eval** (`eval/eval_steward.py`): verdict accuracy, **false-REUSE rate** (headline), intent F1 (products/markets/metrics), confusion matrix, misses list → eval/results.json | first number at S3 |
-| L9 | P1 | Semantic search: swap trigram embedder for fastembed (already installed) | top-3 hit rate on hold-out before/after |
-| L10 | P2 | Headline numbers script: % of 150 requests resolved without a new dashboard, assets flagged, duplicate clusters | numbers computed, never typed by hand |
-
-**"LLM training" = prompts + few-shot + eval, no fine-tuning.** No time, no labelled corpus, and judges score the
-end-to-end workflow, not model complexity. Levers in order: (1) constrained outputs (ids from fixed lists only),
-(2) few-shot examples from the 10 request templates, (3) temperature 0, (4) validator + rules fallback, (5) measure on hold-out
-after every prompt change (`make eval`). Model choice per job: interview = small local or Gemini Flash; parsing = Gemini Flash;
-explanation = Gemini Flash; verdict = **code only**.
-
-### Gajus: product logic, interview brain, proof story, docs, pitch
-| ID | P | Task | Done when |
-|---|---|---|---|
-| G1 | P0 | Run S1; write decisions + thresholds into NOTES.md and steward/config.py comments | S1 output in NOTES.md by 23:00 |
-| G2 | P0 | Interview prompt `prompts/interview.yaml`: situation questions, never spec questions, plain-language KPI offers, conflict question (REQ-0001), stop rule, outputs Intent JSON | 3 scripted conversations produce valid Intents |
-| G3 | P0 | Question bank by persona (supply planner, market-access lead, finance controller, BI lead): 5 questions each | in prompts/ as few-shot |
-| G4 | P1 | Orphan-rescue narrative + AST-0091 walkthrough (with Donatas) | script approved by team |
-| G5 | P1 | Euro case: formula volume × hours × rate, every input labelled as assumption or data-pack number | one slide line + README section |
-| G6 | P0 | README / architecture note covering brief section 07: data assumptions, AI approach, governance controls, enterprise-BI integration (Power BI/Fabric scanner APIs, Purview), limitations | README reviewed at S7 |
-| G7 | P1 | Pitch (4 min) + /judge-qa prep (investor, ecosystem, AI-agents professor) | rehearsed twice Sun 06:00 |
-| G8 | P1 | S2/S4 with Panu: questions, then show outputs, log answers in NOTES.md | answers logged |
-
-### Donatas: app, voice, demo, submission
-| ID | P | Task | Done when |
-|---|---|---|---|
-| A1 | P0 | Ask tab becomes a chat (`st.chat_input`): interview turns, then decision; expert toggle skips to direct parse | novice + expert paths run end to end |
-| A2 | P0 | Decision screen: verdict, evidence cards with rule id + record ids, "claimed vs observed" for lifecycle/audience, approve/reject with reason | outsider understands in 10 s |
-| A3 | P0 | KPI disambiguation card (his concern #1): canonical vs variants, status, owner, default canonical, exception needs a reason | shown for "Inventory Coverage Mgmt" |
-| A4 | P1 | Orphan rescue tab: pick asset (default AST-0091) → reverse-engineered Intent + decision | AST-0091 shows inactive owner, refresh warning, recommendation |
-| A5 | P1 | Spec + preview panel for CREATE/EXTEND (after C4, D6): spec table, preview chart, download .PBIP skeleton | approve writes spec to journal |
-| A6 | P1 | Voice: `st.audio_input` → transcript (local Whisper on M4 if it installs cleanly, else Gemini audio) → editable text → interview | voice question reaches the interview; text always works |
-| A7 | P0 | Demo mode: `make demo` replays cached LLM outputs (reuse demo/cache via L1); "Reset demo" clears data/steward/ | demo runs twice offline |
-| A8 | P1 | Health tab on real data (after L6): estate queue with retire/consolidate/migrate + approve | numbers visible for pitch |
-| A9 | P0 | Video (~2 min, English narration, captions, screen recording, label anything mocked, no invented numbers), screenshots, sinceai.app page | uploaded by Sun 08:00 |
-
-## 5. Clock (Helsinki time) and checkpoints
-| When | Milestone | Must be true |
-|---|---|---|
-| Fri 23:00 | S1 done | NOTES.md has verdict table, Intent fields, demo story |
-| Fri 24:00 | Contracts C1-C4 merged | everyone builds against stubs |
-| Sat 03:00 | **Core on real data** | D1-D4, L1-L3 merged; REQ-0001 → CLARIFY; app runs on data pack. Sleep 03:00-08:00 (keep one phone on) |
-| Sat 09:00 | Panu Q&A | G8 |
-| Sat 12:00 | **S3 structure checkpoint** | eval v1 number, chat interview v1, evidence cards; cut list decided |
-| Sat 15:30 | S4 done | Panu has seen real decisions + a spec |
-| Sat 21:00 | Feature complete | A1-A5, L5-L8, D5-D6, G2-G3 merged |
-| Sun 02:00 | **Freeze** (tag `demo-freeze`) | demo runs offline twice, eval v2 committed |
-| Sun 06:00 | Video, README, page drafted | A9, G6 |
-| Sun 08:00 | **Submit** (hard deadline 10:00) | /ship-check PASS |
-
-## 6. Cut order if behind (decide at S3)
-Cut first → last: D7 .PBIP skeleton · A6 voice · local LLM (use Gemini) · L9 fastembed · A8 health tab polish · L7 lineage.
-Never cut: L3 no-silent-drops, L2 KPI ids, A2 evidence + approve, L8 eval number, A7 demo mode, G6 README.
-
-## 7. Rules that keep four Claude Codes from colliding
+## 12. Rules that keep four Claude Codes from colliding
 - `git pull --rebase` before work and before push; small commits; tests green before push (pre-push runs them).
 - Contracts (models.py, intent.py, spec.py) change only with the owner + one reviewer.
 - Golden/hold-out verdict changes go in the same commit as the rule change, with the reason.
 - New files: add an OWNERS line in S1 (proposed: intent.py + prompts/interview.yaml gajus; decision/, search/, llm.py, health.py, eval/ margiris; catalog.py, models.py, spec.py, catalog/ martynas; frontend/, demo/ donatas).
+- v2 new files (OWNERS updated): steward/semantic.py, steward/pbip.py, catalog/bayer/measures.json, templates/pbip/ martynas; steward/specbuild.py, prompts/to_spec.yaml gajus; steward/lint.py margiris; steward/render.py donatas.

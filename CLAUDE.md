@@ -24,6 +24,15 @@ question ─query_parser─▶ ParsedQuestion ─search (BM25+trigram+structure,
    REUSE | EXTEND | CREATE | CLARIFY  (+ metric-conflict warnings)  ─explain (template or LLM)─▶ text
 human approve/reject ─governance.py─▶ data/steward/catalog_changes.json + journal.jsonl     health.py: duplicates, stale, no owner
 ```
+**Plan v2 (Sat 03:30): the end product is a governed, rendered dashboard + .PBIP for every verdict** (docs/BUILD_PLAN.md sections 0-6):
+```
+Intent ─semantic.feasibility─▶ Decision ─specbuild.build_spec (per verdict)─▶ DashboardSpec ─lint.lint (RULE-001..008, FOCUS, DATA)─▶
+render.render (Plotly, deterministic) ─▶ human approve (block = no approve) ─▶ journal (spec hash) + catalog version + pbip.export_pbip
+```
+- New files: semantic.py + measures.json + pbip.py (Martynas), specbuild.py + prompts/to_spec.yaml (Gajus), lint.py (Margiris), render.py (Donatas).
+- **Night shift Sat 03:30-08:00** (BUILD_PLAN 6.1): Gajus + Margiris draft every stage, incl. files with a NIGHT line in OWNERS;
+  the real owner takes them back at 08:00 (docs/tasks/<name>.md step 0). Saturday = Panu feedback, hardening, design.
+- An infeasible KPI (governed, no source data) renders as a labelled gap, never as a number.
 - UI: frontend/steward_app.py (`make ui`, `make demo` = LLM off). CLI: `make ask Q="..."`. Tests: tests/bi_steward/.
 - The verdict is rule-based code; the LLM only parses the question and rewrites the explanation. Thresholds: steward/config.py.
 - tests/bi_steward/golden_questions.json is the verdict contract. Change a verdict on purpose -> update it in the same commit.

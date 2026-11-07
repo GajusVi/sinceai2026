@@ -1,44 +1,41 @@
-# Margiris: tonight 00:05 → 03:00 (LLM plumbing, no silent drops, KPI-id matching)
+# Margiris: NIGHT SHIFT (Sat 03:30 → 08:30), then Saturday
 
-> **UPDATE 00:05 (read first):**
-> - On the DATA PACK the parser already reads REQ-0001 fully (3 metrics, product Nubeqa, by market, nothing unmapped), so its CLARIFY
->   comes from Gajus's request-intake conflict check (text vs product_context/market_context), not from your unmapped-terms rule.
->   Keep your REQ-0001 test on the SAMPLE catalog (there those terms really are unknown).
-> - **Lighter tonight:** the LLM prompt "unmapped" field (T2 bullet 2) moves to Saturday. Do T1, T2 rule-parser part, T3.
-> - L2: match on `artifact.kpi_ids` (the loader's `ArtifactMetric.formula = kpi_id` is a placeholder) and on
->   `MetricDefinition.kpi_id` / `.variants`, which Martynas adds ~00:15 (T5). Pull then.
-> - `make bayer` runs the app on the data pack.
+Tell your Claude Code: "Do the NIGHT SHIFT in docs/tasks/margiris.md. Read CLAUDE.md and docs/BUILD_PLAN.md sections 0-6 first."
+Goal: Gajus builds the end-to-end draft (Track A); you add the parts that say "no" and the export (Track B) so the 09:00 draft
+for Panu is complete (BUILD_PLAN 6.1). **Confirm on the board by 03:45** (`tools/coord.py say gajus "on it" --kind fyi`), otherwise
+Gajus takes N5 later and N6/N7 move to the morning. You never touch Gajus's night files; he never touches yours.
+Tonight you are also the NIGHT owner of steward/pbip.py (OWNERS). Push after each N-task and `say all --kind done`.
 
-Tell your Claude Code: "Do docs/tasks/margiris.md. Read CLAUDE.md, docs/BUILD_PLAN.md section 2 and docs/challenge/03_DATA_PACK.md first."
-Your files tonight: steward/llm.py, steward/query_parser.py, steward/linking.py, steward/decision/, prompts/ (excl. interview.yaml).
-Martynas adds the model fields (`ParsedQuestion.unmapped_terms`, `Decision.evidence`, `Evidence`) by ~00:30: pull then.
+## N5 (03:45-06:00) `steward/lint.py`
+`lint(spec, catalog) -> list[LintResult]`, `can_approve(spec) -> bool` (no block). Rules exactly as BUILD_PLAN 5.2 (RULE-001..008,
+FOCUS, DATA). Start from the C5 contract in BUILD_PLAN section 3 (field names are final); switch to Gajus's fixture
+`tests/bi_steward/fixtures/spec_req0001.json` when he pushes it (~04:00). One pass and one fail test per rule (edit a copy of the
+fixture). RULE-001 for CREATE: any compatible asset with canonical-KPI Jaccard ≥ 0.6 on the same product + market scope blocks it.
+Gajus's `Steward.build` calls `lint` automatically once it imports.
 
-## T1 (L1, 00:05-00:45) LLM through the existing client, no new installs
-`steward/llm.py`: add a `BackendClient` (provider "backend") that reuses `backend/llm.py` + `backend/config.py`
-(Gemini / Ollama / Aitta via the OpenAI-compatible client already in the lockfile):
-- `generate_json(prompt)`: call `backend.llm.complete_json(system, user, schema)` with a permissive schema
-  (`class _AnyJSON(BaseModel): model_config = ConfigDict(extra="allow")`) and return `.model_dump()`.
-  This gives you validation, one repair retry and the demo/cache replay for free.
-- `generate_text(prompt)`: `backend.llm._client().chat.completions.create(...)` with the model from `get_settings().resolved()`.
-- `get_llm`: `STEWARD_LLM_PROVIDER=backend` → BackendClient; `auto` = Claude if ANTHROPIC_API_KEY, else backend if
-  `backend.config.get_settings().llm_ready()`, else None. `STEWARD_USE_LLM=off` still forces rules.
-Done when: with the team .env (LLM_PROVIDER=gemini) `.venv/bin/python -m steward --json "Net revenue by region for Q3"` shows `"parser": "llm"`;
-with STEWARD_USE_LLM=off it shows rules; `make test` green.
+## N6 (06:00-07:30) L5: CONSOLIDATE + NOT_FEASIBLE
+NOT_FEASIBLE from `steward.semantic.feasibility(intent)` (Gajus pushes ~05:00): no requested measure buildable → NOT_FEASIBLE, the
+gaps as Evidence (KPI id, gap_reason) and the nearest buildable alternative. Partly feasible stays in the normal verdict path
+(the spec keeps the gaps). CONSOLIDATE: ≥ 2 compatible candidates, same product scope, canonical-KPI Jaccard ≥ 0.6 → keeper = most
+trusted, the others listed with record ids. Goldens: batch yield → NOT_FEASIBLE (remove its known_gap), template 2 shows its gaps.
 
-## T2 (L3, 00:45-01:45) no silent drops
-- Rule parser: every content word not covered by a matched term, a period, or a stopword list goes to `unmapped_terms`
-  (stopwords: what, is, the, in, for, by, vs, and, of, a, an, me, our, we, need, show, create, build, new, please, can, you, dashboard,
-  report, view, management, monthly, global, country, level...). Keep the list in steward/config.py.
-- LLM parser prompt (`prompts/query_parser.yaml`): also return `"unmapped": [...]`; validator keeps them (it currently drops unknowns silently).
-- Engine: `unmapped_terms` or `conflicts` non-empty → CLARIFY, reason lists the terms, Evidence(rule_id=None, severity="blocker").
-- Test (add to tests/bi_steward/test_parser.py): REQ-0001 text "Create a global Nubeqa dashboard showing sales growth, forecast variance and
-  market access by country." on the sample catalog → CLARIFY, not REUSE. All 8 existing golden questions stay green
-  (tune stopwords, don't change goldens).
+## N7 (07:30-08:00) `steward/pbip.py`, rough TMDL half
+`export_pbip(spec, frames, out_dir) -> Path` (zip): `<name>.pbip`, `<name>.SemanticModel/definition.pbism` and
+`definition/` with model.tmdl, tables/*.tmdl (columns + the spec's measures with the DAX from measures.json; data as CSV in the project),
+relationships.tmdl; `<name>.Report/definition.pbir` pointing at the model byPath. Layout per Microsoft's PBIP docs
+(learn.microsoft.com/power-bi/developer/projects/projects-dataset); do not invent the report visuals, Martynas adds the PBIR report half
+from Desktop templates on Saturday. Label the zip README "draft, not opened in Power BI Desktop yet". Tell Gajus the function name;
+Saturday Donatas wires the download.
 
-## T3 (L2, 01:45-03:00, after Gajus's loader lands ~01:30) KPI-id matching
-- Metric present on an asset ⇔ asset.kpi_ids contains the canonical kpi_id from `catalog/bayer/metrics.json`.
-- Asset uses a variant (duplicate_candidate / local_variant / definition_conflict) → `MetricConflict` + Evidence(rule_id="RULE-002"),
-  and the metric does NOT count as covered.
-- Keep the formula path for the sample catalog (branch on `artifact.kpi_ids` being empty) so old tests stay green.
-- Test: an asset with KPI-018 or KPI-019 is a conflict for inventory coverage; canonical KPI-016 suggested.
-## 03:00 checkpoint with Gajus: app on data pack, REQ-0001 → CLARIFY. Saturday: L4, L5, then eval with Martynas.
+## 08:15 handover
+`tools/coord.py status`, 3 lines in NOTES.md (done / rough / missing). Then sleep; Saturday tasks below start when you are back.
+
+---
+Tell your Claude Code: "Do docs/tasks/margiris.md. Read CLAUDE.md and docs/BUILD_PLAN.md sections 0-6 first."
+## Saturday (after the night shift and some sleep): hardening
+- **L5 (P0)** remaining flags MIGRATE / RETIRE / REASSIGN_OWNER / FIX_REFRESH with evidence ids (RULE-008); goldens green.
+- **L11 (P0)** harden lint: RULE-001 on the real search + coverage, RULE-004 with lineage impact (L7), edge cases from Panu's feedback.
+- **L8 (P0)** `eval/eval_steward.py` → eval/results.json: verdict accuracy, **false-REUSE rate** (headline), intent F1, confusion matrix,
+  misses, **spec lint pass rate**, **share of requests resolved without a new dashboard**. v1 at S3 (12:00), v2 at freeze. Only you commit results.json.
+- **L6 + L7 (P1)** RETIRE per BUILD_PLAN 2.2; lineage impact for CONSOLIDATE / RETIRE. Numbers checked against docs/challenge/03_DATA_PACK.md.
+- Still open: the backend LLM fallback ask (aitta → gemini → rules), coord ask 1107-030434. Cut L9 fastembed.

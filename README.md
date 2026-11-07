@@ -6,6 +6,38 @@ Challenge notes: docs/challenge/. Design: docs/steward/architecture.md.
 
 ## How it works
 
+**The Dashboard Factory (plan v2).** Every request ends in one governed decision and the dashboard that decision implies.
+Yellow steps use a language model; everything else is deterministic Python. Gates stop the flow until they pass.
+
+```mermaid
+flowchart TD
+    IN["W0 Request<br/>chat, voice, request form, orphan asset, estate finding"]:::user
+    INT["W1 Interview<br/>situation questions until the intent is clear"]:::llm
+    KPI["W2 KPI resolution<br/>words to canonical KPI ids, variants flagged"]:::code
+    FEA{"W3 Feasibility<br/>can governed data answer it?"}:::code
+    EV{"W4 Evidence + verdict<br/>reuse before build"}:::code
+    SPEC["W5 Spec<br/>dashboard for the verdict: reuse, extend,<br/>consolidate, create, migrate, rescue"]:::llm
+    LINT{"W6 Lint gate<br/>RULE-001..008, focus, data"}:::code
+    REN["W7 Render<br/>KPI cards, trend, breakdown, exceptions,<br/>governance footer"]:::code
+    HUM{"W8 Human approval<br/>reason required"}:::user
+    PUB["W9 Publish<br/>new version, journal, lineage, .PBIP"]:::code
+
+    IN --> INT --> KPI --> FEA
+    FEA -->|"no measure buildable: NOT_FEASIBLE + nearest offer"| INT
+    FEA -->|buildable| EV
+    EV -->|"CLARIFY"| INT
+    EV -->|"REUSE / EXTEND / CONSOLIDATE / CREATE"| SPEC --> LINT
+    LINT -->|"block: fix the spec"| SPEC
+    LINT -->|"pass / warn"| REN --> HUM
+    HUM -->|approve| PUB
+    HUM -->|"reject, journaled"| IN
+
+    classDef llm fill:#fff3bf,stroke:#b08900
+    classDef code fill:#d3f9d8,stroke:#2b8a3e
+    classDef user fill:#ffe8cc,stroke:#d9480f
+```
+
+The three diagrams below are the detail of W4-W8 as first designed:
 Diagrams from Vlada's bi-steward skeleton, drawn before the Bayer brief was released. The flow is still how the app works;
 the herbicide/LATAM example comes from the invented sample catalog (Crop Science, out of scope for the challenge), and the
 current build adds the intake check, KPI-id matching on the data pack and the Orphan rescue tab. Full write-up: docs/steward/architecture.md.

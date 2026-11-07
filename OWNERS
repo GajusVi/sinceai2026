@@ -1,5 +1,7 @@
 # Who owns which files. First word of `git config user.name`, lowercase. Longest matching prefix wins.
 # Files not listed (NOTES.md, tests/, .claude/...) are shared: anyone may edit, keep changes small.
+# NIGHT lines (Sat 7 Nov): temporary owners for the night draft (BUILD_PLAN 6.1). At 08:00 the real owner deletes the NIGHT line's
+# override (puts their own name back) and takes the file over. Decided by Gajus as lead; logged in NOTES.md.
 # The pre-commit hook (.githooks/pre-commit) refuses commits that touch someone else's files.
 backend/pipeline.py     margiris
 backend/llm.py          margiris
@@ -7,9 +9,10 @@ eval/                   margiris
 backend/ingest.py       martynas
 backend/models.py       martynas
 data/                   martynas
+frontend/steward_app.py gajus     NIGHT, back to donatas at 08:00
 frontend/               donatas
 steward/models.py       martynas
-steward/spec.py         martynas
+steward/spec.py         gajus     NIGHT Sat 03:30-08:00, back to martynas at 08:00
 steward/intent.py       gajus
 steward/datapack.py     gajus
 steward/requests.py     gajus
@@ -22,6 +25,14 @@ steward/health.py       margiris
 prompts/interview.yaml  gajus
 prompts/                margiris
 steward/catalog.py      martynas
+steward/semantic.py     gajus     NIGHT, back to martynas at 08:00
+steward/pbip.py         margiris  NIGHT, back to martynas at 08:00
+templates/pbip/         martynas
+steward/specbuild.py    gajus
+prompts/to_spec.yaml    gajus
+steward/lint.py         margiris
+steward/render.py       gajus     NIGHT, back to donatas at 08:00
+catalog/bayer/measures.json gajus NIGHT, back to martynas at 08:00
 catalog/                martynas
 demo/                   donatas
 submission/             donatas
