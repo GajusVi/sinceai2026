@@ -46,6 +46,11 @@ _SITE_LOOSE = re.compile(r"(?:\bplan(?:t|e)?[\s-]*|^\s*)([abc])\b", re.I)
 _ALL_SITES = re.compile(r"\ball\s+(sites|plants|of them)\b|\bevery\s+(site|plant)\b", re.I)
 MAX_MISSES = 2  # the same question unanswered twice: use the recommended default and move on, never ask a third time
 # What "Skip - use recommended" (or a second miss) fills in, per open question.
+# For a message that is not a business question ("yo mom"). `fallback.clarify` in prompts/interview.yaml overrides it.
+CLARIFY_TEXT = (
+    "That doesn't look like a question about our data. I can show how a plant is running, sales in a country, "
+    "or stock cover for a medicine. What would you like to see?"
+)
 DEFAULT_DECISION = "monitor"
 DEFAULT_THEME = "business_performance"
 
@@ -66,6 +71,7 @@ class InterviewState:
     unconfirmed_reply: bool = False  # the last reply to "shall I use these?" was about something else
     asked_terms: list[str] = field(default_factory=list)  # the words the "unmapped" question asked about
     asked_choices: list[str] = field(default_factory=list)  # the likely matches offered for them
+    dropped: set[int] = field(default_factory=set)  # turn indexes of off-topic messages: not part of the request
 
     @property
     def done(self) -> bool:
@@ -113,6 +119,9 @@ class Interviewer:
         else:
             intent = self._rules_intent(state)
         state.intent = intent
+        kept = self._scope_replies(state)
+        if state.dropped and kept:
+            intent.text = kept[0]  # the request is the first message that was about the business
         if asked_before == "unmapped" and state.asked_terms:  # answered (picked, ignored or flagged): never asked again
             if _FLAG_IT.search(state.turns[-1][1]):
                 intent.ignored_terms += [t for t in state.asked_terms if t not in intent.ignored_terms]
@@ -121,6 +130,10 @@ class Interviewer:
         about = "" if intent.should_stop(state.questions_asked) else self._first_open(intent, state)
         if asked_before and about == asked_before:  # the reply did not answer the question
             state.misses[about] = state.misses.get(about, 0) + 1
+            if about == "clarify" and state.misses[about] >= MAX_MISSES:
+                self._close(state)  # nothing usable after repeated tries: end here, never invent a request
+                state.question, state.last_asked, state.options = None, "", []
+                return state
             if state.misses[about] >= MAX_MISSES:
                 self._apply_default(intent, state, about)
                 about = "" if intent.should_stop(state.questions_asked) else self._first_open(intent, state)
@@ -142,7 +155,10 @@ class Interviewer:
         )
         state.notes = []
         state.options = self._options(intent, about)
-        state.questions_asked += 1  # re-asks count too: the conversation stays short, the cap fills in the rest
+        if about == "clarify":
+            state.dropped.add(len(state.turns) - 1)  # the off-topic message is not part of the request
+        else:  # re-asks count too: the conversation stays short, the cap fills in the rest. A clarify is free.
+            state.questions_asked += 1
         state.turns.append(("assistant", state.question))
         if state.last_asked == "unmapped":
             state.asked_unmapped = True
@@ -295,6 +311,8 @@ class Interviewer:
             return ["Yes, use these", extra]
         if about == "metric_ids":
             return [_capital(t["label"]) for t in self.themes.values()]
+        if about == "clarify":
+            return [_capital(t["label"]) for t in self.themes.values()][:4]
         if about == "unmapped":
             near = [c for cands in self._near_terms(intent).values() for c in cands]
             return list(dict.fromkeys(near))[:4] + ["Ignore it"] if near else ["Ignore it", "Flag for data owner"]
@@ -488,11 +506,14 @@ class Interviewer:
 
     def _scope_replies(self, state: InterviewState) -> list[str]:
         """The user's replies that describe the request. The answer to the decision question is prose, not a request."""
-        return [text for i, (who, text) in enumerate(state.turns) if who == "user" and i not in state.decision_replies]
+        skip = state.decision_replies | state.dropped
+        return [text for i, (who, text) in enumerate(state.turns) if who == "user" and i not in skip]
 
     def _first_open(self, intent: Intent, state: InterviewState) -> str:
         if intent.conflicts:
             return "conflict"
+        if self._off_topic(intent):
+            return "clarify"
         site_theme = intent.theme == "plant_efficiency" and not intent.markets and not intent.regions
         if (not intent.sites and not intent.products and "sites_done" not in state.misses and self.sites
                 and (self._mentions_site(state) or site_theme)):
@@ -507,8 +528,20 @@ class Interviewer:
             return "unmapped"  # once, and only for words that look like a number ("batch yield"); junk is ignored
         return "decision_supported"
 
+    def _off_topic(self, intent: Intent) -> bool:
+        """Nothing in the message maps to a site, medicine, market, number or goal: only words we could not place
+        ("yo mom"). Asking "which medicines?" then makes no sense. Place-like and number-like words ("Germny",
+        "batch yield") still go through the normal questions."""
+        if intent.mode == "expert" or not intent.unmapped_terms:
+            return False
+        if intent.theme or intent.metric_ids or intent.products or intent.markets or intent.regions or intent.sites:
+            return False
+        return not (self._measure_like(intent) or self._near_terms(intent))
+
     def _fallback_question(self, intent: Intent, about: str) -> str:
         texts = self.bank["fallback"]
+        if about == "clarify":
+            return texts.get("clarify", CLARIFY_TEXT)
         if about == "conflict":
             return texts["conflict"].format(conflict=intent.conflicts[0])
         if about == "unmapped" and self._near_terms(intent):
@@ -581,6 +614,7 @@ def _dictionary_name(dimension: str, value) -> str:
 
 
 MISSED = {
+    "clarify": "Sorry, still not clear.",
     "theme_confirm": "Noted.",
     "sites": "I didn't catch a site in that.",
     "products": "I didn't catch a medicine in that.",
