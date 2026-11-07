@@ -316,9 +316,9 @@ them as mine. My top 3 are the next layer, and each one needs those two fixes fi
      (engine.py:127 adds lifecycle after). REQ-0001 today: EXTEND AST-0335 and RETIRE AST-0335 in one card.
    - (Donatas's optimisation 3, scope gate for an EXTEND base, is a different check; the two combine.)
 
-## More optimisations (beyond the top 3; checked against gajus.md and donatas.md on main at 18:56)
+## More optimisations (beyond the top 3; checked against gajus.md, donatas.md and martynas.md on main at 19:05)
 
-1. **Replace STOPWORDS whack-a-mole with "drop and show".** config.py:322-340 grows per question, and "doing",
+1. *(Extends Martynas node 2 "tell the user what was dropped, never only CLARIFY", pushed first; not counted.)* **Replace STOPWORDS whack-a-mole with "drop and show".** config.py:322-340 grows per question, and "doing",
    "safe", "running" still give CLARIFY. Rule instead: an unmapped word blocks only if it looks like a governed thing
    (a METRIC_NOUN, a capitalised name, a 2-3 letter code, a number with a unit). Every other word goes to "Not used:"
    (the Intent already has `ignored_terms`, pipeline.py:210). Names and metric nouns still block, so the original
@@ -353,7 +353,7 @@ Withdrawn as duplicates (pushed first by others): understanding cache keyed on m
 can be retired. My first draft's bold idea (one exhaustive table over all assets) is withdrawn: Gajus's coverage index
 (node 4) and B1 were pushed first.
 
-## More bold ideas (checked against gajus.md and donatas.md on main at 18:56)
+## More bold ideas (checked against gajus.md, donatas.md and martynas.md on main at 19:05)
 
 1. **Net-zero estate: every build pays for itself.** Bayer's title is "Build Less". Rule: a CREATE or EXTEND can be
    approved only together with the retirements it makes possible: the duplicates it absorbs (consolidate.py already
