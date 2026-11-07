@@ -210,12 +210,15 @@ def reuse_only(steward, user: User, metric_ids: list[str], text: str, supply, pr
 LOG_FILE = "floor_requests.jsonl"  # in the steward data dir, beside the journal; a demo store, not a ticket system
 
 
-def request_entry(user: User, kind: str, need: str, department: str = "", cadence: str = "") -> dict:
-    """kind: 'access' (another department's data, same plant) or 'report' (a number no visible report has)."""
+def request_entry(user: User, kind: str, need: str, department: str = "", cadence: str = "",
+                  metric_ids: list[str] | None = None) -> dict:
+    """kind: 'access' (another department's data, same plant) or 'report' (a number no visible report has).
+    metric_ids: the governed numbers behind `need`, when known, so the builder's "Start it" runs on them, not on
+    re-parsed text (audit C9)."""
     return {
         "kind": kind, "who": user.label, "username": user.username, "plant": user.plant,
         "from_department": user.department or "", "department": department, "need": need, "cadence": cadence,
-        "status": "open", "at": datetime.now().isoformat(timespec="seconds"),
+        "metric_ids": list(metric_ids or []), "status": "open", "at": datetime.now().isoformat(timespec="seconds"),
     }
 
 

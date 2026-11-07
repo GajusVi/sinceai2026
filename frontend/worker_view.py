@@ -11,6 +11,7 @@ import streamlit as st
 import ui
 
 from steward.auth import User, can_request
+from steward.inbox import Inbox
 from steward.worker import (
     CADENCES,
     DEPARTMENTS,
@@ -41,7 +42,7 @@ def render(steward, user: User, supply, render_dashboard) -> None:
     st.html(CSS)
     ui.ask_hero("What do you need right now?")
     st.caption(f"{user.plant} · {user.department}. Answers come from reports that already exist.")
-    granted = st.session_state.setdefault("grants", {}).get(user.username, [])
+    granted = Inbox(steward.data_dir).grants(user.username)  # shared inbox: a builder in any browser grants
     with st.container(horizontal=True, key="w-row"):
         if st.button("Chat", key="w-chat", help="Ask in your own words"):
             st.session_state.update(w_chat=True, w_other=None)
@@ -152,7 +153,8 @@ def _render_answer(steward, user: User, label: str, answer: WorkerAnswer, render
         need = label
     if answer.not_governed or answer.missing or answer.result is None:
         if st.button("Ask the BI team for it", key=f"w-req-{label}", type="tertiary"):
-            _send(steward, request_entry(user, "report", need))
+            ids = [] if answer.not_governed else list(answer.missing)  # governed ids travel with the request
+            _send(steward, request_entry(user, "report", need, metric_ids=ids))
 
 
 def _render_other(steward, user: User) -> None:
@@ -197,15 +199,10 @@ def _choices(options: list[str], field: str, next_step: int) -> None:
 
 def _send(steward, entry: dict) -> None:
     """One card per need per plant: a second worker asking for the same thing joins the open request (+1)."""
-    requests = st.session_state.setdefault("floor_requests", [])
-    existing = same_request(requests, entry)
-    if existing:
-        if entry["username"] != existing["username"] and entry["username"] not in existing.setdefault("also", []):
-            existing["also"].append(entry["username"])
-            log_request(steward.data_dir, existing, "open", entry["who"])
-        st.info(f"Already asked for by {existing['username']}. You were added to that request, so the BI team "
-                f"sees {1 + len(existing.get('also', []))} people need it.")
+    row, joined = Inbox(steward.data_dir).add_floor(entry, same_request)  # shared: reaches every builder
+    log_request(steward.data_dir, row, "open", entry["who"])
+    if joined:
+        st.info(f"Already asked for by {row['username']}. You were added to that request, so the BI team "
+                f"sees {1 + len(row.get('also', []))} people need it.")
         return
-    requests.append(entry)
-    log_request(steward.data_dir, entry, "open", entry["who"])
     st.success("Sent to the BI team. A builder picks it up and you see the result here.")

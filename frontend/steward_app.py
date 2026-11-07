@@ -20,6 +20,9 @@ from steward.auth import COMPANY, DEMO_ACCOUNTS, account, can_see, login  # noqa
 from steward.catalog import CHANGES_FILE  # noqa: E402
 from steward.explain import TemplateExplainer  # noqa: E402
 from steward.governance import JOURNAL_FILE  # noqa: E402
+from steward.inbox import FILE as INBOX_FILE  # noqa: E402
+from steward.inbox import Inbox  # noqa: E402
+from steward.intent import Intent  # noqa: E402
 from steward.linking import kpi_index  # noqa: E402
 from steward.models import GapKind, StewardResult, Verdict  # noqa: E402
 from steward.render import render as render_spec  # noqa: E402
@@ -146,6 +149,9 @@ def get_steward() -> Steward:
 
 
 steward = get_steward()
+inbox = Inbox(steward.data_dir)  # shared handoffs: approvals, floor requests, grants, notices (T2.3)
+if not st.session_state.get("inbox_id"):  # e.g. after the desktop app's Log out link: nothing stays stuck in review
+    inbox.release_reviews_of(user.label)
 
 
 def llm_label() -> str:
@@ -188,7 +194,10 @@ with st.sidebar:
         st.markdown(f'<a class="bs-logout" href="{os.environ.get(apptoken.ENV_LOGIN_URL, "")}" target="_top">'
                     "Log out</a>", unsafe_allow_html=True)
     elif st.button("Log out", width="stretch"):  # the approval queue stays: the demo hands it to a builder
-        for key in ("user", "messages", "interview", "result", "result_intent", "novice_result", "requested_by"):
+        if st.session_state.get("inbox_id"):  # an undecided review goes back to the queue
+            inbox.release(st.session_state["inbox_id"])
+        for key in ("user", "messages", "interview", "result", "result_intent", "novice_result", "requested_by",
+                    "inbox_id"):
             st.session_state.pop(key, None)
         st.rerun()
     actor = user.label
@@ -204,7 +213,7 @@ with st.sidebar:
             st.session_state.interview = None  # an example is a new question, not an answer
     st.divider()
     if user.can("maintain") and st.button("Reset demo", width="stretch"):
-        for name in (CHANGES_FILE, JOURNAL_FILE):
+        for name in (CHANGES_FILE, JOURNAL_FILE, INBOX_FILE):
             (steward.data_dir / name).unlink(missing_ok=True)
         st.cache_resource.clear()
         st.session_state.clear()
@@ -723,6 +732,8 @@ def render_human_decision(result: StewardResult) -> None:
                 steward.reload()
                 created = f" New artifact: {entry.created_artifact_id}." if entry.created_artifact_id else ""
                 st.success("Approved and recorded in the journal." + created)
+                if st.session_state.get("inbox_id"):
+                    inbox.decide(st.session_state.pop("inbox_id"), "approved", actor, detail=created.strip())
                 st.session_state.result = None
                 st.session_state.pop("requested_by", None)
     with col_no:
@@ -733,6 +744,8 @@ def render_human_decision(result: StewardResult) -> None:
                 st.error(str(error))
             else:
                 st.info("Sent back and recorded in the journal. The catalog was not changed.")
+                if st.session_state.get("inbox_id"):
+                    inbox.decide(st.session_state.pop("inbox_id"), "sent_back", actor, reason=reason)
                 st.session_state.result = None
                 st.session_state.pop("requested_by", None)
     st.caption("Nothing is published until someone accountable approves it. Every decision is logged.")
@@ -745,51 +758,49 @@ def render_send_to_bi(result: StewardResult) -> None:
         st.caption("This report already exists: use it as it is. Nothing to approve.")
         return
     ui.section("Next step: BI team approval")
-    queue = st.session_state.setdefault("approval_queue", [])
-    if any(item["result"] is result for item in queue):
-        st.info("Sent to the BI team. A builder reviews it, then approves it or sends it back.")
+    if inbox.is_waiting(user.username, result):
+        st.info("Sent to the BI team. A builder reviews it, then approves it or sends it back; you see the outcome "
+                "here when you next open the app.")
         return
     label = "Request this from the BI team" if user.role == "worker" else "Send to the BI team for approval"
     if st.button(label, type="primary"):
-        queue.append(
-            {
-                "result": result,
-                "intent": st.session_state.get("result_intent"),
-                "novice": st.session_state.get("novice_result"),
-                "from": user.label,
-                "plant": user.plant,
-            }
-        )
+        inbox.send(result, st.session_state.get("result_intent"), bool(st.session_state.get("novice_result")), user)
         st.rerun()
-    st.caption("Only a builder (BI team) can approve. Demo: log out and log in as a builder to review it.")
+    st.caption("Only a builder (BI team) can approve. It reaches every builder, in any browser.")
 
 
 def render_queue() -> None:
     """Builders: requests waiting for approval, oldest first. Review opens the ruling with its requester."""
+    if st.session_state.get("inbox_id") and not st.session_state.get("result"):  # left a review undecided
+        inbox.release(st.session_state.pop("inbox_id"))
     if not user.can("approve") or st.session_state.get("result"):
         return
     render_floor_requests()
-    queue = st.session_state.get("approval_queue") or []
+    queue = inbox.open_approvals()
     if not queue:
         return
     ui.section(f"Waiting for your approval ({len(queue)})")
-    for i, item in enumerate(queue):
+    for item in queue:
         text, col = st.columns([5, 1])
         text.markdown(
-            f"**{item['result'].question.text}**  \n"
-            f"{verdict_title(item['result'].decision.verdict)} · from {item['from']}, {item['plant']}"
+            f"**{item['question']}**  \n"
+            f"{verdict_title(Verdict(item['verdict']))} · from {item['from']}, {item['plant']}"
         )
-        if col.button("Review", key=f"review_{i}", width="stretch"):
-            queue.pop(i)
+        if col.button("Review", key=f"review_{item['id']}", width="stretch"):
+            taken = inbox.take(item["id"], actor)
+            if taken is None:  # another builder opened it first
+                st.rerun()
+            row, taken_result, taken_intent = taken
             st.session_state.update(
-                result=item["result"],
-                result_intent=item["intent"],
-                novice_result=item["novice"],
-                requested_by=item["from"],
+                result=taken_result,
+                result_intent=taken_intent,
+                novice_result=row["novice"],
+                requested_by=row["from"],
+                inbox_id=row["id"],
                 interview=None,
                 messages=[
-                    {"role": "user", "content": item["result"].question.text},
-                    {"role": "assistant", "content": f"Request from {item['from']} at {item['plant']}."},
+                    {"role": "user", "content": row["question"]},
+                    {"role": "assistant", "content": f"Request from {row['from']} at {row['plant']}."},
                 ],
             )
             st.rerun()
@@ -798,7 +809,7 @@ def render_queue() -> None:
 def render_floor_requests() -> None:
     """Builders: requests from the production floor (steward/worker.py). Access to another department -> grant or
     decline (demo: any builder grants). A missing number -> start it: the full pipeline runs, requester attached."""
-    requests = [r for r in st.session_state.get("floor_requests", []) if r["status"] == "open"]
+    requests = inbox.floor("open")
     if not requests:
         return
     ui.section(f"Requests from the floor ({len(requests)})")
@@ -809,29 +820,39 @@ def render_floor_requests() -> None:
             who += f" +{len(req['also'])} more" if req.get("also") else ""
             text.markdown(f"**{req['department']} data for {who}**  \nNeeds: {req['need']}, {req['cadence'].lower()}")
             if ok.button("Grant", key=f"grant_{i}", width="stretch"):
-                grants = st.session_state.setdefault("grants", {}).setdefault(req["username"], [])
-                if req["department"] not in grants:
-                    grants.append(req["department"])
                 _decide_request(req, "granted")
         else:
             also = f" +{len(req['also'])} more" if req.get("also") else ""
             who = f"{req['username']}{also} ({req['from_department']}, {req['plant']})"
             text.markdown(f"**{req['need']}** for {who}  \nNo report they can open has it yet")
             if ok.button("Start it", key=f"start_{i}", width="stretch"):
-                st.session_state.update(
-                    pending_question=f"{req['need']} for {req['plant']}",
-                    next_requested_by=req["who"],
-                    interview=None,
-                    messages=[],
-                    result=None,
-                )
+                if req.get("metric_ids"):  # structured: run the chain on the governed ids and the plant (C9)
+                    intent = Intent(
+                        text=f"{req['need']} for {req['plant']}", metric_ids=req["metric_ids"], sites=[req["plant"]],
+                        decision_supported="monitor",
+                        confidence={"metric_ids": 1.0, "sites": 1.0, "decision_supported": 1.0},
+                    )
+                    st.session_state.update(
+                        result=steward.build(steward.ask_intent(intent), intent, user),
+                        result_intent=intent, novice_result=True, requested_by=req["who"], interview=None,
+                        messages=[{"role": "user", "content": intent.text},
+                                  {"role": "assistant", "content": f"Request from {req['who']} at {req['plant']}."}],
+                    )
+                else:  # free text only (not governed yet): the interview starts from the words
+                    st.session_state.update(
+                        pending_question=f"{req['need']} for {req['plant']}",
+                        next_requested_by=req["who"],
+                        interview=None,
+                        messages=[],
+                        result=None,
+                    )
                 _decide_request(req, "started")
         if no.button("Decline", key=f"decline_{i}", width="stretch"):
             _decide_request(req, "declined")
 
 
 def _decide_request(req: dict, status: str) -> None:
-    req["status"] = status
+    inbox.decide_floor(req["id"], status, actor)  # grants and the requester's notice live in the shared inbox
     log_request(steward.data_dir, req, status, actor)
     st.rerun()
 
@@ -967,6 +988,8 @@ with st.container(key="bs-topbar", horizontal=True):  # top bar (T2.6); Donatas 
     st.markdown(f"**{PAGE}**")
     st.caption(f"{user.username} · {user.role.capitalize()} · {PLANTS}")
     st.caption("AI: " + llm_label())
+for _notice in inbox.pop_notices(user.username):  # outcomes of this user's requests, from another browser too
+    st.info(_notice)
 st.html("<style>[class*='st-key-bs-hidden-']{display:none!important}</style>")
 _tabs = {name: st.container(key=("bs-page-" if name == PAGE else "bs-hidden-") + name.lower().replace(" ", "-"))
          for name in _names}
