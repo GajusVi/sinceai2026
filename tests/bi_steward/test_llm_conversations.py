@@ -1,8 +1,8 @@
-"""Conversations with the REAL model (Aitta, openai/gpt-oss-120b). The fake-LLM tests cannot catch a model that asks
+"""Conversations with the REAL model (Gemini by default, the main LLM; LLM_TEST_PROVIDER=aitta for gpt-oss-120b). The fake-LLM tests cannot catch a model that asks
 a different question than the code expected or answers with an id that does not exist; these can.
 
-They are SKIPPED unless both are true: an Aitta key is configured (AITTA_API_KEY in the environment or .env) and
-RUN_LLM_TESTS=1. The second switch keeps `make test` and the pre-push hook fast (about 15 minutes of live calls).
+They are SKIPPED unless both are true: the provider's key is configured (GEMINI_API_KEY or AITTA_API_KEY, environment or
+.env) and RUN_LLM_TESTS=1. The second switch keeps `make test` and the pre-push hook fast (about 15 minutes of live calls).
 
     RUN_LLM_TESTS=1 .venv/Scripts/python.exe -m pytest tests/bi_steward/test_llm_conversations.py -s -p no:cacheprovider
 
@@ -32,22 +32,24 @@ from steward.models import Verdict
 pytestmark = pytest.mark.filterwarnings("ignore")
 
 BUILDS = {Verdict.REUSE, Verdict.EXTEND, Verdict.CREATE, Verdict.CONSOLIDATE}
-MODEL = "openai/gpt-oss-120b"
+PROVIDER = os.getenv("LLM_TEST_PROVIDER", "gemini").lower()  # gemini (main LLM) | aitta
+AITTA_MODEL = "openai/gpt-oss-120b"
+KEY_NAME = {"gemini": "GEMINI_API_KEY", "aitta": "AITTA_API_KEY"}.get(PROVIDER, f"{PROVIDER.upper()}_API_KEY")
 
 
 def _key_configured() -> bool:
-    if os.getenv("AITTA_API_KEY"):
+    if os.getenv(KEY_NAME):
         return True
     try:
         from backend.config import get_settings
 
-        return bool(get_settings().aitta_api_key)
+        return bool(getattr(get_settings(), KEY_NAME.lower(), None))
     except Exception:
         return False
 
 
 skip_reason = (
-    "needs RUN_LLM_TESTS=1 and an Aitta key (AITTA_API_KEY)"
+    f"needs RUN_LLM_TESTS=1 and {KEY_NAME} (provider {PROVIDER})"
     if not (os.getenv("RUN_LLM_TESTS") == "1" and _key_configured())
     else ""
 )
@@ -62,8 +64,12 @@ def ai(tmp_path_factory):
 
     mp = pytest.MonkeyPatch()
     mp.setenv("STEWARD_CATALOG", "datapack")
-    mp.setenv("LLM_PROVIDER", "aitta")
-    mp.setenv("AITTA_MODEL", MODEL)
+    mp.setenv("LLM_PROVIDER", PROVIDER)
+    mp.setenv("STEWARD_LLM_PROVIDER", "backend")  # through backend/llm.py, so the cache below is the one used
+    mp.setenv("DEMO_MODE", "0")  # live calls, never the replay
+    mp.setenv("LLM_FALLBACK_PROVIDER", "")  # a failure must show up as this provider's failure
+    if PROVIDER == "aitta":
+        mp.setenv("AITTA_MODEL", AITTA_MODEL)
     mp.setenv("LLM_MODEL", "")
     mp.setattr(backend.llm, "CACHE_DIR", tmp_path_factory.mktemp("llm_cache"))
     backend.config.get_settings.cache_clear()
@@ -71,7 +77,7 @@ def ai(tmp_path_factory):
         Settings.from_env(), use_llm="auto", data_dir=tmp_path_factory.mktemp("ai"), as_of=date(2026, 11, 6)
     )
     steward = Steward(settings=settings)
-    assert steward.llm is not None, "the real model is not configured: check AITTA_API_KEY and LLM_PROVIDER"
+    assert steward.llm is not None, f"the real model is not configured: check {KEY_NAME} (provider {PROVIDER})"
     yield steward
     mp.undo()
     backend.config.get_settings.cache_clear()
