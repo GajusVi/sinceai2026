@@ -33,6 +33,7 @@ def chain(monkeypatch, tmp_path):
     """aitta (fake, failing by default) -> gemini (fake, answers)."""
     settings = Settings(
         _env_file=None,
+        demo_mode=False,
         llm_provider="aitta",
         aitta_api_key="a",
         aitta_model="m-aitta",
