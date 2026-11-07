@@ -18,8 +18,8 @@ try {
         "board-discord" { & $py tools\coord.py discord }
         "board"  { & $py tools\coord.py board }
         "ask"    { Live; & $py -m steward @rest }
-        "eval"   { Live; & $py eval\eval.py }
-        "warm"   { Live; & $py -m backend.warm; if ($LASTEXITCODE -eq 0) { & $py eval\eval.py } }
+        "eval"   { $env:STEWARD_CATALOG = "datapack"; & $py eval\eval_steward.py }
+        "warm"   { Live; & $py tools\warm_layout.py }
         "ping"   { Live; & $py -m backend.llm }
         "models" { Live; & $py -m backend.llm models }
         "test"   { $env:DEMO_MODE = "1"; & $py -m pytest -q }

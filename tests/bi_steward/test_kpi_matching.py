@@ -62,11 +62,6 @@ def test_decision_cites_rule_002_with_canonical_suggestion(pack):
     assert all(e.record_ids[0].startswith("AST-") for e in rule_002)
 
 
-def test_sample_catalog_still_uses_formula_path(steward):
-    assert all(not a.kpi_ids for a in steward.catalog.artifacts.values())
-    assert steward.ask("Net revenue by region for Q3").decision.verdict.value == "REUSE"
-
-
 REQ_0001 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
 
 

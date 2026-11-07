@@ -3,11 +3,8 @@
 # NIGHT lines (Sat 7 Nov): temporary owners for the night draft (BUILD_PLAN 6.1). At 08:00 the real owner deletes the NIGHT line's
 # override (puts their own name back) and takes the file over. Decided by Gajus as lead; logged in NOTES.md.
 # The pre-commit hook (.githooks/pre-commit) refuses commits that touch someone else's files.
-backend/pipeline.py     margiris
 backend/llm.py          margiris
 eval/                   margiris
-backend/ingest.py       martynas
-backend/models.py       martynas
 data/                   martynas
 frontend/               gajus   (design + AI blocks; Donatas OK 1107-094359, he keeps demo/, submission/, render.py, pitch)
 frontend/steward.css    donatas   (T2.6 UX design, Gajus OK 1107-210507)
@@ -61,7 +58,6 @@ demo/                   donatas
 submission/             donatas
 README.md               gajus
 backend/config.py       gajus
-backend/main.py         gajus
 requirements.in         gajus
 requirements-extras.in  gajus
 Makefile                gajus

@@ -36,33 +36,19 @@ render.render (Plotly, deterministic) ─▶ human approve (block = no approve) 
 - An infeasible KPI (governed, no source data) renders as a labelled gap, never as a number.
 - UI: frontend/steward_app.py (`make ui`, `make demo` = LLM off). CLI: `make ask Q="..."`. Tests: tests/bi_steward/.
 - The verdict is rule-based code; the LLM only parses the question and rewrites the explanation. Thresholds: steward/config.py.
-- tests/bi_steward/golden_questions.json is the verdict contract. Change a verdict on purpose -> update it in the same commit.
-- Known gaps (see docs/challenge/06_REPO_REVIEW.md): catalog/ is still the invented sample (to be replaced by the data-pack loader),
-  matching is by formula string (must become KPI id + definition_status), unrecognised terms are silently dropped (false REUSE).
+- The verdict contract is the human-labelled data-pack cases (tests/bi_steward/test_golden.py, eval_steward.labelled_cases). Change a verdict on purpose -> update the label in the same commit.
 - Design docs: docs/steward/architecture.md, work-plan.md (ignore its stage 2: the data pack replaces the invented catalog).
 
-## Pre-event scaffold (backend/, frontend/app.py): legacy, kept until removed. `make ui-old`.
-```
-company files ──ingest.py──▶ Item ──pipeline.score──▶ Decision (label, priority, confidence, reason, evidence, action)
-                                         │                  │
-                                    llm.complete_json   rules_fallback (never crash)
-                                         │
-                               demo/cache/<hash>.json  ◀── DEMO_MODE replays this
-Streamlit queue (frontend/app.py) ──approve/reject──▶ audit.py (SQLite, every output + every human action)
-FastAPI (backend/main.py): /health /score /ingest /review /audit /audit.csv
-```
+## LLM client (backend/llm.py, backend/config.py)
+The only pre-event code left (T3.7 removed the rest): `steward/llm.py` and `steward/config.py` import them.
 - `backend/config.py`: env settings; `LLM_PROVIDER` switches anthropic | openai | aitta | featherless | gemini | ollama. `make models` lists model IDs.
-- `backend/llm.py`: OpenAI client with base_url; JSON validated by Pydantic; one repair retry; caches every success.
-- `backend/pipeline.py`: `LABELS` + prompt live here. Friday's first edit.
-- `backend/retrieval.py`: fastembed (bge-small, ONNX, CPU) with TF-IDF fallback; numpy cosine. No vector DB.
-- `eval/eval.py`: hold-out accuracy, macro F1, misses → `eval/results.json` → UI Proof tab.
-- Streamlit imports the pipeline directly (one process on stage). FastAPI is for integrations and the README.
+- `backend/llm.py`: OpenAI client with base_url; JSON validated by Pydantic; one repair retry; caches every success (demo/cache, DEMO_MODE replays it).
 
 ## Working as a team (four people, four Claude Codes, one repo)
 - Who you work for: `git config user.name` (first word). Their area: OWNERS and the Team table in NOTES.md.
 - Edit only files your person owns, plus shared files (anything not in OWNERS). For someone else's file, do not edit it:
   write the change you need under "Requests" in NOTES.md and tell your person to ask the owner.
-- `backend/models.py` is the contract between data, model and app: never rename or remove a field without Martynas.
+- `steward/models.py` is the contract between data, model and app: never rename or remove a field without Martynas.
 - Start of every session and before every push: `git pull --rebase`. Commit small, push often. Never force-push, never `git reset --hard`.
 - A commit refused by the pre-commit hook means you touched another owner's file: unstage it, never use --no-verify yourself.
 - `git push` runs the smoke tests first (pre-push hook). If it refuses, fix the failing test; never push with --no-verify yourself.
@@ -96,7 +82,7 @@ Windows: `.venv\Scripts\python.exe tools\coord.py ...`. Humans: `make board`, Di
    records it in NOTES.md; the answer comes back with `--re <id>`.
 
 ## Commands
-`make ui` · `make demo` (LLM off) · `make ask Q="..."` · `make ui-old` · `make api` · `make eval` · `make warm` (record cache) · `make ping` · `make test` · `make lint` · `make hack`
+`make ui` · `make demo` (LLM off) · `make ask Q="..."` · `make eval` · `make warm` (AI layouts, Donatas only) · `make app` · `make app-build` · `make ping` · `make test` · `make lint` · `make hack`
 
 ## Machine constraints
 - Intel MacBook (x86_64). No CUDA/MPS. torch is capped at 2.2.2 on Intel Macs and conflicts with numpy 2: don't add torch/sentence-transformers. Use fastembed or API embeddings.

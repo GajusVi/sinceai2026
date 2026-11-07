@@ -44,14 +44,14 @@ board:      ## team board: who is on what, open asks, commits you are behind on
 ask:        ## one question from the terminal: make ask Q="Net sales by market"
 	$(PY) -m steward "$(Q)"
 
-eval:       ## hold-out accuracy / F1 / misses -> eval/results.json
-	$(PY) eval/eval.py
+eval:       ## BI Steward eval -> eval/results.json (same as eval-steward)
+	STEWARD_CATALOG=datapack $(PY) eval/eval_steward.py
 
 eval-steward: ## BI Steward eval: false-REUSE, accuracy, intent F1, lint pass rate, 150-request estate (~10 s)
 	STEWARD_CATALOG=datapack $(PY) eval/eval_steward.py
 
-warm:       ## record live outputs for demo inputs + hold-out into demo/cache (run Saturday)
-	$(PY) -m backend.warm && $(PY) eval/eval.py
+warm:       ## record the live AI layouts for the demo questions (same as warm-layout; Donatas only)
+	$(PY) tools/warm_layout.py
 
 warm-layout: ## cache the AI dashboard layout for the demo questions x roles (steward/layout_cache, live LLM)
 	$(PY) tools/warm_layout.py

@@ -2,19 +2,18 @@ from steward.query_parser import RuleBasedParser, parse_period
 
 
 def test_main_demo_question(steward):
-    parsed = RuleBasedParser(steward.catalog).parse("What is herbicide revenue in LATAM vs plan for Q3?")
+    parsed = RuleBasedParser(steward.catalog).parse("Xarelto net sales in Germany by quarter for Q3")
 
-    assert parsed.metrics == ["net_revenue", "plan_revenue"]
-    assert parsed.filters == {"product_line": "herbicides", "region": "LATAM"}
+    assert parsed.metrics == ["net_sales"]
+    assert parsed.filters == {"product": "P-XAR", "market": "DE"}
     assert parsed.dimensions == ["quarter"]
     assert parsed.period == "Q3"
 
 
 def test_longest_synonym_wins(steward):
-    parsed = RuleBasedParser(steward.catalog).parse("Gross revenue by country")
+    parsed = RuleBasedParser(steward.catalog).parse("Net sales growth for Nubeqa")
 
-    assert parsed.metrics == ["gross_revenue"]
-    assert parsed.dimensions == ["country"]
+    assert parsed.metrics == ["net_sales_growth"]  # not net_sales: the longer synonym wins
 
 
 def test_filtered_dimension_is_not_a_breakdown(steward):
@@ -29,12 +28,7 @@ def test_period_formats():
     assert parse_period("for the year") is None
 
 
-def test_russian_input_is_understood(steward):
-    """The dictionary also holds Russian synonyms, so local teams can ask in Russian."""
-    parsed = RuleBasedParser(steward.catalog).parse("Какая выручка гербицидов в LATAM против плана за Q3?")
-
-    assert parsed.metrics == ["net_revenue", "plan_revenue"]
-    assert parsed.filters == {"product_line": "herbicides", "region": "LATAM"}
+def test_russian_periods_are_understood():
     assert parse_period("за третий квартал") == "Q3"
     assert parse_period("за 2-й квартал") == "Q2"
 
@@ -43,22 +37,22 @@ REQ_0001 = "Create a global Nubeqa dashboard showing sales growth, forecast vari
 
 
 def test_unrecognised_terms_are_kept_not_dropped(steward):
+    parsed = RuleBasedParser(steward.catalog).parse("Show the zorblax index for Xarelto in Germany")
+
+    assert {"zorblax", "index"} <= set(parsed.unmapped_terms) and parsed.metrics == []
+    assert steward.ask("Show the zorblax index for Xarelto in Germany").decision.verdict.value not in (
+        "REUSE", "EXTEND", "CREATE", "CONSOLIDATE")
+
+
+def test_req_0001_names_all_three_kpis(steward):
     parsed = RuleBasedParser(steward.catalog).parse(REQ_0001)
 
-    assert {"Nubeqa", "growth", "forecast", "variance", "market", "access"} <= set(parsed.unmapped_terms)
-    assert "dashboard" not in parsed.unmapped_terms
-
-
-def test_req_0001_is_clarify_not_reuse(steward):
-    decision = steward.ask(REQ_0001).decision
-
-    assert decision.verdict.value == "CLARIFY"
-    assert any(e.severity == "blocker" and e.rule_id is None for e in decision.evidence)
-    assert "Nubeqa" in " ".join(decision.reasons)
+    assert parsed.metrics == ["net_sales_growth", "forecast_variance", "market_access_coverage"]
+    assert parsed.filters["product"] == "P-NUB" and "dashboard" not in parsed.unmapped_terms
 
 
 def test_covered_words_are_not_unmapped(steward):
-    parsed = RuleBasedParser(steward.catalog).parse("What is herbicide revenue in LATAM vs plan for Q3?")
+    parsed = RuleBasedParser(steward.catalog).parse("Xarelto net sales in Germany by quarter for Q3")
 
     assert parsed.unmapped_terms == []
 

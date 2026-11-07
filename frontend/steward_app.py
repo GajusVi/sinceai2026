@@ -240,7 +240,8 @@ def ask(text: str) -> None:
             state = steward.interviewer.answer(state, text)
         else:
             st.session_state.result = None
-            home = user.plant if user is not None and user.role == "management" else ""  # T3.1: never ask "which plant?"
+            # T3.1: a manager is never asked "which plant?" about their own plant
+            home = user.plant if user is not None and user.role == "management" else ""
             state = steward.interviewer.start(text, home_plant=home)
     site = other_plant(user, state.intent.sites)
     if site:  # management: own plant (and granted ones) only; the rest goes through a builder
@@ -951,9 +952,6 @@ def usage_tier(artifact) -> str:
 
 def render_orphan_rescue() -> None:
     artifacts = steward.catalog.artifacts
-    if not any(a.platform for a in artifacts.values()):
-        st.info("Run `make bayer` to load the Bayer data pack (Windows: `.\\run.ps1 bayer`).")
-        return
     owners = load_owners()
     ids = list(artifacts)
     default = ids.index("AST-0091") if "AST-0091" in artifacts else 0

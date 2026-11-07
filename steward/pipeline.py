@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from datetime import date
 from pathlib import Path
 
@@ -47,14 +46,13 @@ class Steward:
         self.interviewer = Interviewer(self.catalog, self.llm, self.settings.prompts_dir)
 
     def _load_catalog(self) -> Catalog:
-        """STEWARD_CATALOG=datapack (or catalog_dir = the .xlsx) uses the Bayer data pack and catalog/bayer/."""
+        """The Bayer data pack + catalog/bayer/ (T3.7: the invented sample catalog is gone). catalog_dir = an .xlsx
+        loads that workbook instead (the large-estate pack)."""
         from .datapack import DEFAULT_XLSX, load_catalog  # lazy: pandas only needed for the data pack
 
         if self.catalog_dir.suffix == ".xlsx":
             return load_catalog(self.catalog_dir, ROOT_DIR / "catalog" / "bayer", self.data_dir, self.as_of)
-        if os.getenv("STEWARD_CATALOG", "").lower() == "datapack":
-            return load_catalog(DEFAULT_XLSX, self.catalog_dir / "bayer", self.data_dir, self.as_of)
-        return Catalog.load(self.catalog_dir, self.data_dir)
+        return load_catalog(DEFAULT_XLSX, self.catalog_dir / "bayer", self.data_dir, self.as_of)
 
     def ask(self, text: str, context: dict[str, str] | None = None) -> StewardResult:
         """`context` = request metadata ({"product": ..., "market": ...}). Text that contradicts it (blocker) forces

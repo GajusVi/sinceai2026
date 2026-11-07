@@ -18,8 +18,8 @@ def test_minhash_identical_and_different_texts():
     assert minhash.estimate_jaccard(a, c) < 0.2
 
 
-def test_main_question_finds_finance_report_first(steward):
-    question = steward.parser.parse("What is herbicide revenue in LATAM vs plan for Q3?")
+def test_main_question_finds_the_labelled_report_first(steward):
+    question = steward.parser.parse("Xarelto net sales in Germany")
     hits = steward.search.search(question)
 
-    assert "fin-rev-001" in [h.artifact.id for h in hits[:3]]
+    assert "AST-0191" in [h.artifact.id for h in hits[:3]]

@@ -39,8 +39,8 @@ flowchart TD
 
 The three diagrams below are the detail of W4-W8 as first designed:
 Diagrams from Vlada's bi-steward skeleton, drawn before the Bayer brief was released. The flow is still how the app works;
-the herbicide/LATAM example comes from the invented sample catalog (Crop Science, out of scope for the challenge), and the
-current build adds the intake check, KPI-id matching on the data pack and the Orphan rescue tab. Full write-up: docs/steward/architecture.md.
+the herbicide/LATAM example comes from an invented sample catalog that has since been removed (the app runs on the
+Bayer data pack only), and the current build adds the intake check, KPI-id matching on the data pack and the Orphan rescue tab. Full write-up: docs/steward/architecture.md.
 
 **The whole flow.** Solid arrows are the question; dashed lines are reads from and writes to the catalog.
 
@@ -119,7 +119,7 @@ powershell -ExecutionPolicy Bypass -File .\setup_windows.ps1
 notepad .env        # paste your own GEMINI_API_KEY, save
 .\run.ps1 ping; .\run.ps1 ui
 ```
-`run.ps1` replaces `make` on Windows: `.\run.ps1 ui | demo | api | eval | ping | models | test`.
+`run.ps1` replaces `make` on Windows: `.\run.ps1 ui | demo | eval | ping | models | test`.
 
 ## Daily commands
 | Command | What |
@@ -127,18 +127,9 @@ notepad .env        # paste your own GEMINI_API_KEY, save
 | `make ui` | BI Steward screen (LLM if key, else rules) |
 | `make demo` | same screen, LLM off, no network |
 | `make ask Q="..."` | one question in the terminal |
-| `make ui-old` | pre-event scaffold screen |
-| `make eval` | hold-out accuracy, F1, misses |
-| `make warm` | record live outputs into demo/cache (Saturday) |
-| `make api` | FastAPI on :8000, docs at /docs |
+| `make eval` | BI Steward eval: false-REUSE, verdict accuracy, intent F1 -> eval/results.json |
+| `make warm` | record the live AI layouts for the demo questions (Donatas only) |
+| `make app` / `make app-build` | desktop app from source / packaged app + self-test |
 | `make hack` / `make unhack` | keep the Mac awake, network check |
-
-## Friday edits, in order
-1. `backend/pipeline.py`: `LABELS`, `URGENT`, prompt.
-2. `.env`: `USER_ROLE=`.
-3. `backend/models.py`: rename `Item` to the company's noun, add fields the UI needs.
-4. `frontend/app.py`: `TITLE`, `TAGLINE`.
-5. `demo/inputs.jsonl`: 5-10 real inputs (one wow, one messy, one edge case).
-6. `eval/holdout.jsonl`: 20-50 labelled examples, before tuning anything.
 
 Files: `CLAUDE.md` (architecture, rules) · `NOTES.md` (team, decisions) · `CHALLENGE_PICK.md` · `submission/` · `docs/`.

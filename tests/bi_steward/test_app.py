@@ -62,13 +62,14 @@ def test_orphan_rescue_on_datapack(monkeypatch, tmp_path):
     assert "PROPOSAL" in journal and '"action":"proposed"' in journal
 
 
-def test_orphan_rescue_on_sample_catalog(monkeypatch, tmp_path):
+def test_default_catalog_is_the_data_pack(monkeypatch, tmp_path):
+    """T3.7: no STEWARD_CATALOG set still opens the data pack (the invented sample catalog is gone)."""
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("STEWARD_CATALOG", raising=False)
-    at = as_builder(AppTest.from_file(APP, default_timeout=60)).run()
+    at = as_builder(AppTest.from_file(APP, default_timeout=180)).run()
     assert not at.exception
-    assert any("make bayer" in i.value for i in at.info)
+    assert not any("make bayer" in i.value for i in at.info)
 
 
 def _novice_app(monkeypatch, tmp_path):
