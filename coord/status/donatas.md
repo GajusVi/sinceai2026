@@ -1,6 +1,6 @@
 # donatas
-updated: 2026-11-07 23:43
-now: Day/night + centred layout pushed (4230ca1)
-done: login 02ccdb3; theme 3329617; layout 4230ca1; T3.7 test patch 7e9f732
-next: T2.1 period on cards + T2.2 ordered blocks; final warm near 05:00
-blocked: none
+updated: 2026-11-08 01:19
+now: OVERVIEW dashboards: render+ui pushed (4de1699); waiting for owner OKs
+done: day/night widgets de58080; OVERVIEW render 4de1699
+next: spec fields -> specbuild OVERVIEW -> layout -> lint -> pbip, after OKs; final warm before 05:00
+blocked: OKs on asks 1108-011100 (Martynas), 1108-011104 (Gajus), 1108-011108 (Margiris)
