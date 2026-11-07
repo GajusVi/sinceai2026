@@ -1,0 +1,29 @@
+{
+ "reason": "This logical sequence moves from high-level KPI cards to a monthly trend line and finishes with actionable country-level exceptions for a comprehensive quarterly monitoring review.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What is our overall net sales result?"
+  },
+  {
+   "id": "card:KPI-004",
+   "question": "Are we growing as expected?"
+  },
+  {
+   "id": "card:KPI-042",
+   "question": "How far are we from our forecast?"
+  },
+  {
+   "id": "card:KPI-020",
+   "question": "Did we deliver orders on time?"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the sales numbers change?"
+  },
+  {
+   "id": "table:KPI-042",
+   "question": "Which countries need immediate attention?"
+  }
+ ]
+}

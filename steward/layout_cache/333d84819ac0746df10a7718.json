@@ -1,0 +1,21 @@
+{
+ "reason": "This layout fits the four-visual limit for a quick glance by putting key KPI cards first and following immediately with a monthly sales trend.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What are the total net sales for Nubeqa"
+  },
+  {
+   "id": "card:KPI-004",
+   "question": "How fast are net sales growing"
+  },
+  {
+   "id": "card:KPI-042",
+   "question": "What is the variance against our forecast"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the net sales trend change"
+  }
+ ]
+}

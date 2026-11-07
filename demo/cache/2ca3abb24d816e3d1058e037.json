@@ -1,0 +1,33 @@
+{
+  "intent": {
+    "role": "executive",
+    "decision_supported": "monitor",
+    "cadence": "quarterly",
+    "products": [],
+    "markets": [],
+    "regions": [
+      "Latin America"
+    ],
+    "sites": [],
+    "theme": "business_performance",
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": "forecast",
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "regions": 0.9,
+      "theme": 0.8,
+      "metric_ids": 0.6,
+      "decision_supported": 0.5
+    }
+  },
+  "next_question": "To see how we are doing in Latin America, I can show Net Sales, sales growth, performance vs forecast, and delivery reliability. Is that the picture you need, or are you focusing on specific products?",
+  "asks_about": "theme_confirm"
+}

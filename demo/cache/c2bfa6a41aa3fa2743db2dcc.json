@@ -1,0 +1,30 @@
+{
+  "asks_about": "theme_confirm",
+  "intent": {
+    "audience": "",
+    "cadence": "",
+    "comparison": null,
+    "conflicts": [],
+    "decision_supported": "monitor",
+    "grain": "month",
+    "markets": [],
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "mode": "novice",
+    "products": [
+      "Nubeqa"
+    ],
+    "regions": [
+      "North America"
+    ],
+    "role": "owns sales, budget and gross-to-net reporting",
+    "sites": [],
+    "theme": "business_performance",
+    "unmapped_terms": []
+  },
+  "next_question": "To check performance in North America, I can include Net Sales, Sales Growth, Forecast Variance, and On-Time Deliveries. Does that cover it, or would you adjust these?"
+}

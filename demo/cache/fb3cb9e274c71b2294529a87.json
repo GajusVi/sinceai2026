@@ -1,0 +1,51 @@
+{
+  "steps": [
+    {
+      "finding": "The user requested business performance metrics for Latin America, specifically net sales, net sales growth, forecast variance, and on-time in-full.",
+      "record_ids": []
+    },
+    {
+      "finding": "AST-0015 is the top candidate in Power BI covering 50% of the request, owned by active owner OWN-022 with a healthy model SM-041, but it has 0 average monthly users, no endorsement, a low trust score of 0.35, and is still missing net_sales, forecast_variance, and on_time_in_full.",
+      "record_ids": [
+        "AST-0015",
+        "OWN-022",
+        "SM-041"
+      ]
+    },
+    {
+      "finding": "Other assets like AST-0335-v4 have inactive owners OWN-043, while AST-0037 is a Tableau platform asset, and AST-0204 or AST-0123 focus on specific markets like UK and ES rather than LATAM.",
+      "record_ids": [
+        "AST-0335-v4",
+        "OWN-043",
+        "AST-0037",
+        "AST-0204",
+        "AST-0123",
+        "OWN-059"
+      ]
+    },
+    {
+      "finding": "Governance checks identified that AST-0015 uses KPI-003, which is flagged under RULE-002 as a duplicate candidate for approved KPI-001.",
+      "record_ids": [
+        "AST-0015",
+        "RULE-002",
+        "KPI-003",
+        "KPI-001"
+      ]
+    },
+    {
+      "finding": "Because existing assets only cover 50% of the required metrics and miss region-specific LATAM coverage and key metrics, building a new asset starting from AST-0015 is recommended.",
+      "record_ids": [
+        "AST-0015"
+      ]
+    }
+  ],
+  "recommendation": "CREATE",
+  "best_asset_id": "AST-0015",
+  "agrees": true,
+  "why": "No existing dashboard fully covers the requested LATAM metrics, making AST-0015 the best starting point to build a tailored solution. This ensures all required metrics are modeled correctly using governed standards.",
+  "risks": [
+    "AST-0015 currently has a low trust score of 0.35 and 0 monthly active users.",
+    "KPI-003 used in AST-0015 must be aligned with the approved standard KPI-001.",
+    "Multiple required metrics like net_sales and forecast_variance are missing from the base asset."
+  ]
+}

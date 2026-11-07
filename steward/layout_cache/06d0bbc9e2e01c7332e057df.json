@@ -1,0 +1,13 @@
+{
+ "reason": "This concise top-to-bottom layout gives management an immediate performance summary followed by its timeline trend.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What are our total sales?"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the revenue trend change?"
+  }
+ ]
+}

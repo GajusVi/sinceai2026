@@ -1,0 +1,49 @@
+{
+  "agrees": false,
+  "best_asset_id": "AST-0335",
+  "recommendation": "EXTEND",
+  "risks": [
+    "Owner OWN-043 is inactive and requires reassignment under RULE-003.",
+    "AST-0335 is flagged for retirement with 0 average monthly users.",
+    "Missing metrics net_sales_growth, forecast_variance, and on_time_in_full must be added."
+  ],
+  "steps": [
+    {
+      "finding": "The request asks for sales by regions for All Pharma globally, requiring net_sales, net_sales_growth, forecast_variance, and on_time_in_full.",
+      "record_ids": [
+        "AST-0335",
+        "AST-0015"
+      ]
+    },
+    {
+      "finding": "AST-0335 covers All Pharma globally with 57% coverage and trust score 0.60, containing KPI-040, KPI-033, KPI-027, KPI-016, KPI-037, and KPI-001.",
+      "record_ids": [
+        "AST-0335",
+        "KPI-040",
+        "KPI-033",
+        "KPI-027",
+        "KPI-016",
+        "KPI-037",
+        "KPI-001"
+      ]
+    },
+    {
+      "finding": "AST-0015 provides equal global coverage of 57% but relies on duplicate candidate KPI-003 governed by RULE-002.",
+      "record_ids": [
+        "AST-0015",
+        "RULE-002",
+        "KPI-003",
+        "KPI-001"
+      ]
+    },
+    {
+      "finding": "AST-0335 has an inactive owner OWN-043 requiring reassignment per RULE-003 and is flagged for retirement with 0 average monthly users.",
+      "record_ids": [
+        "AST-0335",
+        "OWN-043",
+        "RULE-003"
+      ]
+    }
+  ],
+  "why": "I disagree with extending AST-0335 because it is a candidate for retirement with 0 average monthly users and an inactive owner OWN-043."
+}

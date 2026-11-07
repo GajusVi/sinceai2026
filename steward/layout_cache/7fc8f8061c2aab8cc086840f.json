@@ -1,0 +1,21 @@
+{
+ "reason": "This layout presents the key sales answers first via top-level KPI cards and follows directly with a trend line to give a quick glance within the four-visual limit.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What is our total net sales this quarter"
+  },
+  {
+   "id": "card:KPI-004",
+   "question": "How fast are our sales growing"
+  },
+  {
+   "id": "card:KPI-042",
+   "question": "How far are we from our target"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the sales trend change"
+  }
+ ]
+}

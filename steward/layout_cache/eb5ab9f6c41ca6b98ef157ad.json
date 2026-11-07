@@ -1,0 +1,13 @@
+{
+ "reason": "This quick glance view for a warehouse worker presents the net sales card followed immediately by the monthly trend line according to the glance limit rules.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What are the current sales figures"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the sales change"
+  }
+ ]
+}

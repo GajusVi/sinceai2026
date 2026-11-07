@@ -1,0 +1,55 @@
+{
+  "steps": [
+    {
+      "finding": "The user requested business performance metrics for product Nubeqa in region North America, focusing on metrics net_sales, net_sales_growth, forecast_variance, and on_time_in_full.",
+      "record_ids": []
+    },
+    {
+      "finding": "AST-0335-v2 ranks highest by coverage at 57% with a trust score of 0.60 and healthy refresh model SM-069, but it is currently missing net_sales_growth, forecast_variance, and on_time_in_full.",
+      "record_ids": [
+        "AST-0335-v2",
+        "KPI-040",
+        "KPI-033",
+        "KPI-027",
+        "KPI-016",
+        "KPI-037",
+        "KPI-001"
+      ]
+    },
+    {
+      "finding": "AST-0335-v2 has zero average monthly users and triggered governance warnings for an inactive owner OWN-043 alongside being flagged as a retire candidate.",
+      "record_ids": [
+        "AST-0335-v2",
+        "OWN-043",
+        "RULE-003"
+      ]
+    },
+    {
+      "finding": "Governance rules suggest reassigning the inactive owner OWN-043 of AST-0335-v2 to active owners such as OWN-004, OWN-010, or OWN-011.",
+      "record_ids": [
+        "AST-0335-v2",
+        "OWN-043",
+        "OWN-004",
+        "OWN-010",
+        "OWN-011",
+        "RULE-003"
+      ]
+    },
+    {
+      "finding": "Other Nubeqa assets in the estate like Tableau dashboard AST-0037 cover 43% of the request with 1.00 trust, but AST-0335-v2 remains the top-ranked Power BI candidate to extend.",
+      "record_ids": [
+        "AST-0335-v2",
+        "AST-0037"
+      ]
+    }
+  ],
+  "recommendation": "EXTEND",
+  "best_asset_id": "AST-0335-v2",
+  "agrees": true,
+  "why": "Extending AST-0335-v2 allows us to build upon a Power BI dashboard with a healthy underlying model SM-069 while adding the missing regional metrics. Reassigning its inactive owner OWN-043 will restore proper stewardship and governance.",
+  "risks": [
+    "AST-0335-v2 is currently flagged as a retirement candidate with 0 average monthly users.",
+    "Owner OWN-043 is inactive and requires reassignment to OWN-004, OWN-010, or OWN-011.",
+    "Three required metrics (net_sales_growth, forecast_variance, on_time_in_full) are missing and must be added."
+  ]
+}

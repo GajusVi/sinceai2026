@@ -1,0 +1,35 @@
+{
+  "asks_about": "decision_supported",
+  "intent": {
+    "audience": "",
+    "cadence": "",
+    "comparison": null,
+    "confidence": {
+      "decision_supported": 0.0,
+      "markets": 0.9,
+      "metric_ids": 0.9,
+      "products": 0.9,
+      "regions": 0.0,
+      "sites": 0.0
+    },
+    "conflicts": [],
+    "decision_supported": "",
+    "grain": "month",
+    "markets": [
+      "DE"
+    ],
+    "metric_ids": [
+      "inventory_coverage"
+    ],
+    "mode": "novice",
+    "products": [
+      "Xarelto"
+    ],
+    "regions": [],
+    "role": "planner",
+    "sites": [],
+    "theme": "",
+    "unmapped_terms": []
+  },
+  "next_question": "Is this for your weekly supply meeting, or are you deciding whether to rebalance stock levels?"
+}

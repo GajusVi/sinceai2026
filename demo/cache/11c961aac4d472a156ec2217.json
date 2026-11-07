@@ -1,0 +1,33 @@
+{
+  "intent": {
+    "role": "owns sales, budget and gross-to-net reporting",
+    "decision_supported": "monitor",
+    "cadence": "",
+    "products": [],
+    "markets": [],
+    "regions": [],
+    "sites": [],
+    "theme": "business_performance",
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": null,
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "products": 0.0,
+      "markets": 0.0,
+      "regions": 0.0,
+      "sites": 0.0,
+      "metric_ids": 0.6,
+      "decision_supported": 0.5
+    }
+  },
+  "next_question": "Are you looking at all products, or specific ones like Nubeqa or Xarelto?",
+  "asks_about": "products"
+}

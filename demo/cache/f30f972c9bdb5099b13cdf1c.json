@@ -1,0 +1,29 @@
+{
+  "reason": "This layout presents top-level Nubeqa performance metrics first and follows up with time-series trends, geographic breakdowns, and actionable forecast exceptions tailored for global management oversight.",
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "What are our overall Nubeqa net sales"
+    },
+    {
+      "id": "card:KPI-004",
+      "question": "How fast are Nubeqa net sales growing"
+    },
+    {
+      "id": "card:KPI-042",
+      "question": "How far are we from our forecast"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did sales shift compared to the plan"
+    },
+    {
+      "id": "bar:KPI-001",
+      "question": "Where are sales coming from by market"
+    },
+    {
+      "id": "table:KPI-042",
+      "question": "Which countries require immediate corrective action"
+    }
+  ]
+}

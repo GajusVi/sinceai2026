@@ -1,0 +1,13 @@
+{
+ "reason": "This order gives the warehouse ops worker a quick glance at the current net sales figure followed immediately by its trend over time without unnecessary detail.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What is the current sales performance"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "How has this performance changed over time"
+  }
+ ]
+}

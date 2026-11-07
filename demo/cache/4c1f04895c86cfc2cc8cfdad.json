@@ -1,0 +1,33 @@
+{
+  "reason": "The layout guides the viewer through top-level Nubeqa performance metrics, tracks performance trends over time, breaks down sales by country, and concludes with actionable forecast exceptions.",
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "What is our total net sales performance"
+    },
+    {
+      "id": "card:KPI-004",
+      "question": "How quickly are our sales growing"
+    },
+    {
+      "id": "card:KPI-042",
+      "question": "How far are we from our forecast"
+    },
+    {
+      "id": "card:KPI-027",
+      "question": "What is our current market access coverage"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did the sales numbers change over time"
+    },
+    {
+      "id": "bar:KPI-001",
+      "question": "Which countries contribute the most to sales"
+    },
+    {
+      "id": "table:KPI-042",
+      "question": "Which countries require immediate attention for missing forecast targets"
+    }
+  ]
+}

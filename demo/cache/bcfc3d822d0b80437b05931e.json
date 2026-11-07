@@ -1,0 +1,35 @@
+{
+  "asks_about": "decision_supported",
+  "intent": {
+    "audience": "",
+    "cadence": "",
+    "comparison": null,
+    "confidence": {
+      "decision_supported": 0.5,
+      "markets": 0.9,
+      "metric_ids": 0.9,
+      "products": 0.9
+    },
+    "conflicts": [],
+    "decision_supported": "monitor",
+    "grain": "month",
+    "markets": [
+      "Global"
+    ],
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "products": [
+      "All Pharma"
+    ],
+    "regions": [],
+    "role": "owns sales, budget and gross-to-net reporting",
+    "sites": [],
+    "theme": "business_performance",
+    "unmapped_terms": []
+  },
+  "next_question": "Is this to prepare for a monthly business review, a board update, or just to keep an eye on performance?"
+}

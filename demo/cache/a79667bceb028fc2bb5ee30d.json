@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "finding": "The request asks for business performance metrics including Net Sales, Net Sales Growth, Forecast Variance, and On-Time In-Full for Nubeqa and Eylea in Latin America.",
+      "record_ids": []
+    },
+    {
+      "finding": "AST-0335-v2 ('All Pharma Growth Legacy') ranks top by covering 57% of the request requirements with a trust score of 0.60.",
+      "record_ids": [
+        "AST-0335-v2",
+        "KPI-040",
+        "KPI-033",
+        "KPI-027",
+        "KPI-016",
+        "KPI-037",
+        "KPI-001"
+      ]
+    },
+    {
+      "finding": "AST-0335-v2 has a healthy refresh model (SM-069) with promoted endorsement, but lacks net_sales_growth, forecast_variance, and on_time_in_full.",
+      "record_ids": [
+        "AST-0335-v2",
+        "SM-069"
+      ]
+    },
+    {
+      "finding": "Governance findings show owner OWN-043 is inactive, trigger a retirement warning due to 0 average monthly users, and flag RULE-003 for reassignment.",
+      "record_ids": [
+        "AST-0335-v2",
+        "OWN-043",
+        "RULE-003",
+        "OWN-004",
+        "OWN-010",
+        "OWN-011"
+      ]
+    },
+    {
+      "finding": "Secondary assets like AST-0015 also cover 57% of the request, but AST-0335-v2 remains the leading Power BI baseline to enhance.",
+      "record_ids": [
+        "AST-0015",
+        "AST-0335-v2"
+      ]
+    }
+  ],
+  "recommendation": "EXTEND",
+  "best_asset_id": "AST-0335-v2",
+  "agrees": true,
+  "why": "Extending AST-0335-v2 allows us to leverage an existing Power BI dashboard with a healthy data model while adding the missing KPIs and reassigning ownership. This avoids building from scratch while addressing the governance flags.",
+  "risks": [
+    "The assigned owner OWN-043 is inactive and requires immediate reassignment.",
+    "AST-0335-v2 has low usage (0 avg monthly users) and is flagged as a retirement candidate.",
+    "Three required metrics (net_sales_growth, forecast_variance, on_time_in_full) are currently missing."
+  ]
+}

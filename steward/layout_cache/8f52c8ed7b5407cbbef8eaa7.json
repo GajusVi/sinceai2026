@@ -1,0 +1,21 @@
+{
+ "reason": "This order provides a quick glance for a worker by starting with top-level sales cards and concluding with a trend line within the required visual and card limits.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What is our total net sales in the region"
+  },
+  {
+   "id": "card:KPI-042",
+   "question": "Are we meeting our forecast target"
+  },
+  {
+   "id": "card:KPI-004",
+   "question": "How does this compare to last month"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the sales trend change"
+  }
+ ]
+}

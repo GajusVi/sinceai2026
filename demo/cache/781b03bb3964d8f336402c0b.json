@@ -1,0 +1,21 @@
+{
+  "reason": "This layout prioritizes the key metrics of net sales, sales growth, and forecast variance at a high level, followed immediately by the historical trend of net sales to satisfy the quick glance requirement without deep digging.",
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "What are our total net sales"
+    },
+    {
+      "id": "card:KPI-004",
+      "question": "How fast are net sales growing"
+    },
+    {
+      "id": "card:KPI-042",
+      "question": "How much do sales vary from the forecast"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did net sales change over time"
+    }
+  ]
+}

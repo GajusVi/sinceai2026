@@ -1,0 +1,30 @@
+{
+  "asks_about": "decision_supported",
+  "intent": {
+    "audience": "",
+    "cadence": "",
+    "comparison": "prior",
+    "confidence": {
+      "metric_ids": 0.9,
+      "products": 0.9,
+      "regions": 0.9
+    },
+    "conflicts": [],
+    "decision_supported": "",
+    "grain": "month",
+    "metric_ids": [
+      "net_sales"
+    ],
+    "products": [
+      "Nubeqa"
+    ],
+    "regions": [
+      "North America"
+    ],
+    "role": "sales owner",
+    "sites": [],
+    "theme": "",
+    "unmapped_terms": []
+  },
+  "next_question": "Is this for your monthly business review, a board update, or something else?"
+}

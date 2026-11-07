@@ -1,0 +1,52 @@
+{
+  "agrees": true,
+  "best_asset_id": "",
+  "recommendation": "CREATE",
+  "risks": [
+    "The missing metrics on_time_in_full and demand_forecast_accuracy must be built using canonical definitions.",
+    "The closest matching asset AST-0335-v4 has an inactive owner OWN-043 and zero monthly users."
+  ],
+  "steps": [
+    {
+      "finding": "The user requested a supply health check for site Plant-B covering on_time_in_full, inventory_coverage, and demand_forecast_accuracy.",
+      "record_ids": [
+        "Plant-B"
+      ]
+    },
+    {
+      "finding": "The top search result is Power BI asset AST-0335-v4, which covers 33% of the request with a trust score of 0.60.",
+      "record_ids": [
+        "AST-0335-v4"
+      ]
+    },
+    {
+      "finding": "Asset AST-0335-v4 is recommended for retirement, has zero average monthly users, and is managed by inactive owner OWN-043.",
+      "record_ids": [
+        "AST-0335-v4",
+        "OWN-043"
+      ]
+    },
+    {
+      "finding": "Asset AST-0335-v4 is still missing the required metrics on_time_in_full and demand_forecast_accuracy.",
+      "record_ids": [
+        "AST-0335-v4"
+      ]
+    },
+    {
+      "finding": "Multiple KPI definition conflicts exist across existing assets AST-0001, AST-0002, AST-0003, AST-0004, AST-0008, AST-0010, AST-0013, AST-0018, and AST-0020 under governance RULE-002.",
+      "record_ids": [
+        "AST-0001",
+        "AST-0002",
+        "AST-0003",
+        "AST-0004",
+        "AST-0008",
+        "AST-0010",
+        "AST-0013",
+        "AST-0018",
+        "AST-0020",
+        "RULE-002"
+      ]
+    }
+  ],
+  "why": "No existing usable asset adequately covers the requested supply metrics for Plant-B, and the top search candidate is recommended for retirement with zero users. Building a new asset from scratch ensures compliance with approved canonical KPI definitions."
+}

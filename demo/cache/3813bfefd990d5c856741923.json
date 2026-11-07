@@ -1,0 +1,31 @@
+{
+  "intent": {
+    "role": "commercial controller",
+    "decision_supported": "",
+    "cadence": "",
+    "products": [
+      "Xarelto"
+    ],
+    "markets": [
+      "DE"
+    ],
+    "regions": [],
+    "sites": [],
+    "theme": "",
+    "metric_ids": [
+      "net_sales"
+    ],
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": null,
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "products": 1.0,
+      "markets": 1.0,
+      "metric_ids": 1.0
+    }
+  },
+  "next_question": "Are you reviewing this for your monthly sales check, adjusting local targets, or something else?",
+  "asks_about": "decision_supported"
+}

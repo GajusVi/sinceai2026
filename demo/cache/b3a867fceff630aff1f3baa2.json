@@ -1,0 +1,21 @@
+{
+  "steps": [
+    {
+      "id": "card:KPI-020",
+      "question": "Are orders arriving on time"
+    },
+    {
+      "id": "card:KPI-016",
+      "question": "Do we have enough inventory"
+    },
+    {
+      "id": "card:KPI-006",
+      "question": "Is the demand forecast accurate"
+    },
+    {
+      "id": "line:KPI-020",
+      "question": "When did fulfillment performance change"
+    }
+  ],
+  "reason": "This layout prioritizes key plant metrics upfront and shows the trend over time within the visual limit for a quick glance worker."
+}

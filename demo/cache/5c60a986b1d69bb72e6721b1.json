@@ -1,0 +1,52 @@
+{
+  "steps": [
+    {
+      "finding": "The user requested net sales data for Xarelto in Germany (DE).",
+      "record_ids": []
+    },
+    {
+      "finding": "AST-0191 ('Xarelto Forecast New') covers 100% of the request with a trust score of 0.60, matching product Xarelto and Global market, with 65 average monthly users.",
+      "record_ids": [
+        "AST-0191",
+        "OWN-047",
+        "SM-049",
+        "KPI-031",
+        "KPI-036",
+        "KPI-001"
+      ]
+    },
+    {
+      "finding": "AST-0335-v4 also covers 100% of the request but has 0 average monthly users and an inactive owner (OWN-043).",
+      "record_ids": [
+        "AST-0335-v4",
+        "OWN-043",
+        "SM-069"
+      ]
+    },
+    {
+      "finding": "AST-0195, AST-0145, and AST-0134 cover Germany specifically (67% coverage) but are still missing net_sales.",
+      "record_ids": [
+        "AST-0195",
+        "AST-0145",
+        "AST-0134",
+        "OWN-042",
+        "OWN-019",
+        "OWN-006"
+      ]
+    },
+    {
+      "finding": "Governance findings recommend reusing AST-0191 and pursuing certification, as it is currently unendorsed.",
+      "record_ids": [
+        "AST-0191"
+      ]
+    }
+  ],
+  "recommendation": "REUSE",
+  "best_asset_id": "AST-0191",
+  "agrees": true,
+  "why": "AST-0191 fully covers the requested metric for Xarelto and has a healthy underlying semantic model (SM-049). It should be reused and formally certified as recommended by governance rules.",
+  "risks": [
+    "AST-0191 currently has no endorsement and requires certification.",
+    "Multiple legacy assets (such as AST-0002 and AST-0015) contain KPI definition conflicts that should be steered away from."
+  ]
+}

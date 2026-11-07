@@ -1,0 +1,13 @@
+{
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "What are the overall net sales for Xarelto in Germany"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did the net sales move compared to the forecast"
+    }
+  ],
+  "reason": "The selected widgets provide a concise executive summary of performance and trends for management within the imposed visual limits."
+}

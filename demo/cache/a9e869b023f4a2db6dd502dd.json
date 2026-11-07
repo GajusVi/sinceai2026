@@ -1,0 +1,31 @@
+{
+  "asks_about": null,
+  "intent": {
+    "audience": "",
+    "cadence": "",
+    "comparison": null,
+    "confidence": {
+      "decision_supported": 0.6,
+      "metric_ids": 0.6,
+      "sites": 0.9
+    },
+    "conflicts": [],
+    "decision_supported": "monitor supply risk",
+    "grain": "month",
+    "markets": [],
+    "metric_ids": [
+      "on_time_in_full",
+      "inventory_coverage",
+      "demand_forecast_accuracy"
+    ],
+    "products": [],
+    "regions": [],
+    "role": "plant_head",
+    "sites": [
+      "Plant-B"
+    ],
+    "theme": "supply_health",
+    "unmapped_terms": []
+  },
+  "next_question": null
+}

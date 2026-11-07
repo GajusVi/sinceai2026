@@ -1,0 +1,34 @@
+{
+  "intent": {
+    "role": "owns sales, budget and gross-to-net reporting",
+    "decision_supported": "",
+    "cadence": "",
+    "products": [
+      "Xarelto"
+    ],
+    "markets": [
+      "DE"
+    ],
+    "regions": [],
+    "sites": [],
+    "theme": "",
+    "metric_ids": [
+      "net_sales"
+    ],
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": null,
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "products": 0.9,
+      "markets": 0.9,
+      "regions": 1.0,
+      "sites": 1.0,
+      "metric_ids": 0.9,
+      "decision_supported": 0.0
+    }
+  },
+  "next_question": null,
+  "asks_about": ""
+}

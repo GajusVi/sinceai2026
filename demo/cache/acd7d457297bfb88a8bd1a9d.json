@@ -1,0 +1,13 @@
+{
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "What is the net sales performance for Xarelto in Germany?"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did the net sales trend change against the forecast?"
+    }
+  ],
+  "reason": "The dashboard follows the natural inquiry sequence from the primary sales performance metric to its monthly trend for a builder monitoring Xarelto in Germany."
+}

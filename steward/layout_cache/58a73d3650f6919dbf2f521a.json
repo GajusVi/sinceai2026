@@ -1,0 +1,13 @@
+{
+ "reason": "The dashboard presents the primary sales decision card first followed by its temporal trend line to provide a complete story for the builder.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What are the current sales figures for Xarelto in Germany"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the sales numbers deviate from the forecast"
+  }
+ ]
+}

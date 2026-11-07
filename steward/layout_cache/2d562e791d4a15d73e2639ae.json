@@ -1,0 +1,29 @@
+{
+ "reason": "This layout presents top-line executive KPIs first, follows with the monthly trajectory, and concludes with geographic breakdown within the visual budget.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What are the total net sales for Nubeqa"
+  },
+  {
+   "id": "card:KPI-004",
+   "question": "How fast are net sales growing"
+  },
+  {
+   "id": "card:KPI-042",
+   "question": "What is our variance against the sales forecast"
+  },
+  {
+   "id": "card:KPI-027",
+   "question": "What is our current market access coverage"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the sales trend change compared to forecast"
+  },
+  {
+   "id": "bar:KPI-001",
+   "question": "Where are the net sales coming from by country"
+  }
+ ]
+}

@@ -1,0 +1,36 @@
+{
+  "asks_about": "theme_confirm",
+  "intent": {
+    "audience": "",
+    "cadence": "",
+    "comparison": null,
+    "confidence": {
+      "decision_supported": 0.7,
+      "metric_ids": 0.6,
+      "products": 0.9,
+      "regions": 0.9
+    },
+    "conflicts": [],
+    "decision_supported": "monitor",
+    "grain": "month",
+    "markets": [],
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "mode": "novice",
+    "products": [
+      "Nubeqa"
+    ],
+    "regions": [
+      "North America"
+    ],
+    "role": "owns sales, budget and gross-to-net reporting",
+    "sites": [],
+    "theme": "business_performance",
+    "unmapped_terms": []
+  },
+  "next_question": "For Nubeqa in North America, I would include Net Sales, Sales Growth, Forecast Variance, and On-Time Deliveries. Does that picture work, or would you adjust the numbers?"
+}

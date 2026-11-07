@@ -1,0 +1,33 @@
+{
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "What are our total net sales for this product"
+    },
+    {
+      "id": "card:KPI-004",
+      "question": "How quickly are sales growing"
+    },
+    {
+      "id": "card:KPI-042",
+      "question": "Are we meeting our sales forecast"
+    },
+    {
+      "id": "card:KPI-027",
+      "question": "What is our current market access coverage"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did sales shift compared to the forecast"
+    },
+    {
+      "id": "bar:KPI-001",
+      "question": "Which countries contribute most to these sales"
+    },
+    {
+      "id": "table:KPI-042",
+      "question": "Which specific countries require immediate action"
+    }
+  ],
+  "reason": "This logical top-to-bottom flow opens with key performance metrics and comparisons, progresses to monthly trends and country breakdowns, and finishes with actionable operational exceptions for a builder standard narrative."
+}

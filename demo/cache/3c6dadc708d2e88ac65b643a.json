@@ -1,0 +1,35 @@
+{
+  "intent": {
+    "role": "executive",
+    "decision_supported": "",
+    "cadence": "quarterly",
+    "products": [
+      "Nubeqa"
+    ],
+    "markets": [],
+    "regions": [
+      "Latin America"
+    ],
+    "sites": [],
+    "theme": "business_performance",
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": null,
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "regions": 0.9,
+      "products": 0.9,
+      "metric_ids": 0.6,
+      "theme": 0.8
+    }
+  },
+  "next_question": "To judge how Nubeqa is doing in Latin America, I'd track net sales, growth, forecast variance, and delivery reliability. Does that picture work for you, or is something else key?",
+  "asks_about": "theme_confirm"
+}

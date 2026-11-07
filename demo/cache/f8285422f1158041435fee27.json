@@ -1,0 +1,29 @@
+{
+  "reason": "This order guides management logically from top-level LATAM performance cards to trend, breakdown, and actionable exceptions based on forecast variance.",
+  "steps": [
+    {
+      "id": "card:KPI-001",
+      "question": "What is our overall sales performance in the region"
+    },
+    {
+      "id": "card:KPI-042",
+      "question": "How much are we missing our target by"
+    },
+    {
+      "id": "card:KPI-004",
+      "question": "Is our monthly growth positive"
+    },
+    {
+      "id": "card:KPI-020",
+      "question": "Are orders being delivered on time"
+    },
+    {
+      "id": "line:KPI-001",
+      "question": "When did sales start diverging from the forecast"
+    },
+    {
+      "id": "table:KPI-042",
+      "question": "Which specific countries require immediate intervention"
+    }
+  ]
+}

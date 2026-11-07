@@ -1,0 +1,29 @@
+{
+ "reason": "The layout guides the builder through the full story from top-level delivery and inventory metrics down to monthly trends, geographic breakdowns, and actionable threshold breaches.",
+ "steps": [
+  {
+   "id": "card:KPI-020",
+   "question": "Are we delivering on time and in full?"
+  },
+  {
+   "id": "card:KPI-016",
+   "question": "Do we have enough inventory coverage?"
+  },
+  {
+   "id": "card:KPI-006",
+   "question": "How accurate is our demand forecast?"
+  },
+  {
+   "id": "line:KPI-020",
+   "question": "When did our delivery performance change?"
+  },
+  {
+   "id": "bar:KPI-020",
+   "question": "Which countries are driving delivery performance?"
+  },
+  {
+   "id": "table:KPI-020",
+   "question": "Which specific countries need immediate action?"
+  }
+ ]
+}

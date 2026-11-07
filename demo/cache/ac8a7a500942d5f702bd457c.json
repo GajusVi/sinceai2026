@@ -1,0 +1,36 @@
+{
+  "intent": {
+    "role": "executive",
+    "decision_supported": "",
+    "cadence": "quarterly",
+    "products": [
+      "Nubeqa",
+      "Eylea"
+    ],
+    "markets": [],
+    "regions": [
+      "Latin America"
+    ],
+    "sites": [],
+    "theme": "business_performance",
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": null,
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "regions": 0.9,
+      "products": 0.9,
+      "metric_ids": 0.6,
+      "theme": 0.8
+    }
+  },
+  "next_question": "To track performance for Nubeqa and Eylea, I'd suggest net sales, growth, forecast variance, and delivery reliability. Does this picture work, or are you looking for something else?",
+  "asks_about": "theme_confirm"
+}

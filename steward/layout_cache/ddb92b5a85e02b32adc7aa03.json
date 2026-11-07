@@ -1,0 +1,29 @@
+{
+ "reason": "This sequence follows a logical narrative from top-level metrics to temporal trends, geographic breakdown, and actionable exceptions for Plant-B management.",
+ "steps": [
+  {
+   "id": "card:KPI-020",
+   "question": "Are we fulfilling orders on time"
+  },
+  {
+   "id": "card:KPI-016",
+   "question": "Do we have enough inventory coverage"
+  },
+  {
+   "id": "card:KPI-006",
+   "question": "How accurate is our demand forecast"
+  },
+  {
+   "id": "line:KPI-020",
+   "question": "When did our delivery performance change"
+  },
+  {
+   "id": "bar:KPI-020",
+   "question": "Which countries drive the delivery performance"
+  },
+  {
+   "id": "table:KPI-020",
+   "question": "Which locations need immediate action"
+  }
+ ]
+}

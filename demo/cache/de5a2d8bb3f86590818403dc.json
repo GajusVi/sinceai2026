@@ -1,0 +1,34 @@
+{
+  "intent": {
+    "role": "tracks reimbursement and market access for launches",
+    "decision_supported": "",
+    "cadence": "",
+    "products": [
+      "Nubeqa"
+    ],
+    "markets": [
+      "Global"
+    ],
+    "regions": [],
+    "sites": [],
+    "theme": "",
+    "metric_ids": [
+      "net_sales_growth",
+      "forecast_variance",
+      "market_access_coverage"
+    ],
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": "forecast",
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "products": 0.9,
+      "markets": 0.9,
+      "metric_ids": 0.9,
+      "decision_supported": 0.0
+    }
+  },
+  "next_question": "What decision or review will this Nubeqa dashboard support?",
+  "asks_about": "decision_supported"
+}

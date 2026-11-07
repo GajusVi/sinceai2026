@@ -1,0 +1,38 @@
+{
+  "intent": {
+    "audience": "",
+    "cadence": "",
+    "comparison": null,
+    "confidence": {
+      "decision_supported": 0.5,
+      "markets": 0.0,
+      "metric_ids": 0.6,
+      "products": 0.9,
+      "regions": 0.6,
+      "sites": 0.0
+    },
+    "conflicts": [],
+    "decision_supported": "monitor",
+    "grain": "month",
+    "ignored_terms": [],
+    "markets": [],
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "mode": "novice",
+    "products": [
+      "Nubeqa"
+    ],
+    "regions": [],
+    "role": "owns sales, budget and gross-to-net reporting",
+    "sites": [],
+    "text": "How do sales look by regions?",
+    "theme": "business_performance",
+    "unmapped_terms": []
+  },
+  "asks_about": "theme_confirm",
+  "next_question": "For Nubeqa across regions, to track overall performance I would look at Net Sales, sales growth, variance to forecast, and delivery reliability. Does this picture work, or are you focused on specific finance numbers?"
+}

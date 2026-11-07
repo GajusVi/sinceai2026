@@ -1,0 +1,29 @@
+{
+ "reason": "This order guides management through top-level net sales performance, trend analysis over time, breakdown by growth, and actionable exceptions exceeding governed thresholds.",
+ "steps": [
+  {
+   "id": "card:KPI-001",
+   "question": "What is our total net sales performance this quarter?"
+  },
+  {
+   "id": "card:KPI-004",
+   "question": "How does our sales growth compare to expectations?"
+  },
+  {
+   "id": "card:KPI-042",
+   "question": "What is our overall forecast variance?"
+  },
+  {
+   "id": "card:KPI-020",
+   "question": "Are our deliveries arriving on time and in full?"
+  },
+  {
+   "id": "line:KPI-001",
+   "question": "When did the net sales trend change during the quarter?"
+  },
+  {
+   "id": "table:KPI-042",
+   "question": "Which specific countries require immediate operational attention?"
+  }
+ ]
+}

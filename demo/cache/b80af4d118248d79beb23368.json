@@ -1,0 +1,35 @@
+{
+  "intent": {
+    "role": "owns sales, budget and gross-to-net reporting",
+    "decision_supported": "monitor",
+    "cadence": "",
+    "products": [
+      "All Pharma"
+    ],
+    "markets": [
+      "Global"
+    ],
+    "regions": [],
+    "sites": [],
+    "theme": "business_performance",
+    "metric_ids": [
+      "net_sales",
+      "net_sales_growth",
+      "forecast_variance",
+      "on_time_in_full"
+    ],
+    "unmapped_terms": [],
+    "grain": "month",
+    "comparison": null,
+    "audience": "",
+    "conflicts": [],
+    "confidence": {
+      "products": 0.9,
+      "markets": 0.9,
+      "metric_ids": 0.6,
+      "decision_supported": 0.5
+    }
+  },
+  "next_question": "To track sales worldwide, I've selected Net Sales, Sales Growth, Forecast Variance, and On-Time Deliveries. Does this capture the picture you need, or should we adjust the numbers?",
+  "asks_about": "theme_confirm"
+}

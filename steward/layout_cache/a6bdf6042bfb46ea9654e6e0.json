@@ -1,0 +1,33 @@
+{
+ "reason": "The dashboard follows a standard top-to-bottom story for the builder, beginning with key metric cards, moving to trend analysis, breaking down by product, and ending with an actionable exceptions table for Plant-B supply safety.",
+ "steps": [
+  {
+   "id": "card:KPI-020",
+   "question": "What is our current delivery performance"
+  },
+  {
+   "id": "card:KPI-016",
+   "question": "How much inventory stock do we have"
+  },
+  {
+   "id": "card:KPI-006",
+   "question": "How accurate is our demand forecast"
+  },
+  {
+   "id": "line:KPI-020",
+   "question": "When did our delivery performance change"
+  },
+  {
+   "id": "bar:KPI-020",
+   "question": "Which products drive our delivery performance"
+  },
+  {
+   "id": "bar:KPI-016",
+   "question": "How is inventory coverage distributed across products"
+  },
+  {
+   "id": "table:KPI-020",
+   "question": "Which specific products require immediate attention"
+  }
+ ]
+}
