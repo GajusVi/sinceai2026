@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from functools import lru_cache
 
 import pandas as pd
@@ -38,11 +39,42 @@ COMPARED_TO_FORECAST = {"KPI-001", "KPI-042"}
 DIMENSION_WORD = {"market": "country", "product": "product", "region": "region"}
 DIMENSION_PLURAL = {"market": "countries", "product": "products", "region": "regions"}
 
+# OVERVIEW archetype (Donatas, 8 Nov; Gajus OK 1108-011104). ONE switch: STEWARD_OVERVIEW=off ships today's template.
+OVERVIEW_ON = os.environ.get("STEWARD_OVERVIEW", "on").lower() != "off"
+OVERVIEW_THEMES = {"plant_efficiency", "supply_health", "business_performance"}  # "how is X doing" overviews
+OVERVIEW_ROLES = {"management", "builder"}
+OVERVIEW_TILES, OVERVIEW_CHARTS = 8, 6
+FLOOR_KPIS = {"KPI-020", "KPI-016"}  # governed floors in EXCEPTIONS: a rate/level against its target -> bullet
+SHARE_KPIS = {"KPI-001", "KPI-014"}  # additive amounts whose split by region is a share of the total
+_NEW_KEYS = {"archetype": "", "span": None, "row": None}  # spec v3 fields: dropped from the hash while default
+
 
 def spec_hash(spec: DashboardSpec) -> str:
     """Stable id of what the human approves: everything except lint results and the hash itself."""
-    body = json.dumps(spec.model_dump(exclude={"lint", "provenance"}), sort_keys=True, default=str)
+    data = spec.model_dump(exclude={"lint", "provenance"})
+    _drop_defaults(data)  # a spec without OVERVIEW fields hashes exactly as before they existed
+    body = json.dumps(data, sort_keys=True, default=str)
     return hashlib.sha256(body.encode()).hexdigest()[:16]
+
+
+def _drop_defaults(node) -> None:
+    if isinstance(node, dict):
+        for key, default in _NEW_KEYS.items():
+            if key in node and node[key] == default:
+                del node[key]
+        for value in node.values():
+            _drop_defaults(value)
+    elif isinstance(node, list):
+        for value in node:
+            _drop_defaults(value)
+
+
+def archetype(intent: Intent, role: str | None) -> str:
+    """Code picks the archetype: OVERVIEW for an overview question (an overview theme from the interview) asked by
+    management or the BI team; '' (today's template) for everything else, workers and unknown viewers included."""
+    if OVERVIEW_ON and getattr(intent, "theme", "") in OVERVIEW_THEMES and role in OVERVIEW_ROLES:
+        return "OVERVIEW"
+    return ""
 
 
 def build_spec(
@@ -70,6 +102,8 @@ def build_spec(
         spec = _create(decision, intent, catalog, measures, layouter)
     if layouter is not None:
         spec.provenance.update(layouter.info)  # layout_source llm | template (+ model, prompt, role); not in the hash
+    if any(getattr(v, "span", None) for page in spec.pages for v in page.visuals):
+        spec = spec.model_copy(update={"archetype": "OVERVIEW"})
     return spec
 
 
@@ -355,6 +389,11 @@ def _page(
 ) -> Page:
     """The template layout of BUILD_PLAN 5.1 (<= 4 cards, 1 trend, 1 breakdown, 1 exceptions table). With a `layouter`
     the order, the density and the choice from the menu follow the viewer (layout.py); without one: template."""
+    if layouter is not None and archetype(intent, layouter.role) == "OVERVIEW":
+        overview = _overview_page(measures, intent, catalog, dimension)
+        if overview is not None:
+            layouter.info = {"layout_source": "overview", "model": "", "prompt": "", "layout_role": layouter.role}
+            return overview
     options = _legal(_menu(measures, intent, catalog, dimension), measures, intent)
     first = lambda kind: next((o.visual for o in options if o.visual.type == kind), None)  # noqa: E731
     cards = [o.visual for o in options if o.visual.type == "card"][:MAX_CARDS]
@@ -364,6 +403,72 @@ def _page(
     if layouter is None:
         return template
     return layouter.arrange(options, template, intent)
+
+
+def _at(v: Visual, row: int, span: int) -> Visual:
+    return v.model_copy(update={"row": row, "span": span})
+
+
+def _overview_page(measures: list[Measure], intent: Intent, catalog: Catalog, dimension: str) -> Page | None:
+    """OVERVIEW template (deterministic): row 1 one KPI strip (<= 8 tiles, gaps as labelled tiles); then up to 6 charts,
+    one per KPI by rule (governed floor -> bullet by member vs target; amount vs forecast -> line + dashed forecast;
+    variance -> diverging bars; other monthly KPIs -> trend; an additive amount -> its share by region, <= 5 parts);
+    one exceptions table last. Only charts the data in this scope can draw (semantic.check_visual). None = invalid
+    page (layout.validate_overview), and the caller falls back to today's template."""
+    from .layout import validate_overview
+
+    who = _scope_label(intent, catalog)
+    buildable = [m for m in measures if m.feasible]
+    strip = Visual(type="kpi_strip", title=f"{who}: the numbers that matter", measures=[m.name for m in measures][:OVERVIEW_TILES],
+                   purpose="Every asked number at a glance, coloured only against a governed threshold")
+    charts: list[Visual] = []
+    for m in buildable:
+        if m.kpi_id in FLOOR_KPIS:
+            threshold, _ = EXCEPTIONS[m.kpi_id]
+            charts.append(Visual(type="bullet", title=f"{who} {m.name.lower()} by {DIMENSION_WORD[dimension]} vs target",
+                                 measures=[m.name], dimension=dimension, threshold=threshold,
+                                 purpose="Which members are below the governed target"))
+        elif m.kpi_id == "KPI-042":
+            charts.append(Visual(type="diverging_bar", title=f"{who} forecast variance by {DIMENSION_WORD[dimension]}",
+                                 measures=[m.name], dimension=dimension, purpose="Where actuals beat or miss forecast"))
+        if grain_of(m.kpi_id) == "month" and m.kpi_id != "KPI-042":
+            charts.append(_line(m, who))
+        if m.kpi_id in SHARE_KPIS:
+            charts.append(Visual(type="stacked_100", title=f"{who} {m.name.lower()}: share by region", measures=[m.name],
+                                 dimension="region", purpose="How the total splits"))
+    charts = _drawable(charts, measures, intent)[:OVERVIEW_CHARTS]
+    table = next((_table(m, dimension) for m in buildable if m.kpi_id in EXCEPTIONS), None)
+    if table is not None and _drawable([table], measures, intent) == []:
+        table = None
+    per_row = 3 if len(charts) >= 5 else 2
+    rows = [charts[i:i + per_row] for i in range(0, len(charts), per_row)]
+    visuals = [_at(strip, 1, 12)]
+    for r, row_charts in enumerate(rows, start=2):  # every row's spans sum to 12
+        visuals += [_at(chart, r, 12 // len(row_charts)) for chart in row_charts]
+    if table is not None:
+        visuals.append(_at(table, 2 + len(rows), 12))
+    page = Page(name="Overview", purpose=f"How {who} is doing", visuals=visuals)
+    problems = validate_overview(page, {m.name for m in measures}, {m.name for m in measures if not m.feasible})
+    if problems or not charts:
+        logger.info("overview_fallback: %s", "; ".join(problems) or "no drawable chart")
+        return None
+    return page
+
+
+_DRAW_AS = {"bullet": "bar", "diverging_bar": "bar", "stacked_100": "bar", "line": "line", "bar": "bar", "table": "table"}
+
+
+def _drawable(visuals: list[Visual], measures: list[Measure], intent: Intent) -> list[Visual]:
+    """Keep the visuals the data in this scope can draw (a trend needs months, a breakdown members): the same
+    semantic.check_visual gate as the template menu. If profiling is unavailable, nothing is dropped."""
+    try:
+        from .semantic import check_visual, profile
+
+        profiles = profile(measures, None, _filters(intent))
+    except Exception as exc:  # noqa: BLE001 - profiling is an extra check, never a reason to fail the build
+        logger.debug("overview profile skipped: %s", exc)
+        return visuals
+    return [v for v in visuals if not check_visual(profiles, _DRAW_AS[v.type], v.measures, v.dimension)]
 
 
 def _comparison(m: Measure, intent: Intent) -> str | None:

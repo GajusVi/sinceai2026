@@ -252,10 +252,13 @@ def _stacked(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLA
     fig = go.Figure()
     for i, (label, value) in enumerate(zip(frame["label"], frame["value"], strict=True)):
         share = value / total * 100
+        label_text = f"{label} {share:.0f}%" if share >= 10 else ""  # small parts: on hover only, never squeezed
         fig.add_trace(go.Bar(x=[share], y=[""], orientation="h", name=str(label), marker_color=pal["parts"][i],
-                             text=[f"{label} {share:.0f}%"], textposition="inside", insidetextanchor="middle",
-                             textfont=dict(family=MONO, size=11, color="#ffffff" if i < 2 else pal["title"])))
-    fig.update_layout(**{**_layout(v.title, m, pal, xaxis_title="% of total"), "height": 180}, barmode="stack")
+                             text=[label_text], textposition="inside", insidetextanchor="middle",
+                             hovertemplate=f"{label}: {share:.1f}%<extra></extra>",
+                             textfont=dict(family=MONO, size=11, color="#ffffff" if i < 2 else "#09090b")))
+    fig.update_layout(**{**_layout(v.title, m, pal, xaxis_title="% of total"), "height": 200}, barmode="stack",
+                      showlegend=False)
     fig.update_xaxes(range=[0, 100])
     out.figures.append((v.title, fig))
 

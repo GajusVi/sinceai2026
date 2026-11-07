@@ -36,8 +36,8 @@ steward/pbip.py         martynas
 steward/pbip_server.py  martynas
 steward/estate_view.py  martynas
 templates/pbip/         martynas
-steward/specbuild.py    gajus
-steward/layout.py       gajus
+steward/specbuild.py    donatas   (TEMP until submission, owner gajus: OVERVIEW, Gajus OK 1108-011104)
+steward/layout.py       donatas   (TEMP until submission, owner gajus: OVERVIEW, Gajus OK 1108-011104)
 steward/investigate.py  gajus
 prompts/investigate.yaml gajus
 steward/takeaway.py     gajus
@@ -69,3 +69,4 @@ setup_windows.ps1       gajus
 data/build_bayer_dictionaries.py martynas
 catalog/bayer/dimensions.json martynas
 tests/bi_steward/test_overview.py donatas
+frontend/steward_app.py donatas   (TEMP until submission, owner gajus: OVERVIEW, Gajus OK 1108-011104)

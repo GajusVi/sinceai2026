@@ -55,6 +55,46 @@ def _disk_put(key: str, raw: dict) -> None:
         logger.warning("layout_cache_write: %s", exc)
 
 
+# OVERVIEW pages (Donatas, Gajus OK 1108-011104): the rules every OVERVIEW page must pass, the deterministic template
+# in specbuild._overview_page and any future LLM proposal alike. A failure -> today's template.
+OVERVIEW_TYPES = frozenset({"kpi_strip", "line", "bar", "bullet", "diverging_bar", "stacked_100", "table"})
+OVERVIEW_SPANS = frozenset({3, 4, 6, 8, 12})
+OVERVIEW_MAX_TILES, OVERVIEW_MAX_CHARTS, OVERVIEW_MAX_TABLES = 8, 6, 1
+
+
+def validate_overview(page: Page, known: set[str], gaps: set[str]) -> list[str]:
+    """Problems with an OVERVIEW page, empty = valid: known visual types, governed measures only, gaps only as tiles,
+    one strip of <= 8 tiles, <= 6 charts, <= 1 table, every visual on a row with a span, spans sum to 12 per row."""
+    problems: list[str] = []
+    rows: dict[int, int] = {}
+    strips = charts = tables = 0
+    for v in page.visuals:
+        if v.type not in OVERVIEW_TYPES:
+            problems.append(f"{v.title}: unknown visual type {v.type!r}")
+        if unknown := [n for n in v.measures if n not in known]:
+            problems.append(f"{v.title}: not a governed measure of this spec: {', '.join(unknown)}")
+        if v.type != "kpi_strip" and any(n in gaps for n in v.measures):
+            problems.append(f"{v.title}: a gap can only be a labelled tile")
+        span, row = getattr(v, "span", None), getattr(v, "row", None)
+        if span not in OVERVIEW_SPANS or not isinstance(row, int) or row < 1:
+            problems.append(f"{v.title}: needs a row and a span of 3, 4, 6, 8 or 12")
+        else:
+            rows[row] = rows.get(row, 0) + span
+        strips += v.type == "kpi_strip"
+        tables += v.type == "table"
+        charts += v.type not in ("kpi_strip", "table")
+        if v.type == "kpi_strip" and len(v.measures) > OVERVIEW_MAX_TILES:
+            problems.append(f"{v.title}: {len(v.measures)} tiles, the limit is {OVERVIEW_MAX_TILES}")
+    problems += [f"row {r}: spans sum to {total}, not 12" for r, total in sorted(rows.items()) if total != 12]
+    if strips != 1:
+        problems.append(f"{strips} KPI strips; an overview has exactly one")
+    if charts > OVERVIEW_MAX_CHARTS:
+        problems.append(f"{charts} charts; the limit is {OVERVIEW_MAX_CHARTS}")
+    if tables > OVERVIEW_MAX_TABLES:
+        problems.append(f"{tables} tables; the limit is {OVERVIEW_MAX_TABLES}")
+    return problems
+
+
 class LayoutError(ValueError):
     """The proposal broke a rule; the template page is used instead."""
 

@@ -1,5 +1,6 @@
 """BI Steward decision screen. Run: make ui  (Windows: .\\run.ps1 ui)"""
 
+import dataclasses
 import inspect
 import os
 import sys
@@ -472,6 +473,10 @@ def render_dashboard(result: StewardResult, governance: bool = True, takeaway: b
     text = get_takeaway(key, tuple(sorted(filters.items())), result.question.text, dash) if takeaway else ""
     if text:
         ui.lead(text)
+    if getattr(dash, "archetype", "") == "OVERVIEW":  # Donatas (Gajus OK 1108-011104): band, tiles, 12-column grid
+        scope = " · ".join(f"{k} {v}" for k, v in spec.filters.items()) or "Bayer Pharma"
+        ui.overview(dash, key, scope=scope, as_of=str(steward.as_of), verdict=verdict_word(result))
+        dash = dataclasses.replace(dash, cards=[], gaps=[], figures=[], tables=[])  # the template blocks draw nothing
     cards = [ui.kpi_card(c.title, c.value, c.comparison, c.tone, c.note) for c in dash.cards]
     gaps = [ui.gap_card(g.title, g.reason) for g in dash.gaps]
     if governance:  # expert: every tile, denser

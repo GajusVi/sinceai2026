@@ -39,3 +39,70 @@ def test_gap_allowed_as_tile_never_in_a_chart():
     assert lint._data(ok, None).status == "pass"
     bad = _spec([Visual(type="bullet", title="Gap vs target", measures=["Gap"])], measures)
     assert lint._data(bad, None).status == "block"
+
+
+# -- builder: archetype choice, the OVERVIEW template, the switch, old hashes ------------------------------------------
+import pytest  # noqa: E402
+
+from steward import specbuild  # noqa: E402
+from steward.auth import login  # noqa: E402
+from steward.layout import validate_overview  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def steward(tmp_path_factory):
+    from dataclasses import replace
+    from datetime import date
+
+    from steward import Steward
+    from steward.config import Settings
+
+    settings = replace(Settings.from_env(), use_llm="off", data_dir=tmp_path_factory.mktemp("ov"), as_of=date(2026, 11, 6))
+    return Steward(settings=settings)
+
+
+def _build(steward, text, account):
+    state = steward.interviewer.start(text)
+    intent = steward.interviewer.finish_with_defaults(state).intent
+    return steward.build(steward.ask_intent(intent), intent, login(*account)).spec
+
+
+MANAGER, WORKER, BUILDER = ("Manager07", "Manage123"), ("Worker21", "Worker123"), ("Builder12", "Admin123")
+REQ_0001 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
+
+
+def test_plant_overview_for_management_is_a_valid_grid(steward):
+    spec = _build(steward, "How is Plant-B doing?", MANAGER)
+    assert spec.archetype == "OVERVIEW" and spec.provenance["layout_source"] == "overview"
+    page = spec.pages[0]
+    assert page.visuals[0].type == "kpi_strip" and page.visuals[-1].type == "table"
+    assert validate_overview(page, {m.name for m in spec.measures}, {m.name for m in spec.measures if not m.feasible}) == []
+    assert all(r.status != "block" for r in spec.lint)
+
+
+def test_workers_and_req_0001_keep_the_template(steward):
+    assert getattr(_build(steward, "How is Plant-B doing?", WORKER), "archetype", "") == ""
+    assert getattr(_build(steward, REQ_0001, BUILDER), "archetype", "") == ""
+
+
+def test_old_spec_hashes_are_unchanged(steward):
+    """Pinned before OVERVIEW existed (8 Nov 01:50): templates hash exactly as before."""
+    assert _build(steward, REQ_0001, BUILDER).provenance["spec_hash"] == "8689405319e3aeb7"
+    assert _build(steward, "How is Plant-B doing?", WORKER).provenance["spec_hash"] == "dc45735e316585d3"
+    assert _build(steward, "Xarelto net sales in Germany", MANAGER).provenance["spec_hash"] == "7e0bb4672d7eebfd"
+
+
+def test_one_switch_turns_overview_off(steward, monkeypatch):
+    monkeypatch.setattr(specbuild, "OVERVIEW_ON", False)
+    assert getattr(_build(steward, "How is Plant-B doing?", MANAGER), "archetype", "") == ""
+
+
+def test_validator_rejects_bad_rows_and_gaps_in_charts():
+    def at(v, row, span):
+        return v.model_copy(update={"row": row, "span": span})
+
+    strip = at(_strip(2), 1, 12)
+    bad_row = Page(name="x", visuals=[strip, at(Visual(type="line", title="a", measures=["M1"]), 2, 6)])
+    assert any("sum to 6" in p for p in validate_overview(bad_row, {"M1", "M2"}, set()))
+    gap_chart = Page(name="x", visuals=[strip, at(Visual(type="bullet", title="g", measures=["M2"]), 2, 12)])
+    assert any("labelled tile" in p for p in validate_overview(gap_chart, {"M1", "M2"}, {"M2"}))
