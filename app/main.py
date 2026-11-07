@@ -150,6 +150,40 @@ def make_window(webview, api: Api, login_url: str):
     return window
 
 
+def _selftest(window, api: Api, out_path: str) -> None:
+    """BI_STEWARD_SELFTEST=<file>: drive login -> workspace -> log out in the real window, write the results, quit.
+    Proves a packaged build (.app / .exe) works without clicking (tools/build_app.py --check)."""
+    lines: list[str] = []
+
+    def wait(cond, seconds: float = 120) -> bool:
+        end = time.time() + seconds
+        while time.time() < end:
+            try:
+                if cond():
+                    return True
+            except Exception:  # noqa: BLE001 - the page may be between loads
+                pass
+            time.sleep(0.5)
+        return False
+
+    js = window.evaluate_js
+    has_form = "!!document.getElementById('user')"
+    lines.append(f"login page: {wait(lambda: js(has_form), 60)}")
+    js("document.getElementById('user').value='Manager07';document.getElementById('pass').value='Manage123';"
+       "document.getElementById('signin').click()")
+    t0 = time.time()
+    opened = wait(lambda: str(api._port) in (window.get_current_url() or "")
+                  and "Journal" in (js("document.body.innerText") or ""), 180)
+    lines.append(f"workspace: {opened} after {time.time() - t0:.1f}s")
+    text = js("document.body.innerText") or ""
+    lines.append(f"signed in as Manager07: {'Manager07' in text}")
+    js("(()=>{const a=[...document.querySelectorAll('a')].find(a=>a.textContent.trim()==='Log out');a&&a.click()})()")
+    lines.append(f"log out: {wait(lambda: '/app/shell/login.html' in (window.get_current_url() or ''), 30)}")
+    lines.append("RESULT: " + ("PASS" if all(l.endswith("True") or "True after" in l for l in lines) else "FAIL"))
+    Path(out_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    window.destroy()
+
+
 def main() -> None:
     import webview
 
@@ -163,13 +197,19 @@ def main() -> None:
         "STEWARD_DATA_DIR": _data_dir(),
         "STEWARD_CATALOG": os.environ.get("STEWARD_CATALOG", "datapack"),
     }
+    if getattr(sys, "frozen", False):  # packaged: the layout cache is bundled beside the code, not inside steward/
+        env["STEWARD_LAYOUT_CACHE"] = str(ROOT / "layout_cache")
     server = multiprocessing.get_context("spawn").Process(target=_run_streamlit, args=(app_port, env), daemon=True)
     server.start()  # starts while the user types the password, so the loading screen is short
 
     api = Api(app_port, secret)
     make_window(webview, api, login_url)
+    check = os.environ.get("BI_STEWARD_SELFTEST")
     try:
-        webview.start()
+        if check:
+            webview.start(_selftest, (api._window, api, check))
+        else:
+            webview.start()
     finally:
         server.terminate()
         server.join(timeout=5)

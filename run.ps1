@@ -8,6 +8,9 @@ try {
     switch ($task) {
         "ui"     { Live; $d = Join-Path $env:TEMP ("steward-" + [guid]::NewGuid()); New-Item -ItemType Directory $d | Out-Null; Copy-Item demo\steward_seed\* $d -Recurse; $env:STEWARD_DATA_DIR = $d; $env:STEWARD_CATALOG = "datapack"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG, Env:STEWARD_DATA_DIR -ErrorAction SilentlyContinue }
         "demo"   { $d = Join-Path $env:TEMP ("steward-" + [guid]::NewGuid()); New-Item -ItemType Directory $d | Out-Null; Copy-Item demo\steward_seed\* $d -Recurse; $env:STEWARD_DATA_DIR = $d; $env:STEWARD_CATALOG = "datapack"; $env:STEWARD_USE_LLM = "off"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_USE_LLM, Env:STEWARD_CATALOG, Env:STEWARD_DATA_DIR -ErrorAction SilentlyContinue }
+        "app-setup" { uv pip install --python $py -r requirements-app.in }
+        "app"    { & $py app\main.py }
+        "app-build" { & $py tools\build_app.py; $env:BI_STEWARD_SELFTEST = "build\selftest.txt"; $env:STEWARD_USE_LLM = "off"; & "dist\BI Steward\BI Steward.exe"; Get-Content build\selftest.txt; Remove-Item Env:BI_STEWARD_SELFTEST, Env:STEWARD_USE_LLM -ErrorAction SilentlyContinue }
         "bayer"  { Live; $env:STEWARD_CATALOG = "datapack"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG -ErrorAction SilentlyContinue }
         "pack-large"  { & $py tools\make_large_pack.py }
         "bayer-large" { Live; $env:STEWARD_CATALOG = "datapack"; $env:STEWARD_DATAPACK_XLSX = "data\bayer_large\Bayer_Large_Synthetic_Pack.xlsx"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG, Env:STEWARD_DATAPACK_XLSX -ErrorAction SilentlyContinue }

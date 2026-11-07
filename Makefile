@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo bayer pack-large bayer-large board ui-old ask api eval eval-steward warm warm-layout app app-setup test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo bayer pack-large bayer-large board ui-old ask api eval eval-steward warm warm-layout app app-setup app-build test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -18,6 +18,10 @@ app-setup:  ## install the desktop app tools (pywebview, pyinstaller)
 
 app:        ## BI Steward as a desktop app: native login window -> workspace (needs make app-setup)
 	$(PY) app/main.py
+
+app-build:  ## package dist/BI Steward.app (Mac) and run its self-test (login -> workspace -> log out)
+	$(PY) tools/build_app.py
+	BI_STEWARD_SELFTEST=build/selftest.txt STEWARD_USE_LLM=off "dist/BI Steward.app/Contents/MacOS/BI Steward"; cat build/selftest.txt
 
 bayer:      ## BI Steward on the Bayer data pack (360 assets)
 	STEWARD_CATALOG=datapack $(PY) -m streamlit run frontend/steward_app.py
