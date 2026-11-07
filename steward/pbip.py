@@ -355,6 +355,22 @@ def _layout(visuals: list[Visual]) -> list[tuple[int, int, int, int]]:
     return boxes  # type: ignore[return-value]
 
 
+def _literal(text: str) -> dict:
+    """A string literal as Desktop saves it: DAX style, single quotes, an apostrophe inside is doubled."""
+    return {"expr": {"Literal": {"Value": "'" + " ".join(text.split()).replace("'", "''") + "'"}}}
+
+
+def _container_objects(v: Visual) -> dict:
+    """Title = the code-built Visual.title; subtitle = the question the visual answers (DECISION 8fe651b: the AI-written
+    question is a subtitle only, never the title). Shape copied from templates/pbip (card saved by Desktop 2.159)."""
+    out: dict = {}
+    if v.title.strip():
+        out["title"] = [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": _literal(v.title)}}]
+    if v.question.strip():
+        out["subTitle"] = [{"properties": {"text": _literal(v.question)}}]
+    return out
+
+
 def _visual_json(spec: DashboardSpec, page: str, index: int, v: Visual, box, home: str, extra: dict[str, str]) -> dict | None:
     visual_type, dim_role, measure_role = VISUALS[v.type]
     x, y, w, h = box
@@ -381,7 +397,12 @@ def _visual_json(spec: DashboardSpec, page: str, index: int, v: Visual, box, hom
         "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
         "name": _short_id("visual", spec.name, page, str(index)),
         "position": {"x": x, "y": y, "z": index * 1000, "height": h, "width": w, "tabOrder": index * 1000},
-        "visual": {"visualType": visual_type, "query": state, "drillFilterOtherVisuals": True},
+        "visual": {
+            "visualType": visual_type,
+            "query": state,
+            **({"visualContainerObjects": objects} if (objects := _container_objects(v)) else {}),
+            "drillFilterOtherVisuals": True,
+        },
     }
 
 

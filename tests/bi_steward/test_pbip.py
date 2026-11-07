@@ -268,3 +268,34 @@ def test_flow_groups_neighbouring_cards_and_charts(spec, frames):
     pos = [v["position"] for v in sorted(_visuals(build_files(spec, frames)), key=lambda v: v["position"]["tabOrder"])]
     assert pos[0]["y"] == pos[1]["y"] and pos[0]["x"] < pos[1]["x"]  # the two cards share a row
     assert pos[2]["y"] > pos[1]["y"] and pos[3]["y"] > pos[2]["y"]  # the chart, then the last card, each on their own row
+
+
+def _container(spec, frames, title: str, question: str = ""):
+    spec.pages[0].visuals = [Visual(type="card", title=title, measures=["Net Sales"], question=question)]
+    (v,) = _visuals(build_files(spec, frames))
+    return v["visual"]
+
+
+def test_title_is_the_code_title_and_question_is_only_a_subtitle(spec, frames):
+    """Shape and quoting as Desktop saved them in templates/pbip (card with 'Net sales card' / 'How much did we sell?')."""
+    card = next(
+        json.loads(p.read_text(encoding="utf-8"))
+        for p in (TEMPLATE / "definition" / "pages").glob("*/visuals/*/visual.json")
+        if json.loads(p.read_text(encoding="utf-8"))["visual"]["visualType"] == "cardVisual"
+    )["visual"]["visualContainerObjects"]
+    mine = _container(spec, frames, "Net sales", "How much did we sell?")["visualContainerObjects"]
+    assert set(mine) == set(card) == {"title", "subTitle"}
+    assert set(mine["title"][0]["properties"]) == set(card["title"][0]["properties"]) == {"show", "text"}
+    assert set(mine["subTitle"][0]["properties"]) == set(card["subTitle"][0]["properties"]) == {"text"}
+    assert mine["title"][0]["properties"]["text"] == {"expr": {"Literal": {"Value": "'Net sales'"}}}
+    assert mine["subTitle"][0]["properties"]["text"] == {"expr": {"Literal": {"Value": "'How much did we sell?'"}}}
+    assert mine["title"][0]["properties"]["show"] == card["title"][0]["properties"]["show"]
+
+
+def test_no_question_means_no_subtitle_and_quotes_are_doubled_like_dax(spec, frames):
+    v = _container(spec, frames, "Nubeqa's net sales", "")
+    assert "subTitle" not in v["visualContainerObjects"]
+    assert v["visualContainerObjects"]["title"][0]["properties"]["text"]["expr"]["Literal"]["Value"] == "'Nubeqa''s net sales'"
+    assert list(v) == ["visualType", "query", "visualContainerObjects", "drillFilterOtherVisuals"]  # Desktop's key order
+    spec.pages[0].visuals = [Visual(type="card", title="", measures=["Net Sales"])]
+    assert "visualContainerObjects" not in _visuals(build_files(spec, frames))[0]["visual"]  # nothing to show, nothing written
