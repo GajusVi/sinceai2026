@@ -1,6 +1,6 @@
 # martynas
-updated: 2026-11-07 21:44
-now: PBIP live refresh pushed; waiting for the Desktop check
-done: live refresh a21616c/cf8ba3f/8a31b41, hold-out relabel 6fa50df, provisional 2f5fe98
-next: T2.4 decision hash (dibs asked), T2.1 model side, T3.3 PBIP titles
+updated: 2026-11-08 00:14
+now: T3.2 data side pushed; waiting to rebuild the .exe after freeze
+done: T3.2 3e310e5, T3.3 b36bd32, live refresh, Windows .exe, hold-out relabel
+next: rebuild the Windows .exe after the final freeze commits; dibs T2.4 still open
 blocked: -
