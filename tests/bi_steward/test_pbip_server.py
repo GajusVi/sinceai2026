@@ -136,7 +136,7 @@ def test_live_export_loads_from_the_app_and_embeds_no_data(served, spec, frames)
         assert "Binary.FromText" not in tmdl and "Table.FromRows(Raw[rows]" in tmdl
         assert "Table.TransformColumnTypes(Source" in tmdl  # same typing step as the embedded export
     assert "LIVE-REFRESH" in files["README.txt"] and source.base_url in files["README.txt"]
-    assert "Anonymous" in files["README.txt"]
+    assert "Anonymous" in files["README.txt"] and "(410): Gone" in files["README.txt"]  # what Desktop really shows
 
 
 def test_everything_except_the_tables_and_readme_is_identical_to_the_embedded_export(served, spec, frames):

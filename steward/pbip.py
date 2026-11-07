@@ -65,7 +65,7 @@ Power BI Desktop (version 2.159 or newer) and click Refresh.
 - The first Refresh asks for credentials for {base_url}: choose "Anonymous" and Connect. If it asks for a privacy level,
   choose "Organizational" or "Ignore".
 - "Unable to connect" = the app is not running (or another copy took the port: STEWARD_PBIP_PORT).
-- A message with "revoked" = the BI team withdrew this decision; ask for a new export.
+- An error ending in "(410): Gone" = the BI team withdrew this decision, so Refresh stops on purpose; ask for a new export.
 - The key in the table queries belongs to this export only. It is not a login: the app's login is a mock.
 spec.json is the approved spec (KPI ids, lint result, provenance).
 {notes}"""
