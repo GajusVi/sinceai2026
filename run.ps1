@@ -6,8 +6,8 @@ $prevDemo = $env:DEMO_MODE
 function Live { Remove-Item Env:DEMO_MODE -ErrorAction SilentlyContinue }
 try {
     switch ($task) {
-        "ui"     { Live; $env:STEWARD_CATALOG = "datapack"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG -ErrorAction SilentlyContinue }
-        "demo"   { $env:STEWARD_CATALOG = "datapack"; $env:STEWARD_USE_LLM = "off"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_USE_LLM, Env:STEWARD_CATALOG -ErrorAction SilentlyContinue }
+        "ui"     { Live; $d = Join-Path $env:TEMP ("steward-" + [guid]::NewGuid()); New-Item -ItemType Directory $d | Out-Null; Copy-Item demo\steward_seed\* $d -Recurse; $env:STEWARD_DATA_DIR = $d; $env:STEWARD_CATALOG = "datapack"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG, Env:STEWARD_DATA_DIR -ErrorAction SilentlyContinue }
+        "demo"   { $d = Join-Path $env:TEMP ("steward-" + [guid]::NewGuid()); New-Item -ItemType Directory $d | Out-Null; Copy-Item demo\steward_seed\* $d -Recurse; $env:STEWARD_DATA_DIR = $d; $env:STEWARD_CATALOG = "datapack"; $env:STEWARD_USE_LLM = "off"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_USE_LLM, Env:STEWARD_CATALOG, Env:STEWARD_DATA_DIR -ErrorAction SilentlyContinue }
         "bayer"  { Live; $env:STEWARD_CATALOG = "datapack"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG -ErrorAction SilentlyContinue }
         "pack-large"  { & $py tools\make_large_pack.py }
         "bayer-large" { Live; $env:STEWARD_CATALOG = "datapack"; $env:STEWARD_DATAPACK_XLSX = "data\bayer_large\Bayer_Large_Synthetic_Pack.xlsx"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG, Env:STEWARD_DATAPACK_XLSX -ErrorAction SilentlyContinue }
