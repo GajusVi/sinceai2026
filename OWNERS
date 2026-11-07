@@ -9,7 +9,7 @@ eval/                   margiris
 backend/ingest.py       martynas
 backend/models.py       martynas
 data/                   martynas
-frontend/               donatas
+frontend/               gajus   (design + AI blocks; Donatas OK 1107-094359, he keeps demo/, submission/, render.py, pitch)
 steward/models.py       martynas
 steward/spec.py         martynas
 steward/intent.py       gajus
