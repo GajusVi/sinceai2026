@@ -190,6 +190,28 @@ div[data-testid="stButton"] button:active { transform: scale(0.97); }
 .bs-typing .dots span:nth-child(3) { animation-delay: 0.4s; }
 
 
+/* ===== layout: one centred column, a search-like start page, compact controls ===================================== */
+.block-container { max-width: 1100px !important; margin-left: auto !important; margin-right: auto !important;
+  padding-left: 2rem !important; padding-right: 2rem !important; }
+/* empty Ask: the question in the middle of the window, input and 4 chips under it (chips hide after the first question) */
+.bs-ask { padding: calc(50vh - 190px) 0 0.9rem 0; text-align: center; }
+.bs-ask h1 { margin: 0 auto; }
+[data-testid="stMain"]:has(.bs-ask) [data-testid="stChatInput"] { max-width: 720px; margin: 0 auto; }
+.st-key-bs-examples { justify-content: center; flex-wrap: wrap; max-width: 760px; margin: 0.4rem auto 0 auto; gap: 0.4rem; }
+.st-key-bs-examples > div:nth-child(n+5) { display: none; }
+.st-key-bs-examples button { min-height: 30px !important; padding: 0.15rem 0.7rem !important; font-size: 0.82rem; }
+/* compact controls: ~36 px buttons, ~40 px inputs */
+div[data-testid="stButton"] button, div[data-testid="stFormSubmitButton"] button { min-height: 36px; padding: 0.25rem 0.9rem; }
+[data-baseweb="input"] > div, [data-baseweb="select"] > div { min-height: 40px; }
+[data-baseweb="input"] input { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+[data-testid="stChatInput"] textarea { min-height: 40px; padding-top: 0.55rem; padding-bottom: 0.55rem; }
+/* sidebar: the example-question list moves to the Ask page (Gajus, ask 1107-233304); hidden here until then: the
+   buttons and caption between the first and the last divider (Log out sits above the first divider, Reset demo below) */
+[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(hr) ~ [data-testid="stElementContainer"]:has([data-testid="stButton"]):has(~ [data-testid="stElementContainer"] hr),
+[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(hr) ~ [data-testid="stElementContainer"]:has([data-testid="stCaptionContainer"]):has(~ [data-testid="stElementContainer"] hr) {
+  display: none; }
+[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding-bottom: 1rem; }
+
 /* ===== day theme (switched on by frontend/ui.py: a .bs-day marker in the page) ==================================
    BI Steward day theme: the same system as steward.css (night), light. Active only while the .bs-day marker is in the page. Contrast on the white panel (checked): ink #09090B 19.9, muted #52525B 7.7,
    faint #71717A 4.8; verdicts REUSE #15803D 5.0, EXTEND #1A4BE0 6.7, amber #B45309 5.0, RESCUE #B91C1C 6.5,
