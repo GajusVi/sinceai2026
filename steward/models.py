@@ -184,12 +184,31 @@ class Decision(BaseModel):
     flags: list[str] = Field(default_factory=list)
 
 
+class InvestigationStep(BaseModel):
+    finding: str
+    record_ids: list[str] = Field(default_factory=list)
+
+
+class Investigation(BaseModel):
+    """The LLM's step-by-step reading of the evidence dossier (steward/investigate.py). Advisory: never the verdict."""
+
+    steps: list[InvestigationStep] = Field(default_factory=list)
+    recommendation: str = ""  # a Verdict value, or "" if the model gave none
+    best_asset_id: str = ""  # the asset the model would start from ("" = none or not in the dossier)
+    agrees: bool = True  # same verdict and same starting asset as the rules; False = a disagreement for the human
+    why: str = ""
+    risks: list[str] = Field(default_factory=list)
+    dropped_steps: int = 0  # steps rejected by validation (unknown id or uncomputed number)
+
+
 class StewardResult(BaseModel):
     question: ParsedQuestion
     decision: Decision
     explanation: str
     as_of: date
     spec: DashboardSpec | None = None  # set by Steward.build(): the dashboard this decision implies (W5-W6)
+    investigation: Investigation | None = None  # AI-first: the LLM's grounded investigation trail (advisory)
+    takeaway: str = ""  # AI-first: the LLM's plain-language reading of the rendered numbers (validated digits)
 
 
 class JournalAction(str, Enum):

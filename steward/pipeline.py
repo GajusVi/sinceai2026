@@ -59,21 +59,68 @@ class Steward:
     def ask(self, text: str, context: dict[str, str] | None = None) -> StewardResult:
         """`context` = request metadata ({"product": ..., "market": ...}). Text that contradicts it (blocker) forces
         CLARIFY; metadata only broader or narrower than the text (confirm) adds a warning Evidence, the verdict follows
-        the text."""
-        question = self.parser.parse(text)
-        confirm: list[str] = []
-        if context:
-            from .requests import blockers, confirmations, context_conflicts
+        the text.
 
-            found = context_conflicts(text, context, self.catalog)
-            question.conflicts.extend(blockers(found))
-            confirm = confirmations(found)
+        AI-first (Sat 7 Nov): with an LLM on the data pack, the LLM reads the request into an Intent (code validates
+        every id), the rules engine decides, and the LLM investigates the evidence (advisory trail). The rules parser
+        is the offline fallback."""
+        blocking, confirm = self._context(text, context)
+        if self.llm is not None and self._on_datapack():
+            result = self._ask_ai(text, blocking, confirm)
+            if result is not None:
+                return result
+        question = self.parser.parse(text)
+        question.conflicts.extend(blocking)
         hits = self.search.search(question)
         decision = decide(question, hits, self.catalog, self.as_of)
         for c in confirm:
             decision.evidence.append(Evidence(claim=f"Confirm with the requester: {c}", severity="warning"))
         explanation = self.explainer.explain(question, decision, self.as_of) + self._horizon_note(question, decision)
         return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
+
+    def _context(self, text: str, context: dict[str, str] | None) -> tuple[list[str], list[str]]:
+        if not context:
+            return [], []
+        from .requests import blockers, confirmations, context_conflicts
+
+        found = context_conflicts(text, context, self.catalog)
+        return blockers(found), confirmations(found)
+
+    def _on_datapack(self) -> bool:
+        from .linking import kpi_index
+
+        return bool(kpi_index(self.catalog)[0])
+
+    def _ask_ai(self, text: str, blocking: list[str], confirm: list[str]) -> StewardResult | None:
+        """LLM understanding -> rules decision -> LLM investigation and explanation (in parallel). None = the LLM
+        understood nothing usable (no metric, product or site): the caller falls back to the rules parser."""
+        state = self.interviewer.start(text, mode="expert", conflicts=blocking)
+        intent = state.intent
+        if not (intent.metric_ids or intent.products or intent.sites or intent.theme):
+            return None
+        result = self.ask_intent(intent, explain=False)
+        for c in confirm:
+            result.decision.evidence.append(Evidence(claim=f"Confirm with the requester: {c}", severity="warning"))
+        from concurrent.futures import ThreadPoolExecutor
+
+        from .investigate import investigate
+        from .semantic import feasibility
+
+        gaps = [f"{m.kpi_id} {m.name}" for m in feasibility(intent).gaps]
+        products = set(intent.products)
+        estate = sorted(
+            (a for a in self.catalog.active_artifacts() if a.product_scope in products),
+            key=lambda a: -sum(u.unique_users for u in a.usage),
+        )
+        summary = intent.model_dump_json(include={"products", "markets", "regions", "sites", "metric_ids", "theme"})
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            inv = pool.submit(
+                investigate, self.llm, self.settings.prompts_dir, text, summary, result.decision, estate, gaps
+            )
+            expl = pool.submit(self.explainer.explain, result.question, result.decision, self.as_of)
+            explanation = expl.result() + self._horizon_note(result.question, result.decision)
+            investigation = inv.result()
+        return result.model_copy(update={"explanation": explanation, "investigation": investigation})
 
     def _horizon_note(self, question, decision) -> str:
         """F7: a period outside the months the data covers is said out loud (evidence + a line in the answer)."""
@@ -91,7 +138,7 @@ class Steward:
         decision.evidence.append(found)
         return "\n\n**Note:** " + found.claim
 
-    def ask_intent(self, intent) -> StewardResult:
+    def ask_intent(self, intent, explain: bool = True) -> StewardResult:
         """The interview's end: the confirmed Intent goes through the same search -> decide -> explain as `ask`;
         then `build(result, intent)` makes the dashboard. A site scope (Plant-B) has no asset-level equivalent:
         search runs on the metrics and the site becomes a data filter of the dashboard (semantic._scope)."""
@@ -101,9 +148,11 @@ class Steward:
         if intent.sites:
             decision.evidence.append(
                 Evidence(
-                    claim="Scope is a supply site: " + ", ".join(intent.sites)
+                    claim="Scope is a supply site: "
+                    + ", ".join(intent.sites)
                     + " (every product and market it supplies, from Supply_Operations)",
-                    severity="info", record_ids=list(intent.sites),
+                    severity="info",
+                    record_ids=list(intent.sites),
                 )
             )
         if intent.ignored_terms:
@@ -119,6 +168,8 @@ class Steward:
                     severity="info",
                 )
             )
+        if not explain:  # _ask_ai explains in parallel with the investigation
+            return StewardResult(question=question, decision=decision, explanation="", as_of=self.as_of)
         explanation = self.explainer.explain(question, decision, self.as_of) + self._horizon_note(question, decision)
         return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
 
