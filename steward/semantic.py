@@ -23,6 +23,7 @@ from .intent import Intent
 from .spec import Measure, Relationship
 
 BAYER_DIR = ROOT_DIR / "catalog" / "bayer"
+ASSET_LEVEL_KPIS = {"KPI-051", "KPI-054"}  # asset-level data: no product / market breakdown
 BY_COLUMN = {"month": "month", "market": "market_id", "product": "product_name", "region": "region"}
 
 
@@ -172,6 +173,7 @@ def _scope(df: pd.DataFrame, filters: dict[str, str], frames: dict[str, pd.DataF
     """Product / market / region filters on a fact with product_id and market_id. Global / All Pharma = no filter."""
     out = df.merge(frames["dim_product"][["product_id", "product_name"]], on="product_id", how="left")
     out = out.merge(frames["dim_market"][["market_id", "region"]], on="market_id", how="left")
+    out = _months(out, filters)
     product = filters.get("product")
     if product and product != ALL_PHARMA:
         out = out[(out["product_id"] == product) | (out["product_name"].str.lower() == product.lower())]
@@ -182,6 +184,17 @@ def _scope(df: pd.DataFrame, filters: dict[str, str], frames: dict[str, pd.DataF
     if region:
         out = out[out["region"] == region]
     return out
+
+
+def _months(df: pd.DataFrame, filters: dict[str, str]) -> pd.DataFrame:
+    """Optional filters["month_from"] / ["month_to"] as "YYYY-MM" (inclusive) on facts that have a month column."""
+    if "month" not in df.columns:
+        return df
+    if filters.get("month_from"):
+        df = df[df["month"] >= pd.Timestamp(filters["month_from"] + "-01")]
+    if filters.get("month_to"):
+        df = df[df["month"] <= pd.Timestamp(filters["month_to"] + "-01")]
+    return df
 
 
 def _scope_assets(df: pd.DataFrame, filters: dict[str, str], frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -250,7 +263,7 @@ def compute(
             df = df[~bad]
     elif table == "fact_usage":
         assets = _scope_assets(frames["dim_asset"], filters, frames)[["asset_id", "created_date"]]
-        df = frames["fact_usage"].merge(assets, on="asset_id")
+        df = _months(frames["fact_usage"], filters).merge(assets, on="asset_id")
         df = df[
             df["month"] >= df["created_date"].dt.to_period("M").dt.to_timestamp()
         ]  # usage before creation is a DQ finding
@@ -280,11 +293,13 @@ def compute(
     return _result(_group_value(df, e, by), by, dq)
 
 
-def forecast(
-    frames: dict[str, pd.DataFrame], filters: dict[str, str] | None = None, by: str | None = None
-) -> pd.DataFrame:
-    """Forecast (EUR M) from fact_pmm in the same shape as compute(): the comparison line next to net sales."""
+def forecast(frames: dict[str, pd.DataFrame], filters: dict[str, str] | None = None, by: str | None = None,
+             exclude_zero: bool = False) -> pd.DataFrame:
+    """Forecast (EUR M) from fact_pmm in the same shape as compute(): the comparison next to net sales.
+    `exclude_zero` applies the trap-14 exclusion, to match measures that leave those rows out (forecast variance)."""
     df = _scope(frames["fact_pmm"], filters or {}, frames)
+    if exclude_zero:
+        df = df[~((df["net_sales_m_eur_syn"] == 0) & df["forecast_variance_pct"].isna())]
     key = BY_COLUMN[by] if by else None
     if key:
         rows = [(k, float(g["forecast_m_eur_syn"].sum())) for k, g in df.groupby(key)]
@@ -293,3 +308,44 @@ def forecast(
     frame = pd.DataFrame(rows, columns=[key or "scope", "value"])
     frame.attrs["dq"] = []
     return frame
+
+
+# -- display and governance lookups (used by render.py) --------------------------------------------------------------
+
+
+def is_fraction(kpi_id: str) -> bool:
+    """Growth and bias are fractions (0.05 = 5%); every other % KPI is already in percentage points."""
+    return _entries()[kpi_id]["derived"] in ("growth", "bias")
+
+
+def display(kpi_id: str, value: float) -> str:
+    """A value as a person reads it: 'EUR 12.3 M', '5.1%', '4.2 weeks', '1,234'."""
+    e = _entries()[kpi_id]
+    if pd.isna(value):
+        return "n/a"
+    if is_fraction(kpi_id):
+        return f"{value * 100:.1f}%"
+    unit = e["unit"]
+    if unit == "EUR":
+        return f"EUR {value:,.1f} M"
+    if unit == "%":
+        return f"{value:.1f}%"
+    if unit == "weeks":
+        return f"{value:.1f} weeks"
+    return f"{value:,.0f}"
+
+
+@lru_cache(maxsize=1)
+def _governance_tables() -> dict[str, pd.DataFrame]:
+    return pd.read_excel(DEFAULT_XLSX, sheet_name=["Semantic_Models", "Owners"])
+
+
+def model_info(model_id: str) -> dict:
+    """Source model of a spec: endorsement and refresh status for the governance footer."""
+    models = _governance_tables()["Semantic_Models"].set_index("model_id")
+    return models.loc[model_id].to_dict() if model_id in models.index else {}
+
+
+def owner_info(owner_id: str) -> dict:
+    owners = _governance_tables()["Owners"].set_index("owner_id")
+    return owners.loc[owner_id].to_dict() if owner_id in owners.index else {}

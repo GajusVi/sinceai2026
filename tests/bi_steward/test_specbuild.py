@@ -60,7 +60,8 @@ def test_extend_adds_the_missing_measures_and_fixes_the_owner(steward):
     assert asset.owner_status != "active" and owner_change and owner_change[0].record_ids[0] == asset.id
     assert spec.owner_id in asset.successor_candidates
     types = [v.type for v in spec.pages[0].visuals]
-    assert types == ["card"] * 3 + ["line", "bar", "table"]
+    assert types == ["card"] * 4 + ["line", "bar", "table"]  # Net Sales is added as context for the forecast variance
+    assert spec.pages[0].visuals[4].title == "Nubeqa net sales by month vs forecast"
     table = spec.pages[0].visuals[-1]
     assert table.threshold == 10.0 and table.measures == ["Forecast Variance"]
     check_layout(spec)

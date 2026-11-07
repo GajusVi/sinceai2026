@@ -209,3 +209,7 @@ class JournalEntry(BaseModel):
     coverage: float | None = None
     trust: float | None = None
     reason: str = ""
+    # W9: what exactly was approved (steward.specbuild.spec_hash), the lint outcome and how the layout was made
+    spec_hash: str = ""
+    lint: str = ""  # e.g. "7 pass, 1 warn, 0 block"
+    layout_source: str = ""  # template | llm

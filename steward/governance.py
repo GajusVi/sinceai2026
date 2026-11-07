@@ -35,6 +35,9 @@ class Governance:
 
         if decision.verdict == Verdict.CLARIFY:
             raise ValueError("Cannot approve a question without a metric: clarify the question first.")
+        blocks = [r for r in (result.spec.lint if result.spec else []) if r.status == "block"]
+        if blocks:  # W6 lint gate: a block means approve is disabled
+            raise ValueError("Blocked by the lint gate: " + "; ".join(f"{r.rule_id} {r.message}" for r in blocks))
         if decision.verdict == Verdict.EXTEND:
             created = self._extend(best.artifact, result, owner)
         elif decision.verdict == Verdict.CREATE:
@@ -42,6 +45,7 @@ class Governance:
                 raise ValueError("A new report needs an owner.")
             created = self._create(result, owner)
 
+        self._save_spec(result)
         return self._log(
             result,
             actor,
@@ -157,6 +161,7 @@ class Governance:
         reason: str = "",
     ) -> JournalEntry:
         best = result.decision.best
+        spec = result.spec
         entry = JournalEntry(
             timestamp=datetime.now(timezone.utc),
             actor=actor,
@@ -168,10 +173,27 @@ class Governance:
             coverage=best.coverage if best else None,
             trust=best.trust if best else None,
             reason=reason,
+            spec_hash=spec.provenance.get("spec_hash", "") if spec else "",
+            lint=lint_summary(spec.lint) if spec else "",
+            layout_source=spec.provenance.get("layout_source", "") if spec else "",
         )
         with open(self.data_dir / JOURNAL_FILE, "a", encoding="utf-8") as f:
             f.write(entry.model_dump_json() + "\n")
         return entry
+
+    def _save_spec(self, result: StewardResult) -> None:
+        """The approved spec itself, named by its hash: a journal entry always traces to the exact dashboard."""
+        spec = result.spec
+        if spec is None or not spec.provenance.get("spec_hash"):
+            return
+        folder = self.data_dir / "specs"
+        folder.mkdir(exist_ok=True)
+        (folder / f"{spec.provenance['spec_hash']}.json").write_text(spec.model_dump_json(indent=2), encoding="utf-8")
+
+
+def lint_summary(results) -> str:
+    counts = {s: sum(r.status == s for r in results) for s in ("pass", "warn", "block")}
+    return ", ".join(f"{n} {s}" for s, n in counts.items()) if results else "not linted"
 
 
 def today(as_of: date | None) -> date:

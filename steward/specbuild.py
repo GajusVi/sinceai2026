@@ -18,7 +18,8 @@ from .datapack import ALL_PHARMA, DEFAULT_XLSX, GLOBAL
 from .intent import Intent
 from .linking import artifact_variants
 from .models import Artifact, Decision, Verdict
-from .semantic import Feasibility, grain_of, star_schema
+from .semantic import ASSET_LEVEL_KPIS as ASSET_LEVEL
+from .semantic import Feasibility, grain_of, measure, star_schema
 from .spec import DashboardSpec, Measure, Page, SpecChange, Visual
 
 MAX_CARDS = 4
@@ -29,7 +30,6 @@ EXCEPTIONS = {
     "KPI-016": (4.0, "{who} with less than 4 weeks of stock"),
 }
 COMPARED_TO_FORECAST = {"KPI-001", "KPI-042"}
-ASSET_LEVEL = {"KPI-051", "KPI-054"}  # no product / market breakdown
 DIMENSION_WORD = {"market": "country", "product": "product", "region": "region"}
 
 
@@ -46,6 +46,9 @@ def build_spec(decision: Decision, intent: Intent, catalog: Catalog, feasibility
     measures = feasibility.buildable + feasibility.gaps
     if not measures:
         return None
+    wanted = {m.kpi_id for m in measures}
+    if "KPI-042" in wanted and "KPI-001" not in wanted:
+        measures = [measure("KPI-001")] + measures  # a forecast variance is read against net sales: context measure
     best = decision.best.artifact if decision.best else None
     if verdict in (Verdict.REUSE, Verdict.EXTEND, Verdict.CONSOLIDATE) and best:
         return spec_from_asset(best, decision, intent, catalog, measures)

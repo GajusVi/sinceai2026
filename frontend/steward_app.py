@@ -7,11 +7,13 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from steward import Steward  # noqa: E402
+from steward import Steward, semantic  # noqa: E402
 from steward.catalog import CHANGES_FILE  # noqa: E402
 from steward.explain import TemplateExplainer  # noqa: E402
 from steward.governance import JOURNAL_FILE  # noqa: E402
+from steward.linking import kpi_index  # noqa: E402
 from steward.models import GapKind, StewardResult, Verdict  # noqa: E402
+from steward.render import render as render_spec  # noqa: E402
 
 EXAMPLES = [
     "What is herbicide revenue in LATAM vs plan for Q3?",
@@ -21,6 +23,17 @@ EXAMPLES = [
     "OTIF by country in LATAM, monthly",
     "Logistics carbon footprint by country",
 ]
+
+BAYER_EXAMPLES = [
+    "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
+    "Net sales for Eylea in Japan",
+    "Net sales and OTIF for Hyrnuo in China",
+    "Net sales for Xarelto in Brazil by month",
+    "Net sales, gross-to-net and budget variance by product",
+    "Inventory coverage for Xarelto in Germany",
+]
+
+LINT_ICONS = {"pass": "✅", "warn": "⚠️", "block": "⛔"}
 
 VERDICT_TITLES = {
     Verdict.REUSE: "Reuse as is",
@@ -73,6 +86,7 @@ def get_steward() -> Steward:
 
 
 steward = get_steward()
+ON_DATA_PACK = bool(kpi_index(steward.catalog)[0])  # data-pack catalog: examples and the dashboard are Bayer's
 labels = TemplateExplainer(steward.catalog)
 
 with st.sidebar:
@@ -90,7 +104,7 @@ with st.sidebar:
     st.toggle("Expert mode: skip the interview", key="expert_mode")
     st.divider()
     st.caption("Example questions")
-    for example in EXAMPLES:
+    for example in (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES):
         if st.button(example, width="stretch"):
             st.session_state.pending_question = example
     st.divider()
@@ -108,7 +122,7 @@ def verdict_title(verdict) -> str:
 
 def ask(text: str) -> None:
     """Run one question; keep chat history (question, one-line verdict) and the latest full result."""
-    result = steward.ask(text)
+    result = steward.build(steward.ask(text))  # W3-W6: the dashboard this decision implies (None for CLARIFY)
     best = result.decision.best
     summary = verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else "")
     st.session_state.setdefault("messages", []).extend(
@@ -135,12 +149,98 @@ def render_evidence(decision) -> None:
         st.caption("Sample evidence: not from the engine yet.")
 
 
+@st.cache_resource
+def get_frames() -> dict:
+    return semantic.load_frames()
+
+
+def render_dashboard(result: StewardResult) -> None:
+    """W5-W7 on screen: the spec's dashboard on governed data, its changes, the lint gate, the governance footer."""
+    spec = result.spec
+    if spec is None:
+        if result.decision.verdict in (Verdict.CLARIFY, "NOT_FEASIBLE"):
+            st.caption("No dashboard yet: clarify the question first.")
+        return
+    key = spec.provenance.get("spec_hash", "spec")
+    st.divider()
+    st.markdown(f"#### Dashboard: {spec.name}")
+    st.caption(
+        f"{spec.change_type.upper()} · version {spec.version} · "
+        f"layout from {spec.provenance.get('layout_source', '?')} · spec {key}"
+    )
+
+    frames = get_frames()
+    products = ["All products"] + sorted(frames["dim_product"]["product_name"])
+    markets = ["Global"] + sorted(frames["dim_market"]["market_id"])
+    market_names = dict(zip(frames["dim_market"]["market_id"], frames["dim_market"]["market_name"], strict=True))
+    months = [m.strftime("%Y-%m") for m in sorted(frames["dim_month"]["month"])]
+    c1, c2, c3 = st.columns(3)
+    product = c1.selectbox("Product", products, index=_index(products, spec.filters.get("product")), key=f"flt_p_{key}")
+    market = c2.selectbox(
+        "Market", markets, index=_index(markets, spec.filters.get("market", "Global")),
+        format_func=lambda m: m if m == "Global" else f"{market_names[m]} ({m})", key=f"flt_m_{key}",
+    )
+    first, last = c3.select_slider("Months", options=months, value=(months[0], months[-1]), key=f"flt_t_{key}")
+    filters = {
+        "product": "All Pharma" if product == "All products" else product,
+        "market": market, "month_from": first, "month_to": last,
+    }
+    dash = render_spec(spec, frames, filters)
+
+    tiles = [("card", c) for c in dash.cards] + [("gap", g) for g in dash.gaps]
+    for row in range(0, len(tiles), 4):
+        for col, (kind, tile) in zip(st.columns(4), tiles[row : row + 4], strict=False):
+            with col:
+                if kind == "card":
+                    st.metric(tile.title, tile.value, tile.comparison or None,
+                              delta_color="off" if tile.tone == "neutral" else "normal", help=tile.note or tile.kpi_id)
+                else:
+                    with st.container(border=True):
+                        st.markdown(f"**{tile.title}**")
+                        st.caption("Gap: governed KPI, no source data")
+                        st.caption(tile.reason)
+    fig_cols = st.columns(2)
+    for i, (_title, fig) in enumerate(dash.figures):
+        fig_cols[i % 2].plotly_chart(fig, use_container_width=True, key=f"fig_{key}_{i}")
+    for title, table in dash.tables:
+        st.markdown(f"**{title}**")
+        if table.empty:
+            st.caption("No rows past the threshold for this selection.")
+        else:
+            st.dataframe(table, hide_index=True, width="stretch")
+    if dash.dq:
+        with st.expander("Data quality notes"):
+            for note in dash.dq:
+                st.write("- " + note)
+    for label, text in dash.footer:
+        st.caption(f"**{label}:** {text}")
+
+    if spec.changes:
+        with st.expander(f"What changes in this version ({len(spec.changes)})", expanded=True):
+            for change in spec.changes:
+                st.write(f"- **{change.kind.replace('_', ' ')}**: {change.detail}  `{', '.join(change.record_ids)}`")
+    st.markdown("##### Lint gate (RULE-001..008, FOCUS, DATA)")
+    if spec.lint:
+        for r in spec.lint:
+            st.write(f"{LINT_ICONS.get(r.status, '•')} **{r.rule_id}** {r.message}")
+    else:
+        st.caption("The lint gate is not available yet; nothing blocks approval.")
+    st.download_button(
+        "Download spec JSON", spec.model_dump_json(indent=2), file_name=f"spec_{key}.json", mime="application/json"
+    )
+
+
+def _index(options: list[str], value: str | None) -> int:
+    return options.index(value) if value in options else 0
+
+
 def render_result(result: StewardResult) -> None:
     decision = result.decision
     st.subheader(verdict_title(decision.verdict))
     st.markdown(result.explanation)
 
     render_evidence(decision)
+    render_dashboard(result)
 
     with st.expander("How the question was understood"):
         q = result.question
@@ -210,9 +310,12 @@ def render_result(result: StewardResult) -> None:
     owner = None
     if decision.verdict == Verdict.CREATE or (decision.best and not decision.best.artifact.has_owner):
         owner = st.text_input("Report owner", key="owner")
+    blocked = [r for r in (result.spec.lint if result.spec else []) if r.status == "block"]
+    if blocked:
+        st.error("Approve is disabled by the lint gate: " + "; ".join(f"{r.rule_id}: {r.message}" for r in blocked))
     col_ok, col_no = st.columns(2)
     with col_ok:
-        if st.button(APPROVE_LABELS[decision.verdict], type="primary", width="stretch"):
+        if st.button(APPROVE_LABELS[decision.verdict], type="primary", width="stretch", disabled=bool(blocked)):
             try:
                 entry = steward.governance.approve(result, actor=actor, owner=owner or None)
             except ValueError as error:
@@ -414,6 +517,8 @@ with tab_journal:
                     "report": e.artifact_id,
                     "created": e.created_artifact_id,
                     "reason": e.reason,
+                    "spec": e.spec_hash,
+                    "lint": e.lint,
                 }
                 for e in reversed(entries)
             ],
