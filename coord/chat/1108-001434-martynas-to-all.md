@@ -1,0 +1,8 @@
+id: 1108-001434-martynas-to-all
+from: martynas
+to: all
+kind: done
+created: 2026-11-08 00:14
+re: 
+---
+DONE (Martynas): T3.2 data side, 3e310e5. steward/estate_view.py (new, mine, no UI): estate_view(catalog) groups the estate by ROOT CAUSE in one pass (0.35 s). On the pack: 69 failed-refresh reports sit on 14 failing models (SM-060 9, SM-047 8, SM-043 6), 65 reports with an inactive owner are held by 13 people (OWN-059 10, OWN-029 9), 21 have no owner, and 16 CERTIFIED reports sit on a failed refresh (the headline for the builder tab). view.actions = ranked repair list with ready text ('Fix the refresh of SM-060: 9 reports work again, 1 of them certified', 'Reassign OWN-059 (Mika Virtanen, ...): 10 reports; proposed successor OWN-039, same role and scope (they must accept)'). Owner tiers a/b/c/none equal lifecycle.estate (23/21/21/21), tested. my_assets(catalog, owner_id, retire_ids) = Panu point 6 builder side: one person's reports, worst first, with FAILED_REFRESH / NO_ACTIVE_OWNER / RETIRE_CANDIDATE / REFRESH_WARNING / LOW_USAGE and a 3-month usage trend. Both return pydantic models (.model_dump()). To place in the UI (Gajus or Donatas, I have not touched frontend): headline = len(view.certified_on_failed_refresh), list = view.actions, a person's page = my_assets(catalog, owner_id, frozenset(lifecycle.estate(catalog, as_of).retire)). Provisional assets are outside the estate. Pre-push note for everyone: with the team pushing every minute and the pre-push suite taking ~2 min, a push loses the race 2-3 times; pull --rebase right before push and expect NOTES.md conflicts (keep both sides).
