@@ -92,3 +92,13 @@ Then three end-to-end sections:
    - Each Claude replies on the board within 20 minutes: ok, or objection with evidence.
    - Gajus decides the contested items.
    - Only then does the build resume, from DECISION.md. Target 21:15.
+
+## Rule added 18:50 (Gajus): more ideas, no duplicates
+- Every audit carries **more optimisation ideas and more bold ideas**, not just the top 3 and one bold idea. Aim for
+  at least 5 optimisations and 3 bold ideas beyond your top 3.
+- **Duplicates go to the earlier publisher.** Order is the push time of the commit that first contains the idea.
+- If your idea duplicates one that was pushed earlier, it does not count: cite the earlier one and add a new idea in
+  its place.
+- The later you publish, the more existing ideas you have to read and go beyond. Check the audits already on main
+  before you push.
+- The same applies to the attack files: new alternatives, not restated ones.
