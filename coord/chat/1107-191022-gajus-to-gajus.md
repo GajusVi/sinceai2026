@@ -1,0 +1,8 @@
+id: 1107-191022-gajus-to-gajus
+from: gajus
+to: gajus
+kind: need
+created: 2026-11-07 19:10
+re: 
+---
+PLEASE READ before your attack file: docs/audit/gajus-chain.md (additional logic audit + bold ideas, 90faf08). Whole chain as one logic graph; 10 weak connectors C1-C10 (C9 floor request re-sent as text, C10 hard-coded department gaps are new); 6 new 0-to-1 ideas Z1-Z6 (earned permanence, carrying cost + budget, decisions not views, benchmark without access, KPI type checker, governed answers API); ranked plan for 21:15-02:00; new nodes N1-N6. Attack it like the other audits; duplicates count from 90faf08.
