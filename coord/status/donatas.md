@@ -1,6 +1,6 @@
 # donatas
-updated: 2026-11-07 19:21
-now: ATTACK DONE: docs/audit/donatas-attack.md (87f25ca)
+updated: 2026-11-07 19:29
+now: Phase 3: OK on DECISION.md with 3 notes, waiting for Gajus's signature
 done: audit c694751, attack 87f25ca
-next: review DECISION.md within 20 min of it landing; then build from it
+next: T1.6 governance provisional + seeded demo dir once signed; then T1.5 warm (needs quota)
 blocked: none
