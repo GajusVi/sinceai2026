@@ -1,0 +1,3 @@
+# Desktop app (DECISION T2.6). Install: make app-setup   (checked on Intel macOS + Python 3.11, 7 Nov 2026)
+pywebview      # native window: WebKit on macOS (pyobjc), WebView2 on Windows
+pyinstaller    # packages BI Steward.app / BI Steward.exe (tools/build_app.py)

@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo bayer pack-large bayer-large board ui-old ask api eval eval-steward warm warm-layout test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo bayer pack-large bayer-large board ui-old ask api eval eval-steward warm warm-layout app app-setup test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -12,6 +12,12 @@ ui:         ## BI Steward on the Bayer data pack, fresh copy of demo/steward_see
 
 demo:       ## BI Steward on the Bayer data pack, fresh copy of demo/steward_seed, LLM forced off (stage-safe, no network)
 	D=$$(mktemp -d) && cp -R demo/steward_seed/. $$D && STEWARD_DATA_DIR=$$D STEWARD_CATALOG=datapack STEWARD_USE_LLM=off $(PY) -m streamlit run frontend/steward_app.py
+
+app-setup:  ## install the desktop app tools (pywebview, pyinstaller)
+	uv pip install --python $(PY) -r requirements-app.in
+
+app:        ## BI Steward as a desktop app: native login window -> workspace (needs make app-setup)
+	$(PY) app/main.py
 
 bayer:      ## BI Steward on the Bayer data pack (360 assets)
 	STEWARD_CATALOG=datapack $(PY) -m streamlit run frontend/steward_app.py

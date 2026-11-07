@@ -111,3 +111,8 @@ def can_see(user: User, product_scope: str, market_scope: str, supply: list[tupl
 def can_grant(approver: User) -> bool:
     """Demo: any builder grants any request. Future: only the builder who owns the requested data."""
     return approver.can("grant_access")
+
+
+def account(username: str) -> User | None:
+    """The account by name only, for a login already checked elsewhere (the desktop app's signed handover)."""
+    return next((u for k, (_, u) in _ACCOUNTS.items() if k.lower() == username.strip().lower()), None)

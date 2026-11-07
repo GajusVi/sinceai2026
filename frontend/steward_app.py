@@ -1,5 +1,6 @@
 """BI Steward decision screen. Run: make ui  (Windows: .\\run.ps1 ui)"""
 
+import os
 import sys
 import tempfile
 from html import escape
@@ -14,7 +15,8 @@ import ui  # noqa: E402  (frontend/ui.py: design system)
 import worker_view  # noqa: E402  (frontend/worker_view.py: the production-floor Ask tab)
 
 from steward import Steward, semantic  # noqa: E402
-from steward.auth import COMPANY, DEMO_ACCOUNTS, can_see, login  # noqa: E402
+from steward import apptoken  # noqa: E402
+from steward.auth import COMPANY, DEMO_ACCOUNTS, account, can_see, login  # noqa: E402
 from steward.catalog import CHANGES_FILE  # noqa: E402
 from steward.explain import TemplateExplainer  # noqa: E402
 from steward.governance import JOURNAL_FILE  # noqa: E402
@@ -88,8 +90,14 @@ APPROVE_LABELS = {
     Verdict.CREATE: "Create the report",
 }
 
-st.set_page_config(page_title="BI Steward", layout="wide", initial_sidebar_state="collapsed")
+APP_MODE = apptoken.app_mode()  # started by the desktop launcher (app/main.py): native login, no browser chrome
+st.set_page_config(page_title="BI Steward", layout="wide",
+                   initial_sidebar_state="expanded" if APP_MODE else "collapsed")
 ui.inject()
+if APP_MODE:  # mechanics, not design (Donatas styles the app in steward.css): hide what makes it look like a website
+    st.html("<style>[data-testid='stHeader'],[data-testid='stToolbar'],[data-testid='stStatusWidget'],"
+            "[data-testid='stDecoration'],[data-testid='stSidebarCollapseButton'],footer{display:none!important}"
+            ".block-container{padding-top:1.2rem}</style>")
 
 
 def render_login() -> None:
@@ -114,9 +122,21 @@ def render_login() -> None:
         )
 
 
+if APP_MODE and st.session_state.get("user") is None and "u" in st.query_params:
+    # the native login window checked the password; this signed token hands the account over (steward/apptoken.py)
+    _who, _token = st.query_params.get("u", ""), st.query_params.get("t", "")
+    if apptoken.verify(_who, _token) and account(_who):
+        st.session_state.user = account(_who)
+    st.query_params.clear()
+
 user = st.session_state.get("user")
 if user is None:
-    render_login()
+    if APP_MODE:  # the desktop app signs in from its own native window, never from a form in the page
+        ui.ask_hero("Signed out")
+        st.markdown(f'<a href="{os.environ.get(apptoken.ENV_LOGIN_URL, "")}" target="_top">Sign in again</a>',
+                    unsafe_allow_html=True)
+    else:
+        render_login()
     st.stop()
 
 
@@ -143,17 +163,31 @@ def llm_label() -> str:
 ON_DATA_PACK = bool(kpi_index(steward.catalog)[0])  # data-pack catalog: examples and the dashboard are Bayer's
 labels = TemplateExplainer(steward.catalog)
 
+# Workspace pages by role (steward/auth.py ACTIONS): maintenance is the BI team's, the journal is management's and up.
+TABS = [
+    ("Ask", "ask"),
+    ("Catalog health", "maintain"),
+    ("Orphan rescue", "maintain"),
+    ("Journal", "view_journal"),
+    ("Catalog", "view"),
+]
+_names = [name for name, action in TABS if user.can(action)]
+PLANTS = "all (company)" if user.plants == COMPANY else ", ".join(user.plants)
+
 with st.sidebar:
     st.markdown("#### BI Steward")
-    st.caption("Governed analytics for Bayer Pharma. Build less, build better.")
+    with st.container(key="bs-rail"):  # left navigation rail (T2.6); Donatas styles .st-key-bs-rail
+        PAGE = st.radio("Workspace", _names, key="nav", label_visibility="collapsed")
     st.caption(f"AI model: {llm_label()}  \nData as of {steward.as_of}")
-    plants = "all (company)" if user.plants == COMPANY else ", ".join(user.plants)
     st.markdown(f"**{user.username}** · {user.role.capitalize()}")
     st.caption(
-        f"{user.name}, {user.location}  \nPlant: {plants}"
+        f"{user.name}, {user.location}  \nPlant: {PLANTS}"
         + (f"  \nDepartment: {user.department}" if user.department else "")
     )
-    if st.button("Log out", width="stretch"):  # the approval queue stays: the demo hands it to a builder
+    if APP_MODE:  # back to the native login window (the launcher's page); this session ends with the page
+        st.markdown(f'<a class="bs-logout" href="{os.environ.get(apptoken.ENV_LOGIN_URL, "")}" target="_top">'
+                    "Log out</a>", unsafe_allow_html=True)
+    elif st.button("Log out", width="stretch"):  # the approval queue stays: the demo hands it to a builder
         for key in ("user", "messages", "interview", "result", "result_intent", "novice_result", "requested_by"):
             st.session_state.pop(key, None)
         st.rerun()
@@ -905,16 +939,13 @@ def render_orphan_rescue() -> None:
                 st.success("Proposal recorded in the journal (not applied).")
 
 
-# Tabs by role (steward/auth.py ACTIONS): maintenance is the BI team's, the journal is management's and up.
-TABS = [
-    ("Ask", "ask"),
-    ("Catalog health", "maintain"),
-    ("Orphan rescue", "maintain"),
-    ("Journal", "view_journal"),
-    ("Catalog", "view"),
-]
-_names = [name for name, action in TABS if user.can(action)]
-_tabs = dict(zip(_names, st.tabs(_names), strict=True))
+with st.container(key="bs-topbar", horizontal=True):  # top bar (T2.6); Donatas styles .st-key-bs-topbar
+    st.markdown(f"**{PAGE}**")
+    st.caption(f"{user.username} · {user.role.capitalize()} · {PLANTS}")
+    st.caption("AI: " + llm_label())
+st.html("<style>[class*='st-key-bs-hidden-']{display:none!important}</style>")
+_tabs = {name: st.container(key=("bs-page-" if name == PAGE else "bs-hidden-") + name.lower().replace(" ", "-"))
+         for name in _names}
 tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog = (_tabs.get(name) for name, _ in TABS)
 
 SKIP_LABEL = "Use recommended"

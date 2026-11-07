@@ -76,7 +76,7 @@ def test_worker_screen_has_buttons_not_a_chat_box(monkeypatch, tmp_path):
     at = AppTest.from_file(APP, default_timeout=180)
     at.session_state["user"] = login("Worker21", "Worker123")
     at.run()
-    assert not at.exception and not at.chat_input and [t.label for t in at.tabs] == ["Ask", "Catalog"]
+    assert not at.exception and not at.chat_input and at.radio(key="nav").options == ["Ask", "Catalog"]
     labels = [b.label for b in at.button]
     assert labels[0] == "Chat" and "Other department" in labels and "Is supply safe at my plant?" in labels
     next(b for b in at.button if b.label == "Weeks of stock on hand").click().run()
