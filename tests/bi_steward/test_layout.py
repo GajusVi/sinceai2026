@@ -10,6 +10,7 @@ from steward.config import Settings
 from steward.layout import ENVELOPES, Layouter, LayoutError, fit, plan
 from steward.lint import can_approve
 from steward.models import Verdict
+from steward.spec import Visual
 from steward.specbuild import _menu
 
 pytestmark = pytest.mark.filterwarnings("ignore")
@@ -113,6 +114,9 @@ def test_llm_orders_the_story_and_writes_the_questions(steward, template):
     assert ids(spec) == [f"{i.split(':')[0]}:{names[i.split(':')[1]]}" for i in want]
     assert spec.provenance["layout_source"] == "llm" and spec.provenance["model"] == "fake-1"
     assert spec.pages[0].visuals[0].purpose == "Question for card?"
+    if "step" in Visual.model_fields:  # Martynas's contract field: the position in the story
+        assert [v.step for v in spec.pages[0].visuals] == list(range(1, len(want) + 1))
+        assert spec.pages[0].visuals[0].question == "Question for card?"
     assert spec.provenance["layout_reason"].startswith("Answer first")
     assert can_approve(spec)  # the LLM layout still passes the lint gate
     # same measures, same numbers: the layout never changes what is measured

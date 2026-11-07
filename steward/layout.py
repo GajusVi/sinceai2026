@@ -84,6 +84,12 @@ def _clean_text(text: object, default: str, limit: int = MAX_QUESTION) -> str:
     return text
 
 
+def _step_fields(position: int, question: str) -> dict:
+    """purpose always; Visual.step and Visual.question (Gajus OK, Martynas adds them to spec.py) once they exist."""
+    fields = {"purpose": question, "step": position, "question": question}
+    return {k: v for k, v in fields.items() if k in Visual.model_fields}
+
+
 def plan(raw: object, options: list[Option], base: Page, env: Envelope) -> tuple[Page, str]:
     """Validate a proposal {"steps": [{"id", "question"}], "reason"} -> (page, reason). Raises LayoutError."""
     if not isinstance(raw, dict) or not isinstance(raw.get("steps"), list) or not raw["steps"]:
@@ -115,7 +121,7 @@ def plan(raw: object, options: list[Option], base: Page, env: Envelope) -> tuple
     have = {o.id for o, _ in kept}
     kept += [(o, o.visual.purpose) for o in required if o.id not in have]  # forced: answer for every asked measure
     ordered = (kept + rest)[: env.max_visuals]
-    visuals = [o.visual.model_copy(update={"purpose": q}) for o, q in ordered]
+    visuals = [o.visual.model_copy(update=_step_fields(n, q)) for n, (o, q) in enumerate(ordered, 1)]
     reason = _clean_text(raw.get("reason"), "", MAX_REASON)
     return base.model_copy(update={"visuals": visuals}), reason
 
