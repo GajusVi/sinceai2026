@@ -5,6 +5,8 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from .spec import DashboardSpec
+
 
 class MetricVariant(BaseModel):
     kpi_id: str
@@ -187,6 +189,7 @@ class StewardResult(BaseModel):
     decision: Decision
     explanation: str
     as_of: date
+    spec: DashboardSpec | None = None  # set by Steward.build(): the dashboard this decision implies (W5-W6)
 
 
 class JournalAction(str, Enum):

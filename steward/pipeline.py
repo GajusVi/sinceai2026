@@ -44,7 +44,7 @@ class Steward:
         self.governance = Governance(self.catalog, self.data_dir)
 
     def _load_catalog(self) -> Catalog:
-        """STEWARD_CATALOG=datapack (or catalog_dir = the .xlsx) uses the Bayer data pack with catalog/bayer/ dictionaries."""
+        """STEWARD_CATALOG=datapack (or catalog_dir = the .xlsx) uses the Bayer data pack and catalog/bayer/."""
         from .datapack import DEFAULT_XLSX, load_catalog  # lazy: pandas only needed for the data pack
 
         if self.catalog_dir.suffix == ".xlsx":
@@ -54,8 +54,9 @@ class Steward:
         return Catalog.load(self.catalog_dir, self.data_dir)
 
     def ask(self, text: str, context: dict[str, str] | None = None) -> StewardResult:
-        """`context` = request metadata ({"product": ..., "market": ...}). Text that contradicts it (blocker) forces CLARIFY;
-        metadata that is only broader or narrower than the text (confirm) adds a warning Evidence, the verdict follows the text."""
+        """`context` = request metadata ({"product": ..., "market": ...}). Text that contradicts it (blocker) forces
+        CLARIFY; metadata only broader or narrower than the text (confirm) adds a warning Evidence, the verdict follows
+        the text."""
         question = self.parser.parse(text)
         confirm: list[str] = []
         if context:
@@ -66,9 +67,34 @@ class Steward:
             confirm = confirmations(found)
         hits = self.search.search(question)
         decision = decide(question, hits, self.catalog, self.as_of)
-        decision.evidence.extend(Evidence(claim=f"Confirm with the requester: {c}", severity="warning") for c in confirm)
+        for c in confirm:
+            decision.evidence.append(Evidence(claim=f"Confirm with the requester: {c}", severity="warning"))
         explanation = self.explainer.explain(question, decision, self.as_of)
         return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
+
+    def build(self, result: StewardResult, intent=None) -> StewardResult:
+        """W3 feasibility -> W5 spec -> W6 lint. Returns a copy of `result` with `.spec` set; `.spec` stays None when the
+        verdict builds nothing (CLARIFY, NOT_FEASIBLE) or on the sample catalog. Without an interview there is no Intent:
+        it is derived from the parsed question."""
+        from .linking import kpi_index
+
+        if not kpi_index(self.catalog)[0]:
+            return result
+        from .intent import intent_from_parsed
+        from .semantic import feasibility
+        from .specbuild import build_spec, spec_hash
+
+        intent = intent or intent_from_parsed(result.question, self.catalog)
+        spec = build_spec(result.decision, intent, self.catalog, feasibility(intent))
+        if spec is not None:
+            try:
+                from .lint import lint  # Margiris's N5; until it lands the spec simply has no lint results
+            except ImportError:
+                pass
+            else:
+                spec.lint = lint(spec, self.catalog)
+                spec.provenance["spec_hash"] = spec_hash(spec)  # lint is not part of the hash
+        return result.model_copy(update={"spec": spec})
 
     def health(self) -> CatalogHealth:
         return catalog_health(self.catalog, self.as_of)

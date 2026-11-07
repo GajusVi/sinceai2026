@@ -87,3 +87,19 @@ class Intent(BaseModel):
             parser=f"intent:{self.mode}",
             **extra,
         )
+
+
+def intent_from_parsed(question: ParsedQuestion, catalog) -> Intent:
+    """The plain Ask flow has no interview: build an Intent from the parser output so the same dashboard path can run.
+    Value ids become names (P-NUB -> Nubeqa) and "Global" stays "Global"."""
+    product_id = question.filters.get("product")
+    products = [catalog.dimension_value_label("product", product_id)] if product_id else []
+    markets = [question.filters["market"]] if "market" in question.filters else []
+    regions = [question.filters["region"]] if "region" in question.filters else []
+    grain = "quarter" if "quarter" in question.dimensions else "month"
+    return Intent(
+        products=products, markets=markets, regions=regions, metric_ids=list(question.metrics), grain=grain,
+        unmapped_terms=list(getattr(question, "unmapped_terms", [])),
+        conflicts=list(getattr(question, "conflicts", [])),
+        text=question.text, mode="expert",
+    )

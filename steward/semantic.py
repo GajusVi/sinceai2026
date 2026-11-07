@@ -185,7 +185,7 @@ def _scope(df: pd.DataFrame, filters: dict[str, str], frames: dict[str, pd.DataF
 
 
 def _scope_assets(df: pd.DataFrame, filters: dict[str, str], frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    """Asset-level facts (usage, certification): an asset counts for a product / market if its scope is that or wider."""
+    """Asset-level facts (usage, certification): an asset counts for a product or market if its scope covers it."""
     out = df
     product = filters.get("product")
     if product and product != ALL_PHARMA:
