@@ -9,6 +9,8 @@ Built 6 Nov 2026 ~20:30 EET from everything in `Hackathon Resources/`.
 | 03_DATA_PACK.md | Every sheet, join keys, profiled numbers, the traps baked into the data |
 | 04_GOOGLE_WORKSHOP.md | Jason Mayes talks: agent workflow method + Web AI / WebMCP, what's usable for us |
 | 05_SYNTHESIS.md | My read of what wins, product concept, demo story, scoring map, questions for Saturday Q&A |
+| 08_PANU_QA.md | Panu's Saturday Q&A: his points (catalog for viewers vs builders, short grill, reuse, one approver, judging) + what we built |
+| 08_PANU_QA_transcript.txt | The raw Q&A transcript (speech-to-text, garbled) |
 
 Sources read: Since_AI_Bayer_Challenge_Brief_FINAL.docx (= .pdf), Bayer challange brief.docx (transcript of Panu's
 talk, speech-to-text, garbled), 4 slide photos, Builder_Data_Pack.xlsx (24 sheets), Google Dev Intro.docx,

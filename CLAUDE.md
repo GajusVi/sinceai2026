@@ -15,6 +15,7 @@ Shortlist and planned builds per challenge: docs/sinceai/TOP4.md. Real briefs an
 ## Challenge: Bayer "Build Less, Build Better: AI for Governed Analytics" (locked Fri 6 Nov)
 Build plan (tasks per person, clock, cut order): docs/BUILD_PLAN.md.
 Read first: docs/challenge/00_INDEX.md (brief, Panu's framework, data-pack traps, plan, repo review).
+Panu Q&A (Sat 7 Nov): docs/challenge/08_PANU_QA.md (takeaways + what we built) and 08_PANU_QA_transcript.txt (raw, garbled).
 Data pack (synthetic, 360 BI assets): data/bayer/Bayer_Pharmaceuticals_SinceAI_2026_FINAL_Builder_Data_Pack.xlsx.
 Scope: Bayer Pharma only. No Crop Science, no Consumer Health, no clinical/pharmacovigilance use cases.
 

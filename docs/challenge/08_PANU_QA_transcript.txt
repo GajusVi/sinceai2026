@@ -1,0 +1,133 @@
+# Panu Aho (Bayer) Q&A with our team, Sat 7 Nov 2026 ~09:00-12:00, Joki. Speech-to-text, heavily garbled.
+# Clean takeaways: docs/challenge/08_PANU_QA.md. The first paragraph is likely the end of another team's conversation.
+
+What about the other sources of landscape? So it would be like one force it really, really.
+But, you know, your solution. I should already get into that. I said, like, um... Yeah. It's just
+weird, like an arm, but we can't actually really manage to put inside, you know, power, VI
+oracles, for example, because if you, if you actually know, can go, connection, uh, power,
+VI, documentation, and there are some, some, some, some, some, some, some, some,
+some, some, some, some, some, some, some, some, some, some, some, some, some,
+some, some, some, some, some, some, It's just a plane, a representation of... This is
+something you would... Can I talk about your power, yeah? Yeah. We are working. Yeah.
+ We are still, like, temporary. We're gonna make them dynamic, so they can change based
+on the dividing data. Yes, Bayland. It's a similar skeleton, they love show, but it's only for
+today. It's a working demo, not to see something. I would really... Oh, yeah. So just make
+sure... You bring for one... You haven't... But my stuff is already, I will say. But what I'm
+seeing here is, it's a really solid stopping point, I mean, take no issues there. Our plan is...
+That's what makes no sense. That's where I'm left. I like that a lot when it's... Yeah, so took
+some... No, he's going to implement from from like governance. In fact, the
+deeperspective, because the governance is really... because those... For passport, no, it
+doesn't end up twice. And the people, they have to be able to make. So, that is, that is best
+for what, what they are saying, and some decisions would have, like... I have like... You
+guys, the word for second. You know, big thing. You know, he's in your mind as well. That's,
+you know, compact security, the public... Let's say in one, let's say somebody dies.
+Because we see that effective product from our past. Then I was raised back here. You
+know, who will who will be with us for? And why? Why does it exist? So for this reason, it's
+really... He's part of the pipeline. He used to be explainable. Right. All right. Okay, okay.
+ Very good. Hello. Hello. How are you? What's up? How are you feeling? Less, uh, sleep,
+less rest, but... You're feeling good? So, I know, uh, maybe we will start from uh, undressing
+the infrastructure that we, the logic that we have, though. to advise and what you have
+shown us here, right? Yes, wonderful. Let's see, a space... Yeah, yeah. Yeah? There's this
+request right? So, I'm not the, uh, like, a death person. That's why I do really grow... Yeah,
+so, um, all this... All right, let's see the power, pursing food, the first step, like, interview...
+ Mm hmm. Yeah. Yeah, yeah. I answer it. Okay. You still have to, like, two, three, maybe
+four, maybe five. Exactly, but really short yet? Yeah, it seems like a lot of questions are
+difficult than are, you know, for end users. I would say keep it, keep it short and sweet, but
+still, it needs to exist like going directly from the 1st from to the finished product. In most
+cases, it's not feasible. But you have to take the user factor also into account because if it's
+too difficult, then nobody will want to use it. We kind of do, like, a confidence system based
+on the interview, so it's up to five or six questions. But it can end sooner if the confidence
+threshold is reached. We still haven't kind of fixed it up. Basically, yeah, you do the
+interview, the AI matches the KPS with the dashboards and other stuff. And so we don't
+really want to send the data to the cloud, then we run code, which just matches it. and then
+makes the dashboard. We then made, like, one verdict per request, so maybe, you know,
+reuse a certain dashboard, because our main understanding is, like, we don't want to build
+more dashboards that don't need to exist, right? Yeah, so like... So you have to search for
+existing reports. Yeah, exactly. I really like where you're coming from, first of all, because
+you're starting from, like, the existing predefined KPI should be. That's exactly the way to
+go because it shouldn't be this way that everybody invents their own KPIs, right? Because
+you cannot lead an organization like that. Exactly But those need to be actually decided
+beforehand. And if they don't exist, that's like a really a bigger problem and what no
+system cannot solve this. Yeah. So that's like a really good approach to begin with and also
+that you are looking into like what already exists. Like, can we can we make some little
+tweaks to the existing assets instead of creating another one? That's because that's always,
+you are trying to, from IT perspective, minimize the maintenance vector that you are sort of
+dealing with. Okay. Yeah, so basically, as we have said, right? So they are different
+verdicts. So let's see, we can do a new board, a new dash board. There's like nothing
+similar exists. Not even close. Yeah, but one person needs needs to be like approving it, you
+know, to push it into the system. So yeah, so this is basically... We have like a kind of a
+working system. It still runs on, like, a cloud-based Gemini, we're gonna apply to kind of run
+it locally, so it's quicker and, like, really. So, you, we're listening closer to time. We tried
+Google, but, guys, cannot. We kind of wanted to. That was really, okay, so like, yeah, I
+wanted to also ask, is that like even a feasible question? Like, let's say a person comes up
+and says, how how like efficient is my plant running? Definitely. And that's like a really,
+really like... Okay. Usually, usually, that's like a little bit typically ambiguous, Western, right?
+ Yeah, that's what I was trying to understand because, like, maybe... I mean, some of the
+examples, which I looked in the data, said they were, in my opinion, even little bit too
+policed. So it's good that you came up with, you know, some of your own as well. Then you
+kind of like choose which plan you're working at. Yeah, so it's always the grilling... Yeah,
+then it gives you a rough, like, suggestion. For example, if you don't understand nothing
+about KPIs, like it just says, okay, here's what I recommend this and what I recommend.
+should go with it, but if we change something, then we, let's say... I mean, the set of the KPS
+for now is just basically a default, like, something used over all, like, plants and stuff, like
+stuff, but we're gonna set it up properly. And then you decide what this report is for. maybe
+decide on an action or keep an eye on it, let's say, use that. So I kind of, like, gonna
+produce a chart here, but, like, it's still not dynamic enough because, like, you still use the
+same charts. It doesn't really represent some data correct? Like, it looks bad, but it pulls
+the data, it works. That's what we test it, and then you can export it to powered BI, upload
+it, and then come back. Yeah, like pops up gears, we're gonna try to connect it so it does it
+automatically somehow, but... That's where we're here so far and then, yeah, the team
+approved. I really, really like it. Did you already... I also saw some kind of catalog in the,
+yeah, but it's that like an still in progress feature or... Yeah, it's still in progress future. Okay,
+that's that's maybe something already, very good. It's got all the, I think, the main points are
+already addressed quite well. So what you might want to look into is exactly next is sort of
+catalog, catalog, functionality. So what happens when we start creating these very many of
+these different assets? Where do they live? Where do the people access those? Because
+there's also like when you come to think of it, there's like a couple of different kinds of roles
+involved in this process. So 1st of all, there is the people who are at the production floor.
+  They just want to look at it and understand it. They don't care. They don't care like how it
+was really built. But they must be able to look at it and understand it and make quick
+decisions based on it. Then on the other hand, we have the builders. And those would
+typically be like 2 different populations to do 2 different roles in a companies such as ours.
+  So if you think about like a catalog, you can also restart thinking which kind of features
+would eat each one of these. these groups want to see in the catalog, for instance, because
+the other one needs to just be able to find what they need easily as possible. But then the
+other one is more like focused on I need to be able to maintain this. I need to be able to
+understand what is the sort of life cycle of this asset I created or is there any problems?
+  Are my my assets like healthy? Do I need to maybe figure something out in the data?
+backend systems for my stuff to work. So these are really like that. once you start sort of
+like tailoring the experience towards this specific user groups. Yeah, you need to... Then
+that would possibly be something you could also bring, you know, additional value to your
+presentation, which is already already pretty solid, but those are like some considerations.
+  Yeah, it's decided. Okay, we also have a few questions in one time. So maybe, so, 1st of
+all, okay, so we addressed that, about some media number of iterations of questions at the
+beginning. Yeah, you have to Wi-Fi this weird spot. Yeah, so like three, three, and we
+believe... No, I mean, it's that the exact number is not so important, but I mean, it cannot
+be like 50 questions. That's like a whole hour, you know? Or 2 hours actually. Okay, about
+the metrics. So what metrics are you looking into? Yeah, so like what numbers would
+make your team run a pilot of this? To be honest, that's a freaky, freaky one because like,
+you would need to have the real users to give it a try to kind of answer that question
+because can you come sort of make some kind of survey to tell users? I mean, like both
+both the main user groups, so the viewers and the and the builders. So from the builders, I
+would then have a team of builders, try it out, and like make some sort of like a survey. How
+does it feel? Does it improve your building experience compared to your existing
+workflow? Right now, during the course of the haircutton, you won't have this luxury
+probably to interact. I mean, you could simulate. I mean, somebody can play the role of
+the of the user and do it that way, but it's not really, I wouldn't maybe focus on it. It's so
+much, but from like evaluation perspective, if I if I say my tools and some about that. So the
+thing is, I'm going to have like very, very limited time because there are so many teams.
+  Very, very, very short time to look at any individual submission. So just make sure that you
+are presenting your sort of main pipeline in a logical sequence somehow, so that I can
+understand what are the sort of I thought the, I saw this sort of the grilling grilling face now,
+but is there any other, like, what happens after that? What are the sort of intermediate
+steps in your in your process? How do you get from the initial prompt of a finished
+product? Are there any stuff like that? And EPS like 10 understanding, what are the inputs
+and outputs to each, each one of those? Or, I mean, if it's just the one thing, then just kind
+of explaining the benefits in a really clear way. So I can kind of grasp what is the main sort of
+like, yeah, what is the main benefits of your particular solution compared to everybody
+else's solution? So long story short, quantitative metrics, I would say a little bit difficult.
+  Just try to emphasize, like in a qualitative sense, that what is it that makes your solution
+superior to everybody else? Okay. I would put that one. Okay. other question? No, thank
+you for your time. No problem. Thank you. Happy building. Thank you. Yeah. This is going
+to be everything, so... Okay.
+
