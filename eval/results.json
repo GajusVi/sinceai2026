@@ -1,0 +1,186 @@
+{
+  "as_of": "2026-11-06",
+  "mode": "rules (LLM off)",
+  "verdict": {
+    "n": 73,
+    "accuracy": 0.959,
+    "by_source": {
+      "blocker": {
+        "n": 14,
+        "accuracy": 1.0
+      },
+      "golden": {
+        "n": 5,
+        "accuracy": 1.0
+      },
+      "holdout": {
+        "n": 25,
+        "accuracy": 0.88
+      },
+      "negative": {
+        "n": 29,
+        "accuracy": 1.0
+      }
+    },
+    "false_reuse": {
+      "count": 0,
+      "of_labelled_non_reuse": 69,
+      "rate": 0.0,
+      "reuse_precision": 1.0,
+      "cases": []
+    },
+    "confusion_matrix": {
+      "CLARIFY": {
+        "CLARIFY": 30
+      },
+      "CREATE": {
+        "EXTEND": 1
+      },
+      "EXTEND": {
+        "EXTEND": 6
+      },
+      "NOT_FEASIBLE": {
+        "NOT_FEASIBLE": 1,
+        "EXTEND": 2
+      },
+      "NO_BUILD": {
+        "CLARIFY": 29
+      },
+      "REUSE": {
+        "REUSE": 4
+      }
+    },
+    "pending": {
+      "holdout_verdicts": "25 rows"
+    },
+    "caveats": [],
+    "misses": [
+      {
+        "source": "holdout",
+        "id": "H-01",
+        "text": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
+        "gold": "CREATE",
+        "gold_asset": null,
+        "verdict": "EXTEND",
+        "asset": "AST-0335",
+        "error": null
+      },
+      {
+        "source": "holdout",
+        "id": "H-05",
+        "text": "Can we have a new finance dashboard for net sales, gross-to-net and budget variance by product?",
+        "gold": "NOT_FEASIBLE",
+        "gold_asset": null,
+        "verdict": "EXTEND",
+        "asset": "AST-0015",
+        "error": null
+      },
+      {
+        "source": "holdout",
+        "id": "H-06",
+        "text": "Can we have a new finance dashboard for net sales, gross-to-net and budget variance by product?",
+        "gold": "NOT_FEASIBLE",
+        "gold_asset": null,
+        "verdict": "EXTEND",
+        "asset": "AST-0015",
+        "error": null
+      }
+    ]
+  },
+  "intent": {
+    "n": 40,
+    "exact_match": 1.0,
+    "fields": {
+      "metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 56,
+        "fp": 0,
+        "fn": 0
+      },
+      "products": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 28,
+        "fp": 0,
+        "fn": 0
+      },
+      "markets": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0
+      },
+      "regions": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 8,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "misses": []
+  },
+  "estate": {
+    "requests": 150,
+    "errors": 0,
+    "verdicts": {
+      "CLARIFY": 100,
+      "EXTEND": 50
+    },
+    "resolved_without_new_dashboard": {
+      "count": 50,
+      "share": 0.333
+    },
+    "specs_built": 50,
+    "spec_lint_pass_rate": 1.0,
+    "flags": {
+      "REASSIGN_OWNER": 30,
+      "RETIRE": 30
+    },
+    "gaps_by_kpi": {
+      "KPI-034 Gross-to-Net Rate": 20,
+      "KPI-039 Budget Variance": 20
+    }
+  },
+  "n": 73,
+  "accuracy": 0.959,
+  "macro_f1": 1.0,
+  "misses": [
+    {
+      "source": "holdout",
+      "id": "H-01",
+      "text": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
+      "gold": "CREATE",
+      "gold_asset": null,
+      "verdict": "EXTEND",
+      "asset": "AST-0335",
+      "error": null
+    },
+    {
+      "source": "holdout",
+      "id": "H-05",
+      "text": "Can we have a new finance dashboard for net sales, gross-to-net and budget variance by product?",
+      "gold": "NOT_FEASIBLE",
+      "gold_asset": null,
+      "verdict": "EXTEND",
+      "asset": "AST-0015",
+      "error": null
+    },
+    {
+      "source": "holdout",
+      "id": "H-06",
+      "text": "Can we have a new finance dashboard for net sales, gross-to-net and budget variance by product?",
+      "gold": "NOT_FEASIBLE",
+      "gold_asset": null,
+      "verdict": "EXTEND",
+      "asset": "AST-0015",
+      "error": null
+    }
+  ]
+}
