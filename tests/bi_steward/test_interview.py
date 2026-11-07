@@ -109,7 +109,7 @@ def test_question_cap_stops_a_model_that_never_finishes(pack):
     state = iv.start("something vague")
     while not state.done:
         state = iv.answer(state, "dunno")
-    assert state.questions_asked == 5
+    assert state.questions_asked <= 5  # misses fall back to defaults, so it can finish sooner
 
 
 def test_prompt_renders_with_dictionary_and_bank(pack):
@@ -124,7 +124,7 @@ def test_no_llm_or_llm_failure_falls_back_to_rules_and_fixed_questions(pack):
     for llm in (None, FakeLLM(RuntimeError("boom"), RuntimeError("boom"), RuntimeError("boom"))):
         iv = interviewer(pack, llm)
         state = iv.start("Net sales for Nubeqa")
-        assert state.last_asked == "markets" and "country or region" in state.question
+        assert state.last_asked == "markets" and "Worldwide" in state.options
         state = iv.answer(state, "Germany")
         assert state.last_asked == "decision_supported"
         state = iv.answer(state, "the monthly review with the finance director")
@@ -177,7 +177,7 @@ def test_empty_model_intent_is_filled_from_the_users_words_but_never_overwritten
 def test_offline_plant_question_asks_site_then_confirms_theme_then_decision(pack):
     iv = interviewer(pack, None)
     state = iv.start("How efficiently is this plant running? I'd like to know")
-    assert state.last_asked == "sites" and "Plant-B" in state.question
+    assert state.last_asked == "sites" and "Plant-B" in state.options
     state = iv.answer(state, "Plant B")
     assert state.last_asked == "theme_confirm" and "on-time in-full" in state.question and "OEE" in state.question
     state = iv.answer(state, "yes, and add net sales")
@@ -233,3 +233,48 @@ def test_plant_question_ends_in_a_site_dashboard(pack):
     assert result.decision.verdict.value in ("REUSE", "EXTEND", "CREATE")
     assert result.spec is not None and result.spec.filters["site"] == "Plant-B"
     assert any("not measured in governed data" in e.claim.lower() for e in result.decision.evidence)
+
+
+# -- comfort fixes after the first real conversation (Sat 7 Nov 04:40) ---------------------------------------------
+
+
+def test_the_screenshot_conversation_ends_in_a_dashboard_not_a_refusal(pack):
+    steward, _ = pack
+    iv = interviewer(pack, None)
+    state = iv.start("How efficient am i")
+    assert state.last_asked == "sites" and "Plant-B" in state.options and "All sites" in state.options
+    state = iv.answer(state, "How efficient is yo mom")
+    assert state.question.startswith("I didn't catch a site") and "yo mom" not in state.question
+    state = iv.answer(state, "Plan B mane")  # typo still picks the site
+    assert state.intent.sites == ["Plant-B"] and state.last_asked == "theme_confirm"
+    state = iv.answer(state, "Yes, use these")
+    state = iv.answer(state, "Decide on an action")
+    assert state.done and state.intent.unmapped_terms == [] and "mom" in state.intent.ignored_terms
+    result = steward.build(steward.ask_intent(state.intent), state.intent)
+    assert result.decision.verdict.value != "CLARIFY" and result.spec is not None
+
+
+def test_second_miss_applies_the_default_and_says_so(pack):
+    iv = interviewer(pack, None)
+    state = iv.answer(iv.answer(iv.start("how is the plant doing"), "dunno"), "whatever")
+    assert state.question.startswith("I'll cover all sites") and state.last_asked == "theme_confirm"
+    assert state.misses["sites"] == 2
+
+
+def test_model_wording_is_used_only_for_the_question_the_code_asks(pack):
+    wrong = {"intent": {"sites": ["Plant-B"], "theme": "plant_efficiency", "metric_ids": ["on_time_in_full"],
+                        "confidence": {"sites": 0.9, "metric_ids": 0.9}},
+             "next_question": "Is this for adding a shift?", "asks_about": "decision_supported"}
+    state = interviewer(pack, FakeLLM(wrong)).start("How efficient is Plant B?")
+    assert state.last_asked == "theme_confirm" and "Shall I use these?" in state.question
+    right = dict(wrong, next_question="Are on-time deliveries the right number?", asks_about="theme_confirm")
+    state = interviewer(pack, FakeLLM(right)).start("How efficient is Plant B?")
+    assert state.question == "Are on-time deliveries the right number?"
+
+
+def test_skip_fills_every_open_question(pack):
+    iv = interviewer(pack, None)
+    state = iv.finish_with_defaults(iv.start("how are we doing"))
+    intent = state.intent
+    assert state.done and intent.is_complete() and intent.products == ["All Pharma"] and intent.markets == ["Global"]
+    assert intent.metric_ids and intent.decision_supported == "monitor"

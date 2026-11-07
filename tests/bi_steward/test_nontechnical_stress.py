@@ -199,7 +199,6 @@ def test_f8_scope_contradiction_is_asked_about(pack):
     assert result.decision.verdict == Verdict.CLARIFY or result.question.conflicts
 
 
-@pytest.mark.xfail(strict=True, reason="F9 the interview repeats the same question word for word after a non-answer")
 def test_f9_interview_does_not_repeat_itself_after_idk(pack):
     state = pack.interviewer.start("I need some numbers")
     asked = [state.question]
@@ -211,27 +210,19 @@ def test_f9_interview_does_not_repeat_itself_after_idk(pack):
     assert len({q for q in asked if q}) == len([q for q in asked if q])
 
 
-@pytest.mark.xfail(strict=True, reason="F10 a country code as the answer to which country loops")
 def test_f10_interview_accepts_a_country_code_answer(pack):
     state = interview(pack, "otif for Nubeqa", ["DE"])
     assert "DE" in state.intent.markets
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F11 interview ends done with words it never understood",
-)
 def test_f11_interview_does_not_finish_with_unmapped_words(pack):
     state = interview(pack, "net sales for Kerendia in Europe and America", ["both", "quarterly review"])
     assert not (state.done and state.intent.unmapped_terms)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="F12 budget runs out, engine builds on a half-filled intent",
-)
 def test_f12_incomplete_intent_after_the_cap_does_not_build(pack):
-    state = interview(pack, "otif", ["thumbs up", "Xarelto??", "flag", "weekly"])
+    # 5 replies: the 5th question is the cap (re-asks count), so the cap is really reached
+    state = interview(pack, "otif", ["thumbs up", "Xarelto??", "flag", "weekly", "no idea"])
     assert state.done or state.intent.is_complete()
     if not state.intent.is_complete():
         result = pack.build(pack.ask_intent(state.intent), state.intent)

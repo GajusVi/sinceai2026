@@ -63,16 +63,35 @@ def test_orphan_rescue_on_sample_catalog(monkeypatch, tmp_path):
     assert any("make bayer" in i.value for i in at.info)
 
 
-def test_novice_chat_runs_the_interview_then_shows_a_dashboard(monkeypatch, tmp_path):
+def _novice_app(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("STEWARD_CATALOG", "datapack")
-    at = AppTest.from_file(APP, default_timeout=180).run()
+    return AppTest.from_file(APP, default_timeout=180).run()
+
+
+def _click(at, label):
+    next(b for b in at.button if b.label == label).click().run()
+    assert not at.exception
+
+
+def test_novice_chat_one_click_answers_then_dashboard_first(monkeypatch, tmp_path):
+    at = _novice_app(monkeypatch, tmp_path)
     at.chat_input[0].set_value("How efficiently is this plant running?").run()
-    assert not at.exception and "Plant-A" in at.session_state["messages"][-1]["content"]
-    for reply in ("Plant-B", "yes", "board update"):
-        at.chat_input[0].set_value(reply).run()
-        assert not at.exception
-    assert at.session_state["messages"][-2]["content"].startswith("Got it. Scope: Plant-B")
+    assert not at.exception and at.session_state["messages"][-1]["content"] == "Which site do you mean?"
+    _click(at, "Plant-B")
+    _click(at, "Yes, use these")
+    _click(at, "Board update")
+    assert at.session_state["messages"][-2]["content"].startswith("Got it: Plant-B")
+    assert "Nothing like this exists yet" in at.session_state["messages"][-1]["content"]  # plain words, no verdict
     assert at.session_state["result"].spec.filters["site"] == "Plant-B"
-    assert any("Dashboard:" in m.value for m in at.markdown)
+    assert at.subheader[0].value == "Plant-B: how well a site is running"
+    assert not any("Lint gate" in m.value for m in at.markdown)  # governance only behind the details toggle
+
+
+def test_skip_uses_the_recommended_setup(monkeypatch, tmp_path):
+    at = _novice_app(monkeypatch, tmp_path)
+    at.chat_input[0].set_value("How efficiently is this plant running?").run()
+    _click(at, "Plant-C")
+    _click(at, "Use recommended")
+    assert at.session_state["result"].spec.filters["site"] == "Plant-C"

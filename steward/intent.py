@@ -27,6 +27,7 @@ class Intent(BaseModel):
     unmapped_terms: list[str] = Field(
         default_factory=list
     )  # words we could not map: they block REUSE (no silent drops)
+    ignored_terms: list[str] = Field(default_factory=list)  # left over after the interview: a note, never a blocker
     grain: Literal["month", "quarter"] = "month"
     comparison: Literal["target", "forecast", "prior"] | None = None
     audience: str = ""

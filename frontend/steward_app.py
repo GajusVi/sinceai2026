@@ -137,7 +137,7 @@ def ask(text: str) -> None:
     messages = st.session_state.setdefault("messages", [])
     messages.append({"role": "user", "content": text})
     if st.session_state.get("expert_mode"):
-        _finish(steward.build(steward.ask(text)))  # W3-W6: the dashboard this decision implies (None for CLARIFY)
+        _finish(steward.build(steward.ask(text)), novice=False)  # W3-W6: the dashboard this decision implies
         return
     state = st.session_state.get("interview")
     if state is not None and not state.done:
@@ -145,34 +145,73 @@ def ask(text: str) -> None:
     else:
         st.session_state.result = None
         state = steward.interviewer.start(text)
+    _continue(state)
+
+
+def skip_to_defaults() -> None:
+    """"Skip - use recommended": fill every open question with its default and build."""
+    state = st.session_state.get("interview")
+    if state is None or state.done:
+        return
+    st.session_state.messages.append({"role": "user", "content": "Use the recommended setup"})
+    _continue(steward.interviewer.finish_with_defaults(state))
+
+
+def _continue(state) -> None:
     st.session_state.interview = state
     if not state.done:
-        messages.append({"role": "assistant", "content": state.question})
+        st.session_state.messages.append({"role": "assistant", "content": state.question})
         return
     st.session_state.interview = None
-    messages.append({"role": "assistant", "content": understood(state.intent)})
-    _finish(steward.build(steward.ask_intent(state.intent), state.intent))
+    st.session_state.messages.append({"role": "assistant", "content": understood(state)})
+    _finish(steward.build(steward.ask_intent(state.intent), state.intent), novice=True, intent=state.intent)
 
 
-def _finish(result: StewardResult) -> None:
-    best = result.decision.best
-    summary = verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else "")
+def _finish(result: StewardResult, novice: bool, intent=None) -> None:
+    if novice:
+        summary = plain_outcome(result)
+    else:
+        best = result.decision.best
+        summary = verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else "")
     st.session_state.messages.append({"role": "assistant", "content": summary})
     st.session_state.result = result
+    st.session_state.novice_result = novice
+    st.session_state.result_intent = intent
 
 
-def understood(intent) -> str:
-    """Read the confirmed Intent back in business words before anything is decided (no ids)."""
-    names = [steward.catalog.metrics[m].name for m in intent.metric_ids if m in steward.catalog.metrics]
+def understood(state) -> str:
+    """Read the confirmed Intent back in business words before anything is decided (no ids, no jargon)."""
+    intent = state.intent
+    names = [steward.catalog.metrics[m].name.lower() for m in intent.metric_ids if m in steward.catalog.metrics]
     if intent.sites:
-        scope = ", ".join(intent.sites) + " (everything it supplies)"
+        scope = ", ".join(intent.sites)
     else:
-        where = ", ".join(intent.regions or intent.markets) or "all markets"
-        scope = f"{', '.join(intent.products) or 'All Pharma'} in {where}"
-    line = f"Got it. Scope: {scope}. Numbers: {', '.join(names) or 'none yet'}."
-    if intent.decision_supported:
-        line += f" For: {intent.decision_supported}."
-    return line
+        products = [p for p in intent.products if p != "All Pharma"]
+        where = ", ".join(intent.regions or [m for m in intent.markets if m != "Global"])
+        scope = (", ".join(products) or "all medicines") + (f" in {where}" if where else ", all markets")
+    notes = " ".join(state.notes)
+    return (f"{notes} " if notes else "") + f"Got it: {scope}, showing {', '.join(names) or 'the key numbers'}."
+
+
+def plain_outcome(result: StewardResult) -> str:
+    """What happened, for someone who does not know what REUSE or a KPI id is."""
+    verdict = getattr(result.decision.verdict, "value", result.decision.verdict)
+    best = result.decision.best
+    title = f"'{best.artifact.title}'" if best else "an existing report"
+    if result.spec is None:
+        if verdict == "NOT_FEASIBLE":
+            return ("Those numbers aren't in official data yet, so I can't show anything reliable. "
+                    "The BI team can see what's missing under the details.")
+        return "I couldn't build this one. The BI team can see why under the details."
+    return {
+        "REUSE": f"This already exists: {title}. Here it is, on official data.",
+        "EXTEND": f"{title} already covers most of this. Below is its next version with what you asked for; "
+                  "the report owner approves it before it goes live.",
+        "CONSOLIDATE": f"Several reports overlap here. Below is one combined version based on {title}; "
+                       "the BI team approves it before the duplicates are retired.",
+        "CREATE": "Nothing like this exists yet, so here is a new draft on official data. "
+                  "The BI team approves it before it's published.",
+    }.get(verdict, "Here is your dashboard.")
 
 
 def render_evidence(decision) -> None:
@@ -198,7 +237,7 @@ def get_frames() -> dict:
     return semantic.load_frames()
 
 
-def render_dashboard(result: StewardResult) -> None:
+def render_dashboard(result: StewardResult, governance: bool = True) -> None:
     """W5-W7 on screen: the spec's dashboard on governed data, its changes, the lint gate, the governance footer."""
     spec = result.spec
     if spec is None:
@@ -207,13 +246,14 @@ def render_dashboard(result: StewardResult) -> None:
         return
     key = spec.provenance.get("spec_hash", "spec")
     st.divider()
-    st.markdown(f"#### Dashboard: {spec.name}")
+    if governance:
+        st.markdown(f"#### Dashboard: {spec.name}")
+        st.caption(
+            f"{spec.change_type.upper()} · version {spec.version} · "
+            f"layout from {spec.provenance.get('layout_source', '?')} · spec {key}"
+        )
     if spec.filters.get("site"):
         st.caption(f"Site: {spec.filters['site']} (the products and markets it supplies)")
-    st.caption(
-        f"{spec.change_type.upper()} · version {spec.version} · "
-        f"layout from {spec.provenance.get('layout_source', '?')} · spec {key}"
-    )
 
     frames = get_frames()
     products = ["All products"] + sorted(frames["dim_product"]["product_name"])
@@ -259,8 +299,16 @@ def render_dashboard(result: StewardResult) -> None:
             for note in dash.dq:
                 st.write("- " + note)
     for label, text in dash.footer:
-        st.caption(f"**{label}:** {text}")
+        if governance or label == "Data":  # ids and owners: BI team only; the synthetic-data label: everyone
+            st.caption(f"**{label}:** {text}")
 
+    if governance:
+        render_governance(spec)
+
+
+def render_governance(spec) -> None:
+    """What changes, the lint gate and the exports: for the BI team, not for the requester."""
+    key = spec.provenance.get("spec_hash", "spec")
     if spec.changes:
         with st.expander(f"What changes in this version ({len(spec.changes)})", expanded=True):
             for change in spec.changes:
@@ -272,9 +320,10 @@ def render_dashboard(result: StewardResult) -> None:
     else:
         st.caption("The lint gate is not available yet; nothing blocks approval.")
     st.download_button(
-        "Download spec JSON", spec.model_dump_json(indent=2), file_name=f"spec_{key}.json", mime="application/json"
+        "Download spec JSON", spec.model_dump_json(indent=2), file_name=f"spec_{key}.json", mime="application/json",
+        key=f"dl_spec_{key}",
     )
-    render_pbip_download(spec, frames)
+    render_pbip_download(spec, get_frames())
 
 
 def render_pbip_download(spec, frames) -> None:
@@ -288,7 +337,8 @@ def render_pbip_download(spec, frames) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         path = export_pbip(spec, frames, Path(tmp))
         data = path.read_bytes()
-    st.download_button("Download .PBIP (draft)", data, file_name=path.name, mime="application/zip")
+    st.download_button("Download .PBIP (draft)", data, file_name=path.name, mime="application/zip",
+                       key=f"dl_pbip_{spec.provenance.get('spec_hash', 'spec')}")
     st.caption(
         "DRAFT: never opened in Power BI Desktop. Infeasible KPIs (gaps) are not in the model; "
         "the report holds no visuals yet."
@@ -300,12 +350,36 @@ def _index(options: list[str], value: str | None) -> int:
 
 
 def render_result(result: StewardResult) -> None:
-    decision = result.decision
-    st.subheader(verdict_title(decision.verdict))
-    st.markdown(result.explanation)
-
-    render_evidence(decision)
+    """Novice: the answer first (plain headline + dashboard), governance details behind a toggle, then the
+    approval. Expert: the full governance view as before."""
+    if st.session_state.get("novice_result"):
+        intent = st.session_state.get("result_intent")
+        st.subheader(_headline(result, intent))
+        render_dashboard(result, governance=False)
+        if st.toggle("Show details for the BI team", key="show_details"):
+            render_details(result, dashboard=True)
+        render_human_decision(result)
+        return
+    render_details(result, dashboard=False)
     render_dashboard(result)
+    render_human_decision(result)
+
+
+def _headline(result: StewardResult, intent) -> str:
+    theme = steward.interviewer.themes.get(getattr(intent, "theme", ""), {})
+    if result.spec is not None and theme:
+        scope = result.spec.name.split(":")[0]
+        return f"{scope}: {theme['label']}"
+    return result.spec.name if result.spec is not None else "No dashboard yet"
+
+
+def render_details(result: StewardResult, dashboard: bool) -> None:
+    decision = result.decision
+    st.markdown(f"#### Verdict: {verdict_title(decision.verdict)}")
+    st.markdown(result.explanation)
+    render_evidence(decision)
+    if dashboard and result.spec is not None:
+        render_governance(result.spec)
 
     with st.expander("How the question was understood"):
         q = result.question
@@ -367,11 +441,17 @@ def render_result(result: StewardResult) -> None:
         for reason in decision.reasons:
             st.write("- " + reason)
 
+
+def render_human_decision(result: StewardResult) -> None:
+    decision = result.decision
     if decision.verdict not in APPROVE_LABELS:
         return
 
     st.divider()
-    st.markdown("#### Human decision")
+    novice = st.session_state.get("novice_result")
+    st.markdown("#### Next step: BI team approval" if novice else "#### Human decision")
+    if novice:
+        st.caption("Nothing is published until someone accountable approves it. Every decision is logged.")
     owner = None
     if decision.verdict == Verdict.CREATE or (decision.best and not decision.best.artifact.has_owner):
         owner = st.text_input("Report owner", key="owner")
@@ -525,14 +605,38 @@ tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog = st.tabs(
     ["Ask", "Catalog health", "Orphan rescue", "Journal", "Catalog"]
 )
 
+SKIP_LABEL = "Use recommended"
+
+
+def render_options() -> None:
+    """One-click answers under the pending interview question, plus "use the recommended setup"."""
+    state = st.session_state.get("interview")
+    if state is None or state.done:
+        return
+    labels = state.options + [SKIP_LABEL]
+    for i, (col, label) in enumerate(zip(st.columns(len(labels)), labels, strict=True)):
+        last = i == len(labels) - 1
+        kind = "primary" if last else "secondary"
+        if col.button(label, key=f"opt_{state.questions_asked}_{i}", width="stretch", type=kind,
+                      help="Answer every remaining question with the recommended choice" if last else None):
+            if last:
+                st.session_state.pending_skip = True
+            else:
+                st.session_state.pending_answer = label
+            st.rerun()
+
+
 with tab_ask:
     typed = st.chat_input("Ask a business question, e.g. " + (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES)[0])
-    question = typed or st.session_state.pop("pending_question", None)
-    if question and question.strip():
+    question = typed or st.session_state.pop("pending_answer", None) or st.session_state.pop("pending_question", None)
+    if st.session_state.pop("pending_skip", False):
+        skip_to_defaults()
+    elif question and question.strip():
         ask(question.strip())
     for message in st.session_state.get("messages", []):
         with st.chat_message(message["role"]):
             st.write(message["content"])
+    render_options()
     if st.session_state.get("result"):
         render_result(st.session_state.result)
 

@@ -13,7 +13,7 @@ frontend/steward_app.py gajus     NIGHT, back to donatas at 08:00
 frontend/               donatas
 steward/models.py       gajus     NIGHT (additive fields only, e.g. StewardResult.spec), back to martynas at 08:00
 steward/spec.py         gajus     NIGHT Sat 03:30-08:00, back to martynas at 08:00
-steward/intent.py       margiris  TEMP Sat 7 Nov: stress-test F11/F12 (Gajus OK 1107-044553), back to gajus when its xfails are gone
+steward/intent.py       gajus
 steward/datapack.py     gajus
 steward/requests.py     gajus
 steward/llm.py          margiris
@@ -22,7 +22,7 @@ steward/linking.py      margiris
 steward/decision/       margiris
 steward/search/         margiris
 steward/health.py       margiris
-prompts/interview.yaml  margiris  TEMP Sat 7 Nov: stress-test F9 (Gajus OK 1107-044553), back to gajus when its xfails are gone
+prompts/interview.yaml  gajus
 prompts/                margiris
 steward/catalog.py      martynas
 steward/semantic.py     gajus     NIGHT, back to martynas at 08:00

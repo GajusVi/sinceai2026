@@ -9,10 +9,11 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from .catalog import Catalog
-from .config import AMBIGUOUS_PHRASES, STOPWORDS
+from .config import AMBIGUOUS_PHRASES, METRIC_NOUNS, STOPWORDS
 from .intent import MAX_QUESTIONS, Intent, Mode
 from .linking import asks_global
 from .llm import LLMClient
@@ -37,7 +38,16 @@ _SITE_TOKENS = {"plant", "plants", "site", "sites", "factory", "factories", "fac
 _CONFIRM_ADD = re.compile(r"\b(add|also|plus|include|and)\b", re.I)
 _CONFIRM_DROP = re.compile(r"\b(drop|remove|without|skip|not|no)\b", re.I)
 _CONFIRM_ONLY = re.compile(r"\b(only|just|instead)\b", re.I)
+_CONFIRMS = re.compile(r"\b(yes|yeah|yep|ok|okay|sure|fine|good|right|correct|use|go|perfect|sounds|add|drop|remove|"
+                       r"only|just|without|no|nope)\b", re.I)
 _FLAG_IT = re.compile(r"\b(flag|owner|define|skip|leave|ignore|forget|never ?mind)\b", re.I)
+# Only while the site question is open: typos and bare letters ("Plan B mane", "b") still pick the site.
+_SITE_LOOSE = re.compile(r"(?:\bplan(?:t|e)?[\s-]*|^\s*)([abc])\b", re.I)
+_ALL_SITES = re.compile(r"\ball\s+(sites|plants|of them)\b|\bevery\s+(site|plant)\b", re.I)
+MAX_MISSES = 2  # the same question unanswered twice: use the recommended default and move on, never ask a third time
+# What "Skip - use recommended" (or a second miss) fills in, per open question.
+DEFAULT_DECISION = "monitor"
+DEFAULT_THEME = "business_performance"
 
 
 @dataclass
@@ -50,6 +60,12 @@ class InterviewState:
     last_asked: str = ""  # conflict | sites | products | markets | metric_ids | theme_confirm | decision_supported
     theme_confirmed: bool = False  # the user answered "is that the right picture?" (or named numbers themselves)
     asked_unmapped: bool = False  # the one question about words we could not place has been asked
+    options: list[str] = field(default_factory=list)  # one-click answers for the pending question (UI buttons)
+    misses: dict[str, int] = field(default_factory=dict)  # question -> replies that did not answer it
+    notes: list[str] = field(default_factory=list)  # defaults the interview applied, said back to the user
+    unconfirmed_reply: bool = False  # the last reply to "shall I use these?" was about something else
+    asked_terms: list[str] = field(default_factory=list)  # the words the "unmapped" question asked about
+    asked_choices: list[str] = field(default_factory=list)  # the likely matches offered for them
 
     @property
     def done(self) -> bool:
@@ -73,34 +89,74 @@ class Interviewer:
         if state.last_asked == "unmapped" and _FLAG_IT.search(reply):
             state.decision_replies.add(len(state.turns))  # "flag it": the words stay unmapped, the reply is not scope
         state.turns.append(("user", reply))
-        return self._step(state)
+        return self._step(state, asked_before=state.last_asked)
+
+    def finish_with_defaults(self, state: InterviewState) -> InterviewState:
+        """"Skip - use recommended": every open question gets its default; the interview ends with a full Intent."""
+        intent = state.intent
+        for _ in range(8):
+            if intent.should_stop(0) and not intent.conflicts:
+                break
+            about = self._first_open(intent, state)
+            self._apply_default(intent, state, about)
+        self._close(state)
+        state.question, state.last_asked, state.options = None, "", []
+        return state
 
     # -- one turn ------------------------------------------------------------------------------------------------
 
-    def _step(self, state: InterviewState) -> InterviewState:
+    def _step(self, state: InterviewState, asked_before: str = "") -> InterviewState:
+        state.unconfirmed_reply = False
         intent = self._llm_intent(state)
         if intent:
             self._fill_gaps(intent, state)
         else:
             intent = self._rules_intent(state)
         state.intent = intent
-        if intent.should_stop(state.questions_asked):
-            state.question, state.last_asked = None, ""
+        if asked_before == "unmapped" and state.asked_terms:  # answered (picked, ignored or flagged): never asked again
+            if _FLAG_IT.search(state.turns[-1][1]):
+                intent.ignored_terms += [t for t in state.asked_terms if t not in intent.ignored_terms]
+            intent.unmapped_terms = [t for t in intent.unmapped_terms if t not in state.asked_terms]
+        notice = ""
+        about = "" if intent.should_stop(state.questions_asked) else self._first_open(intent, state)
+        if asked_before and about == asked_before:  # the reply did not answer the question
+            state.misses[about] = state.misses.get(about, 0) + 1
+            if state.misses[about] >= MAX_MISSES:
+                self._apply_default(intent, state, about)
+                about = "" if intent.should_stop(state.questions_asked) else self._first_open(intent, state)
+            else:
+                notice = MISSED.get(about, "I didn't catch that.") + " "
+        if not about:
+            if not intent.is_complete() or intent.conflicts:  # question budget spent: recommended setup for the rest
+                state.notes.append("That's enough questions; I'll use the recommended setup for the rest.")
+                self.finish_with_defaults(state)
+            self._close(state)
+            state.question, state.last_asked, state.options = None, "", []
             return state
-        state.last_asked = self._first_open(intent, state)
-        state.question = self._pending_question or self._fallback_question(intent, state.last_asked)
-        state.questions_asked += 1
+        state.last_asked = about
+        # The code decides WHAT is asked; the model's wording is used only when it asks about the same thing,
+        # and never right after a miss (then the short fixed question with one-click options is clearer).
+        llm_text = self._pending_question if self._pending_about == about and not notice else None
+        state.question = (" ".join(state.notes) + " " if state.notes else "") + notice + (
+            llm_text or self._fallback_question(intent, about)
+        )
+        state.notes = []
+        state.options = self._options(intent, about)
+        state.questions_asked += 1  # re-asks count too: the conversation stays short, the cap fills in the rest
         state.turns.append(("assistant", state.question))
         if state.last_asked == "unmapped":
             state.asked_unmapped = True
+            state.asked_terms = list(intent.unmapped_terms)
+            state.asked_choices = [c for cands in self._near_terms(intent).values() for c in cands]
         if state.last_asked in ("decision_supported", "theme_confirm"):
             state.decision_replies.add(len(state.turns))  # the next turn answers it: prose, not request text
         return state
 
     _pending_question: str | None = None
+    _pending_about: str = ""
 
     def _llm_intent(self, state: InterviewState) -> Intent | None:
-        self._pending_question = None
+        self._pending_question, self._pending_about = None, ""
         if not self.llm:
             return None
         try:
@@ -120,6 +176,7 @@ class Interviewer:
             return None
         question = raw.get("next_question")
         self._pending_question = question.strip() if isinstance(question, str) and question.strip() else None
+        self._pending_about = str(raw.get("asks_about") or "")
         return intent
 
     def _validate(self, raw: dict, state: InterviewState) -> Intent:
@@ -156,7 +213,8 @@ class Interviewer:
             sites=pick(raw.get("sites"), site_ids),
             theme=theme,
             metric_ids=pick(raw.get("metric_ids"), {m: m for m in self.catalog.metrics}),
-            unmapped_terms=unmapped,
+            unmapped_terms=[t for t in unmapped if t not in state.intent.ignored_terms],
+            ignored_terms=list(state.intent.ignored_terms),
             grain=grain,
             comparison=comparison,
             audience=str(raw.get("audience") or ""),
@@ -184,7 +242,7 @@ class Interviewer:
             if not intent.metric_ids:
                 intent.metric_ids = [m for m in theme["metrics"] if m in self.catalog.metrics]
             named = RuleBasedParser(self.catalog).parse(" ".join(self._scope_replies(state))).metrics
-            if state.last_asked == "theme_confirm" and state.turns[-1][0] == "user":
+            if state.last_asked == "theme_confirm" and state.turns[-1][0] == "user" and not state.unconfirmed_reply:
                 state.theme_confirmed = True
             if named or state.theme_confirmed:
                 intent.confidence["metric_ids"] = max(intent.confidence.get("metric_ids", 0.0), 0.9)
@@ -193,8 +251,11 @@ class Interviewer:
                 intent.unmapped_terms = [t for t in intent.unmapped_terms if t.lower() not in gaps]
             else:
                 intent.confidence["metric_ids"] = min(intent.confidence.get("metric_ids", 0.0), THEME_CONFIDENCE)
+        known = {n.lower() for n in self._scope_names()} | self._market_ids()
         intent.unmapped_terms = [
-            t for t in intent.unmapped_terms if t.lower() not in _SITE_TOKENS and t.lower() not in STOPWORDS
+            t for t in intent.unmapped_terms
+            if t.lower() not in _SITE_TOKENS and t.lower() not in STOPWORDS and t not in intent.ignored_terms
+            and t.lower() not in known
         ]
 
     def _theme_of(self, text: str) -> str:
@@ -216,6 +277,115 @@ class Interviewer:
 
     def _mentions_site(self, state: InterviewState) -> bool:
         return bool(self.sites) and bool(_SITE_WORD.search(" ".join(self._scope_replies(state))))
+
+    # -- presets, defaults and closing -----------------------------------------------------------------------------
+
+    def _options(self, intent: Intent, about: str) -> list[str]:
+        """One-click answers in the user's words. Each is a reply the offline parser understands."""
+        if about == "sites":
+            named = [x for x in self.sites if x != "External-CMO"]
+            return named + (["Contract manufacturer"] if "External-CMO" in self.sites else []) + ["All sites"]
+        if about == "products":
+            dim = self.catalog.dimensions.get("product")
+            return ["All medicines"] + [v.label for v in (dim.values if dim else [])][:4]
+        if about == "markets":
+            return ["Worldwide", "EMEA", "North America", "Asia Pacific", "Latin America"]
+        if about == "theme_confirm":
+            extra = "Add net sales" if "net_sales" not in intent.metric_ids else "Add on-time in-full"
+            return ["Yes, use these", extra]
+        if about == "metric_ids":
+            return [_capital(t["label"]) for t in self.themes.values()]
+        if about == "unmapped":
+            near = [c for cands in self._near_terms(intent).values() for c in cands]
+            return list(dict.fromkeys(near))[:4] + ["Ignore it"] if near else ["Ignore it", "Flag for data owner"]
+        if about == "decision_supported":
+            return ["Board update", "Weekly review", "Decide on an action", "Keep an eye on it"]
+        if about == "conflict":
+            return ["What I wrote is right"]
+        return []
+
+    def _apply_default(self, intent: Intent, state: InterviewState, about: str) -> None:
+        """The recommended answer to one open question (used by Skip and after a second miss). Said back once."""
+        if about == "sites":
+            intent.sites = []
+            intent.products, intent.markets = [ALL_PHARMA], [GLOBAL]
+            for k in ("products", "markets"):
+                intent.confidence[k] = 0.9
+            state.notes.append("I'll cover all sites; you can narrow it down in the dashboard.")
+            state.misses["sites_done"] = 1  # do not ask "which site?" again
+        elif about == "products":
+            intent.products, intent.confidence["products"] = [ALL_PHARMA], 0.9
+            state.notes.append("I'll include all medicines.")
+        elif about == "markets":
+            intent.markets, intent.confidence["markets"] = [GLOBAL], 0.9
+            state.notes.append("I'll show all markets.")
+        elif about in ("theme_confirm", "metric_ids"):
+            if not intent.metric_ids:
+                intent.theme = intent.theme or DEFAULT_THEME
+                intent.metric_ids = [m for m in self.themes[intent.theme]["metrics"] if m in self.catalog.metrics]
+            intent.confidence["metric_ids"], state.theme_confirmed = 0.9, True
+        elif about == "unmapped":
+            state.asked_unmapped = True
+            intent.ignored_terms += [t for t in intent.unmapped_terms if t not in intent.ignored_terms]
+            intent.unmapped_terms = []
+        elif about == "decision_supported":
+            intent.decision_supported = intent.decision_supported or DEFAULT_DECISION
+            intent.confidence["decision_supported"] = 0.9
+        elif about == "conflict":
+            intent.conflicts = []  # the text the user wrote wins
+
+    def _close(self, state: InterviewState) -> None:
+        """End of the interview: words still unplaced never block the result. They are kept on the Intent as
+        ignored_terms and shown as a note next to the dashboard ("not used: ...")."""
+        intent = state.intent
+        intent.ignored_terms += [t for t in intent.unmapped_terms if t not in intent.ignored_terms]
+        intent.unmapped_terms = []
+
+    def _near_terms(self, intent: Intent) -> dict[str, list[str]]:
+        """Unplaced words that look like a place or a medicine ("America", "Germny", "Xareltoo"): worth one question
+        with the likely matches as buttons. Anything else ("yo mom", "thumbs up") is quietly ignored at the end."""
+        out: dict[str, list[str]] = {}
+        names = self._scope_names()
+        for term in intent.unmapped_terms:
+            low = term.lower()
+            if len(low) < 3 or low in STOPWORDS:
+                continue
+            cands = [
+                n for n in names if low in n.lower().split() or SequenceMatcher(None, low, n.lower()).ratio() >= 0.8
+            ]
+            if cands:
+                out[term] = cands[:3]
+        return out
+
+    def _scope_names(self) -> list[str]:
+        names: list[str] = []
+        for dim_id in ("region", "market", "product"):
+            dim = self.catalog.dimensions.get(dim_id)
+            for v in dim.values if dim else []:
+                names.append(v.label if dim_id != "region" else v.id)
+        return list(dict.fromkeys(names))
+
+    def _market_ids(self) -> set[str]:
+        dim = self.catalog.dimensions.get("market")
+        return {v.id.lower() for v in (dim.values if dim else [])}
+
+    def _scope_in(self, reply: str) -> tuple[list[str], list[str]]:
+        """Markets and regions named in a short answer: ids ("DE"), names ("Germany"), regions ("North America")."""
+        markets, regions = [], []
+        words = re.findall(r"[A-Za-z]+", reply)
+        low = reply.lower()
+        for dim_id, bucket in (("market", markets), ("region", regions)):
+            dim = self.catalog.dimensions.get(dim_id)
+            for v in dim.values if dim else []:
+                if (dim_id == "market" and v.id in words) or v.label.lower() in low or (
+                    dim_id == "region" and v.id.lower() in low
+                ):
+                    bucket.append(v.id)
+        return markets, regions
+
+    def _measure_like(self, intent: Intent) -> bool:
+        words = " ".join(intent.unmapped_terms).lower().split()
+        return any(w in METRIC_NOUNS for w in words)
 
     # -- offline path --------------------------------------------------------------------------------------------
 
@@ -242,8 +412,15 @@ class Interviewer:
             intent.markets = [parsed.filters["market"]]
         elif asks_global(user_text) or (state.last_asked == "markets" and re.search(r"world|all markets", last_reply)):
             intent.markets = [GLOBAL]
-        if parsed.filters.get("region"):
-            intent.regions = [parsed.filters["region"]]
+        if parsed.filters.get("region") and parsed.filters["region"] not in intent.regions:
+            intent.regions = intent.regions + [parsed.filters["region"]] if prev.regions else [parsed.filters["region"]]
+        if state.last_asked in ("markets", "unmapped") and state.turns[-1][0] == "user":
+            answer = state.turns[-1][1]
+            if state.last_asked == "unmapped" and re.search(r"\b(both|all|each|every)\b", answer, re.I):
+                answer = " ".join(state.asked_choices)  # "both" = every match offered
+            markets, regions = self._scope_in(answer)  # "DE", "North America": added to what was said
+            intent.markets = list(dict.fromkeys([m for m in intent.markets if m != GLOBAL] + markets)) or intent.markets
+            intent.regions = list(dict.fromkeys(intent.regions + regions))
         if parsed.metrics and not state.theme_confirmed:  # after "is that the right picture?" the answer stands
             intent.metric_ids = list(parsed.metrics)
         intent.unmapped_terms = [t for t in dict.fromkeys(unmapped) if t.lower() not in _HANDLED_WORDS]
@@ -252,10 +429,29 @@ class Interviewer:
         if state.last_asked == "conflict":
             intent.conflicts = []  # the user answered; what they wrote wins
         sites = self._sites_in(user_text)
+        if state.last_asked == "sites" and not sites:
+            loose = _SITE_LOOSE.search(last_reply)
+            if loose and f"Plant-{loose.group(1).upper()}" in self.sites:
+                sites = [f"Plant-{loose.group(1).upper()}"]
+            elif _ALL_SITES.search(last_reply):
+                self._apply_default(intent, state, "sites")
         if sites:
             intent.sites = sites
+        if state.last_asked == "metric_ids":
+            picked = next((k for k, t in self.themes.items() if t["label"].lower() in last_reply), "")
+            if picked:  # a one-click theme pick is its own confirmation
+                intent.theme, state.theme_confirmed = picked, True
+                intent.metric_ids = [m for m in self.themes[picked]["metrics"] if m in self.catalog.metrics]
         if state.last_asked == "theme_confirm" and state.turns[-1][0] == "user":
-            intent.metric_ids = self._adjust(prev.metric_ids, last_reply)
+            if _CONFIRMS.search(last_reply) or RuleBasedParser(self.catalog).parse(last_reply).metrics:
+                intent.metric_ids = self._adjust(prev.metric_ids, last_reply)
+            else:  # "adding a shift": not an answer to "shall I use these?", but it is what the numbers are for
+                state.theme_confirmed = False
+                state.unconfirmed_reply = True
+                scope_words = (self._sites_in(last_reply) or _SITE_LOOSE.search(last_reply)
+                               or parser.parse(last_reply).filters)
+                if not intent.decision_supported and not scope_words:
+                    intent.decision_supported = state.turns[-1][1]
 
         for name, filled in (
             ("products", intent.products), ("markets", intent.markets or intent.regions), ("sites", intent.sites),
@@ -283,7 +479,7 @@ class Interviewer:
         """Some models hand back an empty Intent. The rules parser fills ONLY empty entity fields from the user's
         own words; whatever the model did fill is never overwritten."""
         rules = self._rules_intent(state)
-        for name in ("products", "markets", "regions", "sites", "metric_ids"):
+        for name in ("products", "markets", "regions", "sites", "metric_ids", "decision_supported"):
             if not getattr(intent, name) and getattr(rules, name):
                 setattr(intent, name, getattr(rules, name))
                 key = "markets" if name == "regions" else name
@@ -297,21 +493,27 @@ class Interviewer:
     def _first_open(self, intent: Intent, state: InterviewState) -> str:
         if intent.conflicts:
             return "conflict"
-        if not intent.sites and not intent.products and self._mentions_site(state):
+        site_theme = intent.theme == "plant_efficiency" and not intent.markets and not intent.regions
+        if (not intent.sites and not intent.products and "sites_done" not in state.misses and self.sites
+                and (self._mentions_site(state) or site_theme)):
             return "sites"  # "this plant": which one? Its scope replaces the product and market questions
         missing = intent.missing()
         if missing and missing[0] != "decision_supported":
             if missing[0] == "metric_ids" and intent.theme and intent.metric_ids:
                 return "theme_confirm"
             return missing[0]
-        if intent.unmapped_terms and not state.asked_unmapped and intent.mode != "expert":
-            return "unmapped"  # once: offer governed numbers or flag it; what stays unmapped goes to the engine
+        worth_asking = self._measure_like(intent) or self._near_terms(intent)
+        if worth_asking and not state.asked_unmapped and intent.mode != "expert":
+            return "unmapped"  # once, and only for words that look like a number ("batch yield"); junk is ignored
         return "decision_supported"
 
     def _fallback_question(self, intent: Intent, about: str) -> str:
         texts = self.bank["fallback"]
         if about == "conflict":
             return texts["conflict"].format(conflict=intent.conflicts[0])
+        if about == "unmapped" and self._near_terms(intent):
+            term, cands = next(iter(self._near_terms(intent).items()))
+            return texts["near"].format(term=term, choices=_and_list(cands).replace(" and ", " or "))
         if about == "unmapped":
             ids = intent.metric_ids or self.themes.get(intent.theme, {}).get("metrics", [])
             names = [self.catalog.metrics[m].name.lower() for m in ids if m in self.catalog.metrics]
@@ -376,6 +578,16 @@ def _dictionary_name(dimension: str, value) -> str:
     if dimension == "product":
         return value.label
     return f"{value.id} = {value.label}" if dimension == "market" else value.id
+
+
+MISSED = {
+    "theme_confirm": "Noted.",
+    "sites": "I didn't catch a site in that.",
+    "products": "I didn't catch a medicine in that.",
+    "markets": "I didn't catch a country or region in that.",
+    "metric_ids": "I didn't catch which numbers you mean.",
+    "decision_supported": "I didn't quite get what it's for.",
+}
 
 
 def _and_list(items: list[str]) -> str:

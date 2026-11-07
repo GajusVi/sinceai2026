@@ -90,6 +90,10 @@ class Steward:
                     severity="info", record_ids=list(intent.sites),
                 )
             )
+        if intent.ignored_terms:
+            decision.evidence.append(
+                Evidence(claim="Not used (not a governed term): " + ", ".join(intent.ignored_terms), severity="info")
+            )
         theme = self.interviewer.themes.get(intent.theme, {})
         if theme.get("not_governed"):
             decision.evidence.append(
