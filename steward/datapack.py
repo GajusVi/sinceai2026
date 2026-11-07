@@ -215,11 +215,12 @@ def _text(value) -> str:
     return "" if pd.isna(value) else str(value)
 
 
-def load_catalog(xlsx: Path, catalog_dir: Path, data_dir: Path | None = None):
-    """Catalog from the data pack plus catalog_dir/metrics.json + dimensions.json (catalog/bayer/) and approved changes."""
+def load_catalog(xlsx: Path, catalog_dir: Path, data_dir: Path | None = None, as_of: date | None = None):
+    """Catalog from the data pack plus catalog_dir/metrics.json + dimensions.json (catalog/bayer/) and approved changes.
+    `as_of`: provisional assets our app created that expired before this date are dropped (DECISION C4/A4, T1.6)."""
     from .catalog import Catalog, apply_changes, read_json
 
-    artifacts = apply_changes(load_artifacts(xlsx), data_dir)
+    artifacts = apply_changes(load_artifacts(xlsx), data_dir, as_of)
     metrics = [MetricDefinition.model_validate(m) for m in read_json(catalog_dir / "metrics.json")]
     dimensions = [DimensionDefinition.model_validate(d) for d in read_json(catalog_dir / "dimensions.json")]
     return Catalog(artifacts, metrics, dimensions)

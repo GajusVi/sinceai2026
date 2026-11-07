@@ -61,3 +61,20 @@ def test_both_paths_agree_on_every_product(steward):
             if rules != interview:
                 disagree.append((text, rules, interview))
     assert not disagree, disagree
+
+
+def test_expired_provisional_assets_are_dropped_on_the_data_pack(tmp_path, monkeypatch):
+    """T1.6 (C4/A4): load_catalog passes as_of, so a provisional asset past expires_at leaves the catalog."""
+    import json
+    from datetime import timedelta
+
+    monkeypatch.setenv("STEWARD_CATALOG", "datapack")
+    base = Steward(settings=replace(Settings.from_env(), use_llm="off", data_dir=tmp_path, as_of=date(2026, 11, 6)))
+    template = json.loads(base.catalog.artifacts["AST-0191"].model_dump_json())
+    rows = []
+    for new_id, days in (("AST-0191-old", -1), ("AST-0191-new", 10)):
+        rows.append({**template, "id": new_id, "status": "provisional",
+                     "expires_at": str(date(2026, 11, 6) + timedelta(days=days))})
+    (tmp_path / "catalog_changes.json").write_text(json.dumps({"added": rows, "superseded": []}))
+    s = Steward(settings=replace(Settings.from_env(), use_llm="off", data_dir=tmp_path, as_of=date(2026, 11, 6)))
+    assert "AST-0191-old" not in s.catalog.artifacts and "AST-0191-new" in s.catalog.artifacts

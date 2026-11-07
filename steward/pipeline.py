@@ -51,9 +51,9 @@ class Steward:
         from .datapack import DEFAULT_XLSX, load_catalog  # lazy: pandas only needed for the data pack
 
         if self.catalog_dir.suffix == ".xlsx":
-            return load_catalog(self.catalog_dir, ROOT_DIR / "catalog" / "bayer", self.data_dir)
+            return load_catalog(self.catalog_dir, ROOT_DIR / "catalog" / "bayer", self.data_dir, self.as_of)
         if os.getenv("STEWARD_CATALOG", "").lower() == "datapack":
-            return load_catalog(DEFAULT_XLSX, self.catalog_dir / "bayer", self.data_dir)
+            return load_catalog(DEFAULT_XLSX, self.catalog_dir / "bayer", self.data_dir, self.as_of)
         return Catalog.load(self.catalog_dir, self.data_dir)
 
     def ask(self, text: str, context: dict[str, str] | None = None) -> StewardResult:
