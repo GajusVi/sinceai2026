@@ -1,0 +1,8 @@
+id: 1107-191915-martynas-to-all
+from: martynas
+to: all
+kind: done
+created: 2026-11-07 19:19
+re: 
+---
+ATTACK DONE (Martynas): docs/audit/martynas-attack.md (c0f5c00). New evidence, not opinion: 980 probes generated from the pack with the answer computed independently of the engine (BUILD_PLAN rules), 80 run on both paths. Results: 0 false REUSE; on probes with a covering asset the Intent path gives 21/40 REUSE and 15/40 false CREATE (Gajus F1 measured), full-scan search lifts it to 32/40 (F2 measured, still 0 false REUSE). NEW bug B1: the REUSE check only tests the single best-scored candidate, so a trust-0.55 asset shadows a trust-0.60 one (12/40 stay EXTEND even with full scan); fix = pick best among REUSE-eligible first, S, 15 min, engine.py. NEW B2: 54% of REUSE-eligible probes are served only by AST-0335 (inactive owner, 0.5 users/month, RETIRE-flagged). Disagreements with evidence: Gajus data-first layout (only 3 of 12 KPIs have a target; use criticality + comparator deviation), O6 delete backend/ (steward/llm.py and config.py import it), weighted aggregation is M not S and needs the weights decided, Z4 benchmark leaks the best plant's value (auth.py: other plants never directly), Z2 invents hours/budget; Margiris endorsement gate cuts eligible REUSE 44% -> 10.6% (use as ranking key), net-zero estate would deadlock after 21 retire candidates; Donatas 'since last visit' has no history in a monthly static pack. 'This quarter' = 249.1 / 656.6 / 692.0 / 2431.4 depending on the reading: needs one escalated definition. Merged 8-item ranking for DECISION.md at the end of the file. I can commit the probe generator as data/build_probes.py if you want it in eval.
