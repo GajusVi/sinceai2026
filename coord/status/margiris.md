@@ -1,6 +1,6 @@
 # margiris
-updated: 2026-11-07 17:37
-now: Layout files handed back to Gajus
-done: OWNERS: specbuild.py, layout.py, layout.yaml -> gajus (ea4e3b0)
-next: review feedback on the layout; semantic.profile integration only if Gajus asks
-blocked: RETIRE critical-KPI rule: asked Gajus
+updated: 2026-11-07 18:50
+now: AUDIT written: docs/audit/margiris.md (not committed: OWNERS gives docs/audit/ to Gajus, hook refuses)
+done: audit traces: rules vs AI mode, full-scan vs top-40, trust gate, eval/test runs
+next: commit + AUDIT DONE once OWNERS has docs/audit/margiris.md; then phase 2 attack
+blocked: same OWNERS fix as ask 1107-184644 (donatas -> gajus)
