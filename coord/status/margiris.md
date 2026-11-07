@@ -1,6 +1,6 @@
 # margiris
-updated: 2026-11-07 09:52
-now: Queue item 2: decision flags MIGRATE/RETIRE/REASSIGN_OWNER/FIX_REFRESH with evidence ids
-done: LLM conversation tests 17565dc, F1-F8 017c73a
-next: item 3 eval_steward.py, item 4 G11
-blocked: -
+updated: 2026-11-07 10:09
+now: Queue item 3: eval/eval_steward.py (verdict accuracy, false-REUSE, confusion matrix)
+done: item 1 17565dc, item 2 f7eeff4 (lifecycle flags)
+next: item 4 G11 headline numbers; M5 hold-out with Martynas
+blocked: RETIRE critical-KPI rule: asked Gajus
