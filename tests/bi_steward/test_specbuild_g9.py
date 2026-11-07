@@ -20,6 +20,8 @@ from steward.specbuild import best_model, build_spec, spec_hash
 pytestmark = pytest.mark.filterwarnings("ignore")
 
 REQ1 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
+# 2 of 3 KPIs of REQ-0001: an EXTEND (C1)
+EXTEND_Q = "Nubeqa net sales growth and forecast variance globally by country."
 EYLEA = "Net sales for Eylea in Japan"
 
 
@@ -81,7 +83,7 @@ def test_consolidate_without_the_merge_is_blocked_by_lineage(steward):
 
 
 def test_migrate_rebuilds_a_tableau_asset_in_power_bi(steward):
-    result = steward.ask(REQ1)
+    result = steward.ask(EXTEND_Q)
     tableau = result.decision.best.artifact.model_copy(update={"platform": "Tableau"})
     decision = with_best(result.decision, tableau, flags=["MIGRATE"])
     spec = build(steward, result, decision)
@@ -95,7 +97,7 @@ def test_migrate_rebuilds_a_tableau_asset_in_power_bi(steward):
 
 
 def test_migrate_of_a_low_use_workbook_is_blocked(steward):
-    result = steward.ask(REQ1)
+    result = steward.ask(EXTEND_Q)
     tableau = result.decision.best.artifact.model_copy(update={"platform": "Tableau"})
     assert _avg_users(steward.catalog.artifacts[tableau.id]) < LOW_USE_USERS  # lint reads usage from the catalog
     spec = build(steward, result, with_best(result.decision, tableau, flags=["MIGRATE"]))

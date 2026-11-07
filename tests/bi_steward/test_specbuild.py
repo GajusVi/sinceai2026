@@ -14,6 +14,8 @@ from steward.specbuild import best_model, build_spec, spec_hash
 pytestmark = pytest.mark.filterwarnings("ignore")
 
 REQ1 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
+# an EXTEND (REQ-0001 is a CREATE by C1)
+EXTEND_Q = "Nubeqa net sales growth and forecast variance globally by country."
 
 
 @pytest.fixture(scope="module")
@@ -51,22 +53,34 @@ def test_reuse_shows_the_asset_unchanged(steward):
     check_layout(spec)
 
 
-def test_extend_adds_the_missing_measures_and_fixes_the_owner(steward):
-    decision, spec = spec_for(steward, REQ1)
+def test_extend_adds_the_missing_measures(steward):
+    decision, spec = spec_for(steward, EXTEND_Q)
     asset = decision.best.artifact
     assert decision.verdict == Verdict.EXTEND and spec.change_type == "extend" and spec.base_asset_ids == [asset.id]
     assert spec.version == asset.version + 1
     added = {c.record_ids[1] for c in spec.changes if c.kind == "add_measure"}
-    assert added == {"KPI-004", "KPI-042"} - set(asset.kpi_ids)
-    owner_change = [c for c in spec.changes if c.kind == "assign_owner"]
-    assert asset.owner_status != "active" and owner_change and owner_change[0].record_ids[0] == asset.id
-    assert spec.owner_id in asset.successor_candidates
+    assert added == {"KPI-004", "KPI-042", "KPI-001"} - set(asset.kpi_ids)  # Net Sales is context for the variance
     types = [v.type for v in spec.pages[0].visuals]
-    assert types == ["card"] * 4 + ["line", "bar", "table"]  # Net Sales is added as context for the forecast variance
-    assert spec.pages[0].visuals[4].title == "Nubeqa net sales by month vs forecast"
-    table = spec.pages[0].visuals[-1]
-    assert table.threshold == 10.0 and table.measures == ["Forecast Variance"]
+    assert types[: types.index("line")] == ["card"] * types.index("line") and "line" in types
+    assert any(v.title == "Nubeqa net sales by month vs forecast" for v in spec.pages[0].visuals)
     check_layout(spec)
+
+
+def test_extend_of_an_asset_whose_owner_left_assigns_a_successor(steward):
+    decision, spec = spec_for(steward, "Nubeqa demand forecast bias in Germany")
+    asset = decision.best.artifact
+    assert decision.verdict == Verdict.EXTEND and asset.owner_status != "active"
+    owner_change = [c for c in spec.changes if c.kind == "assign_owner"]
+    assert owner_change and owner_change[0].record_ids[0] == asset.id
+    assert spec.owner_id in asset.successor_candidates
+    check_layout(spec)
+
+
+def test_req0001_create_carries_every_requested_kpi(steward):
+    """C1: REQ-0001 is a CREATE; the new dashboard still carries all three KPIs (plus Net Sales as context)."""
+    decision, spec = spec_for(steward, REQ1)
+    assert decision.verdict == Verdict.CREATE and spec.change_type == "create"
+    assert {"KPI-004", "KPI-042", "KPI-027"} <= set(spec.kpi_ids)
 
 
 def test_create_picks_a_governed_power_bi_model_with_its_owner(steward):

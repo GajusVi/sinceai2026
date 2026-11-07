@@ -208,7 +208,7 @@ def test_the_verdict_is_untouched_by_the_layout(steward):
         result = steward.build(asked, user=BUILDER)
     finally:
         steward.llm = None
-    assert result.decision.verdict == Verdict.EXTEND and result.spec is not None
+    assert result.decision.verdict == asked.decision.verdict and result.spec is not None
 
 
 def test_layouter_without_a_model_is_the_template():

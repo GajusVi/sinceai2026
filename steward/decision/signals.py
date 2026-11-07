@@ -4,7 +4,7 @@ from datetime import date
 
 from ..catalog import Catalog
 from ..linking import artifact_covered_metrics
-from ..models import Artifact, Gap, GapKind, ParsedQuestion
+from ..models import Artifact, ArtifactStatus, Gap, GapKind, ParsedQuestion
 
 # A coarser time grain the question asks for can be built from these finer ones.
 TIME_ROLLUP = {
@@ -63,7 +63,10 @@ def coverage(question: ParsedQuestion, artifact: Artifact, catalog: Catalog) -> 
 
 def trust_datapack(artifact: Artifact) -> float:
     """BUILD_PLAN 2.3 on real fields: endorsement, accountable owner, model refresh, reach, minus open high signals.
-    Platform is not part of trust (it only blocks REUSE for Tableau)."""
+    Platform is not part of trust (it only blocks REUSE for Tableau).
+    A provisional asset (approved here, DECISION C4) has no trust until it is used or certified."""
+    if artifact.status == ArtifactStatus.PROVISIONAL and artifact.views_30d <= 0 and artifact.endorsement == "none":
+        return 0.0
     score = {"certified": 0.40, "promoted": 0.25}.get(artifact.endorsement, 0.0)
     if artifact.owner_status == "active":
         score += 0.20

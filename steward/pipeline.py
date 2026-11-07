@@ -247,7 +247,7 @@ class Steward:
             except ImportError:
                 pass
             else:
-                spec.lint = lint(spec, self.catalog)
+                spec.lint = lint(spec, self.catalog, self.as_of)
                 spec.provenance["spec_hash"] = spec_hash(spec)  # lint is not part of the hash
         return result.model_copy(update={"spec": spec})
 

@@ -8,9 +8,9 @@
   },
   {
     "question": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
-    "verdict": "EXTEND",
-    "artifact_id": "AST-0335",
-    "note": "Same text, no metadata: all 3 metrics are governed, no asset has all of them, so EXTEND from a partial match. Trust per BUILD_PLAN 2.3 makes AST-0335 (promoted, healthy model, Global scope) the best; AST-0015 and AST-0143 are alternatives. 'global' is a scope filter (market=Global); AST-0143 is named EMEA but its market_scope field is Global (trap 18), so it stays eligible."
+    "verdict": "CREATE",
+    "artifact_id": "AST-0015",
+    "note": "REQ-0001, text only. AST-0015 is the closest report named in the CREATE. C1 (DECISION 19:45): an EXTEND needs at least half of the requested KPIs; no healthy asset carries 2 of the 3. AST-0335 has 1 of 3 and is retiring (C2), so an honest CREATE with the closest report named (was EXTEND AST-0335 until T1.2). 'global' is a scope filter (market=Global)."
   },
   {
     "question": "Inventory Coverage Mgmt",

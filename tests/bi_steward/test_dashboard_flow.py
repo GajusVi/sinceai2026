@@ -45,7 +45,8 @@ def test_reject_still_works_and_logs_the_hash(steward):
 
 
 def test_extend_on_the_data_pack_approves_end_to_end(steward):
-    text = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
+    # an EXTEND (REQ-0001 is a CREATE by C1)
+    text = "Nubeqa net sales growth and forecast variance globally by country."
     result = steward.build(steward.ask(text))
     assert result.decision.verdict.value == "EXTEND" and result.spec
     entry = steward.governance.approve(result, actor="tester", owner=result.spec.owner_id)

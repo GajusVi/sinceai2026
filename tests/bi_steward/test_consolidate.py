@@ -7,7 +7,7 @@ from test_kpi_matching import AS_OF, Pack
 
 from steward.decision.consolidate import cluster_evidence, duplicate_clusters
 from steward.decision.engine import _with_duplicates, decide
-from steward.linking import asset_metric_ids, kpi_jaccard
+from steward.linking import artifact_covered_metrics, asset_metric_ids, kpi_jaccard
 from steward.models import Candidate, Decision, ParsedQuestion, Verdict
 
 pytestmark = pytest.mark.filterwarnings("ignore")
@@ -91,11 +91,13 @@ def test_different_product_scope_is_not_a_duplicate(catalog):
 def test_planted_duplicates_become_a_consolidate_verdict_with_the_most_trusted_keeper():
     pack = Pack()
     a, b = pack.catalog.artifact("AST-0064"), pack.catalog.artifact("AST-0338")
-    metrics = sorted(asset_metric_ids(a, pack.catalog) & asset_metric_ids(b, pack.catalog))
+    # the KPIs each one carries as canonical ids (C1: an EXTEND needs half of them; variants do not count as coverage)
+    metrics = sorted(artifact_covered_metrics(a, pack.catalog) | artifact_covered_metrics(b, pack.catalog))
     narrower = b if len(b.filters) >= len(a.filters) else a
     question = ParsedQuestion(text="x", metrics=metrics, filters=dict(narrower.filters))
     decision = decide(question, pack.search.search(question), pack.catalog, AS_OF)
-    assert decision.verdict == Verdict.CONSOLIDATE and decision.flags == ["CONSOLIDATE"]
+    assert decision.verdict == Verdict.CONSOLIDATE and decision.flags[0] == "CONSOLIDATE"
+    assert set(decision.flags) <= {"CONSOLIDATE", "MIGRATE"}  # MIGRATE when the most trusted keeper is on Tableau
     assert decision.best.artifact.id in {a.id, b.id}
     other = ({a.id, b.id} - {decision.best.artifact.id}).pop()
     assert other in {c.artifact.id for c in decision.alternatives}

@@ -7,6 +7,7 @@ from ..config import EXTEND_MIN_COVERAGE, REUSE_MIN_COVERAGE, REUSE_MIN_TRUST
 from ..linking import kpi_index
 from ..models import Candidate, Decision, Evidence, Gap, GapKind, ParsedQuestion, Verdict
 from ..search import SearchHit
+from . import fit
 from .conflicts import find_conflicts
 from .consolidate import cluster_evidence, duplicate_clusters
 from .feasible import not_feasible
@@ -42,11 +43,25 @@ def _is_tableau(candidate: Candidate) -> bool:
     return candidate.artifact.platform == "Tableau"
 
 
-def _reuse_eligible(c: Candidate) -> bool:
-    return c.coverage >= REUSE_MIN_COVERAGE and c.trust >= REUSE_MIN_TRUST and not _is_tableau(c)
+def _reuse_eligible(c: Candidate, catalog: Catalog | None = None, as_of: date | None = None) -> bool:
+    """Covers everything, trusted enough, Power BI, and (C2) not retiring and not on a failed refresh."""
+    ok = c.coverage >= REUSE_MIN_COVERAGE and c.trust >= REUSE_MIN_TRUST and not _is_tableau(c)
+    return ok and (catalog is None or fit.healthy(c.artifact, catalog, as_of))
 
 
-def _with_duplicates(decision: Decision, candidates: list[Candidate], catalog: Catalog) -> Decision:
+def _with_all_carriers(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog) -> list[SearchHit]:
+    """F2: every asset that carries a requested KPI is a candidate, also when text search ranked it below the top 40.
+    Search order still breaks ties (search_score, 10% of the candidate score)."""
+    if not kpi_index(catalog)[0]:  # sample catalog: goldens unchanged
+        return hits
+    seen = {h.artifact.id for h in hits}
+    extra = sorted(fit.carriers(question, catalog) - seen)
+    return hits + [SearchHit(catalog.artifact(i), 0.0, {}) for i in extra]
+
+
+def _with_duplicates(
+    decision: Decision, candidates: list[Candidate], catalog: Catalog, as_of: date | None = None
+) -> Decision:
     """CONSOLIDATE precedence, option A (Gajus): the best asset answers the question. When it sits in a duplicate cluster
     (same product scope, KPI Jaccard >= CONSOLIDATE_JACCARD) the verdict is CONSOLIDATE only if no member is REUSE-eligible;
     otherwise the verdict stays and the duplicates ride along as a CONSOLIDATE flag with RULE-001 evidence."""
@@ -64,7 +79,7 @@ def _with_duplicates(decision: Decision, candidates: list[Candidate], catalog: C
     if cluster is None:
         return decision
     evidence = [e for e in decision.evidence if e.rule_id != "RULE-006"] + cluster_evidence(cluster)
-    if any(_reuse_eligible(m) for m in cluster.members):
+    if any(_reuse_eligible(m, catalog, as_of) for m in cluster.members):
         return decision.model_copy(
             update={
                 "evidence": decision.evidence + cluster_evidence(cluster),
@@ -72,6 +87,8 @@ def _with_duplicates(decision: Decision, candidates: list[Candidate], catalog: C
             }
         )
     keeper = cluster.keeper
+    if not fit.healthy(keeper.artifact, catalog, as_of):  # C2: a retiring or failing report is never the keeper
+        return decision
     flags = ["CONSOLIDATE"]
     if _is_tableau(keeper):
         flags.append("MIGRATE")
@@ -91,6 +108,20 @@ def _with_duplicates(decision: Decision, candidates: list[Candidate], catalog: C
             ],
         }
     )
+
+
+def _certify(best: Candidate) -> list[Evidence]:
+    """C2: a missing endorsement does not block REUSE; it is an action attached to it."""
+    a = best.artifact
+    if not a.platform or a.endorsement in ("certified", "promoted"):
+        return []
+    return [
+        Evidence(
+            claim=f"Reuse {a.id} and have it certified: it is not endorsed yet (C2: an action, not a block)",
+            record_ids=[a.id],
+            severity="info",
+        )
+    ]
 
 
 def _tableau_evidence(best: Candidate) -> Evidence:
@@ -122,7 +153,7 @@ def conflict_evidence(conflicts: list, catalog: Catalog, limit: int = 10) -> lis
 
 
 def decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as_of: date) -> Decision:
-    decision = _decide(question, hits, catalog, as_of)
+    decision = _decide(question, _with_all_carriers(question, hits, catalog), catalog, as_of)
     decision.evidence.extend(conflict_evidence(decision.conflicts, catalog))
     return add_lifecycle(decision, catalog, as_of)
 
@@ -161,10 +192,10 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
 
     candidates = score_candidates(question, hits, catalog, as_of)
     eligible = [c for c in candidates if c.compatible]
-    best = eligible[0] if eligible else None
+    best = _choose(eligible, question, catalog, as_of)
     alternatives = [c for c in candidates if c is not best][:4]
 
-    if best and best.coverage >= REUSE_MIN_COVERAGE and best.trust >= REUSE_MIN_TRUST and not _is_tableau(best):
+    if best and _reuse_eligible(best, catalog, as_of):
         return _with_duplicates(
             Decision(
                 verdict=Verdict.REUSE,
@@ -175,13 +206,15 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
                     "The report covers every part of the question.",
                     f"Trust {best.trust:.2f} meets the threshold {REUSE_MIN_TRUST}.",
                 ],
+                evidence=_certify(best),
             ),
             candidates,
             catalog,
+            as_of,
         )
 
     covers_a_metric = best is not None and any(i.startswith(f"{GapKind.METRIC.value}:") for i in best.covered)
-    if best and covers_a_metric and best.coverage >= EXTEND_MIN_COVERAGE:
+    if best and covers_a_metric and _extend_enough(best, question, catalog):
         reasons = [f"The report covers {best.coverage:.0%} of the question and contains the required metric."]
         flags: list[str] = []
         evidence: list[Evidence] = []
@@ -213,8 +246,34 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
             evidence=evidence,
             flags=flags,
         )
-        return _with_duplicates(extend, candidates, catalog)
+        return _with_duplicates(extend, candidates, catalog, as_of)
 
+    blocked = [
+        c
+        for c in eligible
+        if fit.metric_share(c, question) > 0 and fit.health_problems(c.artifact, catalog, as_of)
+    ]
+    blocked.sort(key=lambda c: -fit.metric_share(c, question))  # the one carrying most of the request first
+    if not covers_a_metric and blocked:
+        top = blocked[0]
+        return Decision(
+            verdict=Verdict.CREATE,
+            alternatives=blocked[:4],
+            conflicts=conflicts,
+            reasons=[
+                f"Only reports that must not be the answer carry these metrics: {top.artifact.id} "
+                f"({', '.join(fit.health_problems(top.artifact, catalog, as_of))})."
+            ],
+            evidence=[
+                Evidence(
+                    claim=f"{c.artifact.id} is not used as a base: "
+                    f"{', '.join(fit.health_problems(c.artifact, catalog, as_of))} (C2)",
+                    record_ids=[c.artifact.id],
+                    severity="warning",
+                )
+                for c in blocked[:3]
+            ],
+        )
     if not covers_a_metric:
         return Decision(
             verdict=Verdict.CREATE,
@@ -222,10 +281,34 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
             conflicts=conflicts,
             reasons=["No compatible report contains the required metric with the official formula."],
         )
+    share = fit.metric_share(best, question)
     return Decision(
         verdict=Verdict.CREATE,
         best=best,
         alternatives=alternatives,
         conflicts=conflicts,
-        reasons=[f"The closest report covers only {best.coverage:.0%} of the question."],
+        reasons=[
+            f"The closest report carries only {share:.0%} of the requested metrics "
+            f"(an extension needs at least {fit.EXTEND_MIN_METRIC_SHARE:.0%})."
+        ],
     )
+
+
+def _extend_enough(best: Candidate, question: ParsedQuestion, catalog: Catalog) -> bool:
+    """C1 on the data pack: at least half of the requested KPIs (filters do not count). Sample catalog: item share."""
+    if kpi_index(catalog)[0]:
+        return fit.metric_share(best, question) >= fit.EXTEND_MIN_METRIC_SHARE
+    return best.coverage >= EXTEND_MIN_COVERAGE
+
+
+def _choose(eligible: list[Candidate], question: ParsedQuestion, catalog: Catalog, as_of: date) -> Candidate | None:
+    """The candidate the verdict is about. Lifecycle comes before the choice (C2): a retiring or failing report is never
+    chosen. Among the rest, a REUSE-eligible report wins over a higher-scored one that is not (Martynas B1)."""
+    if not kpi_index(catalog)[0]:
+        return eligible[0] if eligible else None
+    pool = [c for c in eligible if fit.healthy(c.artifact, catalog, as_of)]
+    reusable = [c for c in pool if _reuse_eligible(c, catalog, as_of)]
+    if reusable:
+        return reusable[0]
+    # most of the requested KPIs first, then the candidate score (stable: search order breaks ties)
+    return max(pool, key=lambda c: (fit.metric_share(c, question), c.score), default=None)

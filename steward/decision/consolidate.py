@@ -12,6 +12,7 @@ from ..catalog import Catalog
 from ..config import CONSOLIDATE_JACCARD
 from ..linking import asset_metric_ids, kpi_jaccard
 from ..models import Candidate, Evidence
+from .fit import same_family_provisional
 
 
 @dataclass
@@ -31,6 +32,8 @@ def duplicate_clusters(candidates: list[Candidate], catalog: Catalog) -> list[Cl
     kpis = {c.artifact.id: asset_metric_ids(c.artifact, catalog) for c in pool}
 
     def linked(a: Candidate, b: Candidate) -> bool:
+        if same_family_provisional(a.artifact, b.artifact):  # an approved version is not a duplicate of its own base
+            return False
         return (
             a.artifact.product_scope == b.artifact.product_scope
             and kpi_jaccard(kpis[a.artifact.id], kpis[b.artifact.id]) >= CONSOLIDATE_JACCARD

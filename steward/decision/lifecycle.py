@@ -27,7 +27,7 @@ from ..config import (
     RETIRE_RECENT_MONTHS,
 )
 from ..linking import canonical_kpis, kpi_index, kpi_jaccard
-from ..models import Artifact, Decision, Evidence
+from ..models import Artifact, ArtifactStatus, Decision, Evidence
 from .signals import trust
 
 BI_PLATFORM_OWNER = "BI Platform Owner"
@@ -185,10 +185,16 @@ def avg_users(artifact: Artifact) -> float | None:
     return sum(u.unique_users for u in artifact.usage) / len(artifact.usage)
 
 
+def _estate_assets(catalog: Catalog) -> list[Artifact]:
+    """The assets the RETIRE funnel and the estate counts judge. Provisional ones (approved here, DECISION A4) are
+    outside it until they are used or certified; they expire on their own."""
+    return [a for a in catalog.active_artifacts() if a.status != ArtifactStatus.PROVISIONAL]
+
+
 def bottom_cuts(catalog: Catalog) -> dict[str, float]:
     """Per asset type: the average-users value below which an asset is in the bottom RETIRE_BOTTOM_SHARE."""
     by_type: dict[str, list[float]] = {}
-    for a in catalog.active_artifacts():
+    for a in _estate_assets(catalog):
         if (avg := avg_users(a)) is not None:
             by_type.setdefault(a.type, []).append(avg)
     return {t: float(np.percentile(v, RETIRE_BOTTOM_SHARE * 100)) for t, v in by_type.items()}
@@ -376,7 +382,9 @@ def add_lifecycle(decision: Decision, catalog: Catalog, as_of: date) -> Decision
         flags.append("MIGRATE")
         evidence += migrate_evidence(best, ref)
     assessment = assess_retire(best, catalog, as_of, ref)
-    if assessment.retire:
+    if best.status == ArtifactStatus.PROVISIONAL:  # outside the RETIRE funnel (DECISION A4): it expires on its own
+        pass
+    elif assessment.retire:
         flags.append("RETIRE")
         evidence += retire_evidence(best, assessment, catalog, as_of)
     elif assessment.human_review:
@@ -414,7 +422,7 @@ def estate(catalog: Catalog, as_of: date) -> Estate:
     out = Estate(
         funnel=dict.fromkeys(("assets", *FUNNEL_STEPS), 0), tiers=dict.fromkeys(("a", "b", "c", "no_owner"), 0)
     )
-    for a in catalog.active_artifacts():
+    for a in _estate_assets(catalog):
         out.funnel["assets"] += 1
         r = assess_retire(a, catalog, as_of, ref, cuts, holders)
         for step in FUNNEL_STEPS:

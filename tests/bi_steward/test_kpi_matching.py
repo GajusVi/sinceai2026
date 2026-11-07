@@ -70,12 +70,14 @@ def test_sample_catalog_still_uses_formula_path(steward):
 REQ_0001 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
 
 
-def test_req_0001_on_data_pack_extends_a_partial_match(pack):
-    """Text alone: no asset carries all 3 canonical KPIs, so never REUSE. Search must surface assets with 1 of 3 (EXTEND)."""
+def test_req_0001_on_data_pack_is_an_honest_create(pack):
+    """Text alone: no healthy asset carries 2 of the 3 canonical KPIs. C1 (DECISION 19:45): an EXTEND needs half
+    of the requested KPIs, so REQ-0001 is a CREATE with the closest report named, not an extension of AST-0335 (1 of 3,
+    retiring)."""
     decision = pack.ask(REQ_0001).decision
-    assert decision.verdict.value == "EXTEND"
-    assert any(i.startswith("metric:") for i in decision.best.covered)
-    assert {"AST-0015", "AST-0335"} & {c.artifact.id for c in [decision.best, *decision.alternatives]}
+    assert decision.verdict.value == "CREATE"
+    assert "50%" in decision.reasons[0]
+    assert decision.best is None or decision.best.artifact.id != "AST-0335"
 
 
 def test_req_0001_text_vs_metadata_conflict_is_clarify(pack):
@@ -122,12 +124,14 @@ def test_trust_follows_build_plan_2_3_on_real_fields(pack):
 
 
 def test_tableau_is_never_reused_it_is_extended_with_migrate_flag(pack):
+    from steward.decision.engine import _decide
     from steward.search.engine import SearchHit
 
     question = ParsedQuestion(text="net sales", metrics=["net_sales"], filters={"product": "P-XAR", "market": "BR"}, dimensions=["month"])
     tableau = pack.catalog.artifact("AST-0019")
     hits = [SearchHit(tableau, 1.0, {})]
-    decision = decide(question, hits, pack.catalog, AS_OF)
+    # only this candidate: decide() would add every carrier (F2)
+    decision = _decide(question, hits, pack.catalog, AS_OF)
     assert decision.verdict.value == "EXTEND" and decision.best.artifact.id == "AST-0019"
     assert "MIGRATE" in decision.flags
     assert any(e.rule_id == "RULE-006" for e in decision.evidence)

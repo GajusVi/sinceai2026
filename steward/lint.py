@@ -7,7 +7,11 @@ Exceptions to RULE-002 are recorded as spec.provenance["exception:<KPI id>"] = r
 
 from __future__ import annotations
 
+from datetime import date
+
 from .catalog import Catalog
+from .config import CONSOLIDATE_JACCARD
+from .decision import fit
 from .linking import asset_metric_ids, kpi_index, kpi_jaccard
 from .models import Artifact
 from .spec import DashboardSpec, LintResult, Measure
@@ -25,9 +29,7 @@ RULES = (
     "DATA",
 )
 
-REUSE_JACCARD = (
-    0.6  # RULE-001: canonical-metric overlap (variants count as their metric) that makes an existing asset a substitute
-)
+DUPLICATE_JACCARD = CONSOLIDATE_JACCARD  # RULE-006: canonical-metric overlap that makes two assets duplicates
 MAX_VISUALS_PER_PAGE = 7
 MAX_PAGES = 2
 MAX_CARDS = 4
@@ -38,9 +40,10 @@ TRUSTED = {"certified", "promoted"}
 _STATUS_ORDER = {"pass": 0, "warn": 1, "block": 2}
 
 
-def lint(spec: DashboardSpec, catalog: Catalog) -> list[LintResult]:
+def lint(spec: DashboardSpec, catalog: Catalog, as_of: date | None = None) -> list[LintResult]:
+    """as_of: the decision date. With it, RULE-001 ignores retiring / failing substitutes (C2), as the verdict does."""
     checks = {
-        "RULE-001": _rule_001,
+        "RULE-001": lambda s, c: _rule_001(s, c, as_of),
         "RULE-002": _rule_002,
         "RULE-003": _rule_003,
         "RULE-004": _rule_004,
@@ -97,8 +100,37 @@ def _avg_users(asset: Artifact) -> float:
     return sum(u.unique_users for u in asset.usage) / len(asset.usage) if asset.usage else 0.0
 
 
-def _substitutes(spec: DashboardSpec, catalog: Catalog) -> list[tuple[Artifact, float]]:
-    """Active assets on the same product + market scope whose canonical KPIs overlap the spec's by Jaccard >= 0.6."""
+def _wanted(spec: DashboardSpec, catalog: Catalog) -> set[str]:
+    canonical = kpi_index(catalog)[0]
+    return {canonical[k] for k in _spec_kpis(spec, catalog)}  # metric ids
+
+
+def _substitutes(spec: DashboardSpec, catalog: Catalog, as_of: date | None = None) -> list[tuple[Artifact, float]]:
+    """RULE-001 (DECISION T1.2): active assets that already carry EVERY KPI of the spec (containment, not overlap: a
+    one-KPI request inside a three-KPI report is a reuse), on the same scope or unlocked (All Pharma / Global), and
+    healthy by C2 (not retiring, no failed refresh: those are never the answer, so they cannot block a build).
+    A variant KPI on an asset counts as its metric. The float is the share of the asset's KPIs the spec uses."""
+    wanted = _wanted(spec, catalog)
+    if not wanted:
+        return []
+    product, market = _scope(spec.filters, catalog)
+    found = []
+    for asset in catalog.active_artifacts():
+        if asset.id in spec.base_asset_ids:  # a Tableau substitute still blocks: migrate it instead of building anew
+            continue
+        a_product, a_market = _scope(asset.filters, catalog)
+        if a_product not in ("", product) or a_market not in ("", market):
+            continue
+        carried = asset_metric_ids(asset, catalog)
+        if not wanted <= carried or (as_of and not fit.healthy(asset, catalog, as_of)):
+            continue
+        found.append((asset, round(len(wanted) / len(carried), 2)))
+    return sorted(found, key=lambda x: (-x[1], x[0].id))
+
+
+def _duplicates(spec: DashboardSpec, catalog: Catalog) -> list[tuple[Artifact, float]]:
+    """RULE-006: active assets on the same product + market scope whose canonical KPIs overlap the spec's by
+    Jaccard >= 0.6."""
     canonical = kpi_index(catalog)[0]
     wanted = {
         canonical[k] for k in _spec_kpis(spec, catalog)
@@ -109,7 +141,7 @@ def _substitutes(spec: DashboardSpec, catalog: Catalog) -> list[tuple[Artifact, 
         if _scope(asset.filters, catalog) != scope or asset.id in spec.base_asset_ids:
             continue
         score = kpi_jaccard(wanted, asset_metric_ids(asset, catalog))
-        if wanted and score >= REUSE_JACCARD:
+        if wanted and score >= DUPLICATE_JACCARD:
             found.append((asset, round(score, 2)))
     return sorted(found, key=lambda x: -x[1])
 
@@ -123,16 +155,16 @@ def _model_asset(spec: DashboardSpec, catalog: Catalog) -> Artifact | None:
 # ---------------------------------------------------------------- rules
 
 
-def _rule_001(spec: DashboardSpec, catalog: Catalog) -> LintResult:
+def _rule_001(spec: DashboardSpec, catalog: Catalog, as_of: date | None = None) -> LintResult:
     """Reuse before build: a CREATE is blocked while a substitute asset exists."""
     if spec.change_type != "create":
         return _result("RULE-001", [], "Not applicable: this spec reuses or changes an existing asset.")
-    subs = _substitutes(spec, catalog)
+    subs = _substitutes(spec, catalog, as_of)
     if not subs:
         return _result(
             "RULE-001",
             [],
-            "No existing asset on this scope covers the KPIs (Jaccard < 0.6): a new dashboard is justified.",
+            "No healthy existing asset on this scope carries all of these KPIs: a new dashboard is justified.",
         )
     asset, score = subs[0]
     return _result(
@@ -140,7 +172,8 @@ def _rule_001(spec: DashboardSpec, catalog: Catalog) -> LintResult:
         [
             (
                 "block",
-                f'{asset.id} "{asset.title}" already covers {score:.0%} of these KPIs on the same scope: reuse or extend it.',
+                f'{asset.id} "{asset.title}" already carries every one of these KPIs on this scope: '
+                "reuse (or migrate) it instead.",
                 [a.id for a, _ in subs],
             )
         ],
@@ -270,7 +303,7 @@ def _rule_006(spec: DashboardSpec, catalog: Catalog) -> LintResult:
                 )
             )
     merged = {i for c in spec.changes if c.kind == "merge_from" for i in c.record_ids}
-    dupes = [a.id for a, _ in _substitutes(spec, catalog) if a.platform == "Tableau" and a.id not in merged]
+    dupes = [a.id for a, _ in _duplicates(spec, catalog) if a.platform == "Tableau" and a.id not in merged]
     if dupes:
         problems.append(("block", f"Duplicates of the migrated asset are not merged first: {', '.join(dupes)}.", dupes))
     return _result("RULE-006", problems, "The migration is canonical, merged and not a low-use copy.")

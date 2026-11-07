@@ -20,7 +20,8 @@ def as_builder(at: AppTest) -> AppTest:
     """Past the mock login (steward/auth.py) as the BI team, which sees every tab and may approve."""
     at.session_state["user"] = login("Builder12", "Admin123")
     return at
-REQ1 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
+# an EXTEND; REQ-0001 itself is a CREATE (C1)
+REQ1 = "Nubeqa net sales growth and forecast variance globally by country."
 
 
 @pytest.fixture(autouse=True)
@@ -69,7 +70,6 @@ def test_req0001_shows_the_dashboard_then_approve_writes_the_spec_hash(app, tmp_
         "Nubeqa net sales",
         "Nubeqa net sales growth",
         "Nubeqa forecast variance",
-        "Nubeqa market access coverage",
     ]
     assert any(c.value.startswith("v2 (extend)") or "Source model" in c.value for c in app.caption)
     assert {s.label for s in app.selectbox} >= {"Product", "Market"}
@@ -127,7 +127,7 @@ def test_a_lint_block_hides_the_pbip_export_and_disables_approve(app, monkeypatc
     from steward.spec import LintResult
 
     blocked = [LintResult(rule_id="RULE-003", status="block", message="no owner")]
-    monkeypatch.setattr("steward.lint.lint", lambda spec, catalog: blocked)
+    monkeypatch.setattr("steward.lint.lint", lambda spec, catalog, *_a, **_k: blocked)
     app.chat_input[0].set_value(REQ1).run()
     assert not app.exception
     assert "Download .PBIP (draft)" not in [b.proto.label for b in app.get("download_button")]

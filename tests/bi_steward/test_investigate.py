@@ -10,7 +10,8 @@ from steward.config import Settings
 from steward.investigate import dossier, investigate, validate
 
 pytestmark = pytest.mark.filterwarnings("ignore")
-REQ1 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
+# 2 of 3 KPIs of REQ-0001: an EXTEND (C1)
+EXTEND_Q = "Nubeqa net sales growth and forecast variance globally by country."
 
 
 @pytest.fixture(scope="module")
@@ -22,7 +23,7 @@ def result(tmp_path_factory):
             Settings.from_env(), use_llm="off", data_dir=tmp_path_factory.mktemp("i"), as_of=date(2026, 11, 6)
         )
     )
-    yield s, s.ask(REQ1)
+    yield s, s.ask(EXTEND_Q)
     mp.undo()
 
 
@@ -51,7 +52,7 @@ def test_grounded_steps_are_kept_and_invented_ones_dropped(result):
     facts = dossier(r.decision)
     raw = {
         "steps": [
-            {"finding": f"{best.id} covers 60% of the request.", "record_ids": [best.id]},
+            {"finding": f"{best.id} covers {r.decision.best.coverage:.0%} of the request.", "record_ids": [best.id]},
             {"finding": "AST-9999 is perfect.", "record_ids": ["AST-9999"]},  # unknown id
             {"finding": f"{best.id} has 4321 users a month.", "record_ids": [best.id]},  # invented number
         ],
@@ -78,7 +79,7 @@ def test_a_different_starting_asset_is_a_disagreement(result):
 
 def test_no_llm_or_nothing_grounded_gives_no_trail(result):
     s, r = result
-    assert investigate(None, s.settings.prompts_dir, REQ1, "", r.decision) is None
+    assert investigate(None, s.settings.prompts_dir, EXTEND_Q, "", r.decision) is None
     fake = FakeLLM({"steps": [{"finding": "AST-9999 wins.", "record_ids": ["AST-9999"]}]})
-    assert investigate(fake, s.settings.prompts_dir, REQ1, "", r.decision) is None
+    assert investigate(fake, s.settings.prompts_dir, EXTEND_Q, "", r.decision) is None
     assert "<<<DATA" in fake.prompt and r.decision.verdict.value in fake.prompt
