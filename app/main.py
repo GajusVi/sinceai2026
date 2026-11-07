@@ -87,6 +87,7 @@ class Api:
         self._port, self._secret = app_port, secret  # private: never visible to the page
         self._user = None
         self._window = None  # private: pywebview exposes public attributes to JavaScript
+        self._theme = "night"  # the login's day/night choice, carried into the workspace URL
 
     def accounts(self) -> list[dict]:
         from steward.auth import DEMO_ACCOUNTS
@@ -117,7 +118,8 @@ class Api:
 
         if self._user is None or self._window is None:
             return
-        url = f"http://127.0.0.1:{self._port}/?u={self._user.username}&t={sign(self._user.username, self._secret)}"
+        token = sign(self._user.username, self._secret)
+        url = f"http://127.0.0.1:{self._port}/?u={self._user.username}&t={token}&theme={self._theme}"
 
         def go() -> None:  # after this call has answered the page: navigating first would orphan its reply
             time.sleep(0.15)
@@ -125,6 +127,10 @@ class Api:
             self._window.load_url(url)
 
         threading.Thread(target=go, daemon=True).start()
+
+    def set_theme(self, theme: str) -> None:
+        """The login's day/night switch (Donatas): carried into the workspace URL. Anything else is night."""
+        self._theme = theme if theme in ("day", "night") else "night"
 
     def compact(self) -> None:
         """Back to the small login window (the login page calls this when it loads)."""

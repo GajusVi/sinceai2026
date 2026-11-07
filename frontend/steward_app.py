@@ -1,5 +1,6 @@
 """BI Steward decision screen. Run: make ui  (Windows: .\\run.ps1 ui)"""
 
+import inspect
 import os
 import sys
 import tempfile
@@ -38,19 +39,14 @@ EXAMPLES = [
     "Logistics carbon footprint by country",
 ]
 
-BAYER_EXAMPLES = [
-    "How efficiently is this plant running?",
-    "I'm a shareholder: how is the business doing in Europe?",
-    "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
-    "Net sales for Eylea in Japan",
-    "Net sales and OTIF for Hyrnuo in China",
-    "Net sales for Xarelto in Brazil by month",
-    "Net sales, gross-to-net and budget variance by product",
-    "Inventory coverage for Xarelto in Germany",
-]
 
 # Empty-state chips, in business words. Pharma only (CLAUDE.md scope), so no crop examples.
-CHIPS = ["How are we doing in LATAM this quarter?", "Is supply safe for Plant-B?", "Xarelto net sales in Germany"]
+CHIPS = [
+    "How are we doing in LATAM this quarter?",
+    "Is supply safe for Plant-B?",
+    "Xarelto net sales in Germany",
+    "Net sales for Eylea in Japan",  # REUSE AST-0079 on the interview path (Donatas)
+]
 
 LINT_COLOURS = {"pass": ui.GOOD, "warn": ui.WARN, "block": ui.BAD}
 
@@ -187,7 +183,7 @@ with st.sidebar:
     st.markdown("#### BI Steward")
     with st.container(key="bs-rail"):  # left navigation rail (T2.6); Donatas styles .st-key-bs-rail
         PAGE = st.radio("Workspace", _names, key="nav", label_visibility="collapsed")
-    st.caption(f"AI model: {llm_label()}  \nData as of {steward.as_of}")
+    st.caption(f"{llm_label()} · data {steward.as_of}")
     with st.container(key="bs-user"):  # styled by Donatas (.st-key-bs-user): the compact user card
         st.markdown(f"**{user.username}** · {user.role.capitalize()}")
         st.caption(
@@ -209,12 +205,6 @@ with st.sidebar:
         st.toggle("Expert mode: skip the interview", key="expert_mode")
     else:
         st.session_state.expert_mode = False
-    st.divider()
-    st.caption("Example questions" if user.role != "worker" else "")
-    for example in (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES) if user.role != "worker" else []:
-        if st.button(example, width="stretch"):
-            st.session_state.pending_question = example
-            st.session_state.interview = None  # an example is a new question, not an answer
     st.divider()
     if user.can("maintain") and st.button("Reset demo", width="stretch"):
         for name in (CHANGES_FILE, JOURNAL_FILE, INBOX_FILE):
@@ -402,7 +392,8 @@ def render_dashboard(result: StewardResult, governance: bool = True, takeaway: b
         if governance
         else _in_expander("Change product, market or months", lambda: render_filters(spec, frames, key))
     )
-    dash = render_spec(spec, frames, filters)
+    themed = "theme" in inspect.signature(render_spec).parameters and hasattr(ui, "theme")  # Donatas: day | night
+    dash = render_spec(spec, frames, filters, theme=ui.theme()) if themed else render_spec(spec, frames, filters)
 
     text = get_takeaway(key, tuple(sorted(filters.items())), result.question.text, dash) if takeaway else ""
     if text:

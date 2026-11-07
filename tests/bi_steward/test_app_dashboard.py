@@ -112,7 +112,7 @@ def test_app_loads_with_the_backend_llm_client(monkeypatch, tmp_path):
     monkeypatch.setattr("steward.pipeline.get_llm", lambda settings: FakeBackendLLM())
     app = as_builder(AppTest.from_file(APP, default_timeout=120)).run()
     assert not app.exception
-    assert any(c.value.startswith("AI model: ") and "openai/gpt-oss-120b" in c.value for c in app.sidebar.caption)
+    assert any("openai/gpt-oss-120b" in c.value and "data " in c.value for c in app.sidebar.caption)
 
 
 def test_pbip_download_is_offered_for_a_linted_spec_and_labelled_draft(app):
