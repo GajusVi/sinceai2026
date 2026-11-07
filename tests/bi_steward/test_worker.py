@@ -8,6 +8,7 @@ from streamlit.testing.v1 import AppTest
 
 from steward import Steward, semantic
 from steward.auth import login
+from steward.linking import artifact_covered_metrics
 from steward.models import Verdict
 from steward.worker import menu, open_item, other_plant, refusal, reuse_only, sites_named, suggest, words_to_metrics
 
@@ -119,3 +120,26 @@ def test_padding_picks_are_dropped_and_commercial_kpis_never_offered(env, monkey
     monkeypatch.setattr(steward, "llm", None)
     late = suggest(steward, worker, "Are we late on any deliveries this month?", supply)
     assert [i.id for i in late.items] == ["kpi:on_time_in_full"]  # offline: no padding either
+
+
+def test_dashboard_request_reuses_an_existing_dashboard_first(env, monkeypatch):
+    steward, supply = env
+    worker = login("Worker21", "Worker123")
+    raw = {"reply": "Start with these.", "picks": [{"id": "kpi:inventory_coverage"}, {"id": "kpi:on_time_in_full"}]}
+    monkeypatch.setattr(steward, "llm", FakeLLM(raw))
+    answer = suggest(steward, worker, "what's the best dashboard you recommend to plan my day", supply)
+    first = answer.items[0]
+    assert first.id.startswith("report:") and first.label.startswith("Dashboard: ")  # reuse before single KPIs
+    report = steward.catalog.artifacts[first.id.split(":")[1]]
+    assert {"inventory_coverage", "on_time_in_full"} & artifact_covered_metrics(report, steward.catalog)
+
+
+def test_sales_and_schedule_questions_get_honest_answers(env):
+    steward, supply = env
+    worker = login("Worker21", "Worker123")
+    sales = suggest(steward, worker, "are the sales behind our plan", supply)
+    assert not sales.items and "management" in sales.reply
+    schedule = suggest(steward, worker, "are we ahead or behind schedule", supply)
+    assert [i.id for i in schedule.items] == ["kpi:on_time_in_full"] and "plan" in schedule.reply
+    day = suggest(steward, worker, "how do I plan my day", supply)
+    assert "shipping plan" not in day.reply  # "plan my day" is not a plan-attainment question

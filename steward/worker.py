@@ -73,13 +73,20 @@ WORDS: dict[str, tuple[str, ...]] = {
     "on time": ("on_time_in_full",), "deliver": ("on_time_in_full",), "otif": ("on_time_in_full",),
     "late": ("on_time_in_full",), "forecast": ("demand_forecast_accuracy",), "ship": ("units_shipped",),
     "units": ("units_shipped",), "volume": ("units_shipped",), "supply": tuple(SUPPLY),
+    "schedule": ("on_time_in_full",), "behind": ("on_time_in_full",), "on track": ("on_time_in_full",),
 }
 NOT_GOVERNED_WORDS = {
     "downtime": "line downtime", "oee": "equipment effectiveness (OEE)",
     "effectiveness": "equipment effectiveness (OEE)",
     "yield": "batch yield", "cost per unit": "cost per unit", "lead time": "supplier lead times",
     "deviation": "quality deviations", "maintenance": "planned maintenance", "release": "batch release status",
+    "ahead": "a shipping plan to compare against", "behind plan": "a shipping plan to compare against",
+    "against plan": "a shipping plan to compare against", "vs plan": "a shipping plan to compare against",
 }
+# Commercial questions are not answered on the floor view (the menu holds operations KPIs only): say so honestly
+# instead of offering an operations number that sounds like an answer.
+_COMMERCIAL = re.compile(r"\b(sales|revenue|turnover|margin|price|pricing|gross[- ]to[- ]net|market access)\b", re.I)
+_WANTS_REPORT = re.compile(r"\b(dashboards?|reports?|views?|screens?)\b", re.I)
 
 
 def words_to_metrics(text: str) -> tuple[list[str], str]:
@@ -224,7 +231,8 @@ def menu(steward, user: User, supply) -> dict[str, str]:
     carried = set().union(*ops.values()) if ops else set()
     items = {f"kpi:{m}": steward.catalog.metrics[m].name for m in steward.catalog.metrics if m in carried}
     governed = [a for a in visible if ops[a.id]]
-    top = sorted(governed, key=lambda a: (a.certified, a.platform != "Tableau", a.views_30d), reverse=True)
+    top = sorted(governed, key=lambda a: (len(ops[a.id]), a.certified, a.platform != "Tableau", a.views_30d),
+                 reverse=True)  # reuse first: the report that already carries most of the floor's numbers
     for a in top[:MENU_REPORTS]:
         items[f"report:{a.id}"] = f"{a.title} ({', '.join(steward.catalog.metrics[m].name for m in sorted(ops[a.id]))})"
     return items
@@ -246,8 +254,15 @@ def _on_topic(steward, items: list[Suggestion], asked: list[str]) -> list[Sugges
 
 def suggest(steward, user: User, text: str, supply) -> Suggestions:
     """AI first (validated picks from the menu), else the offline rule: words in the question, then the department's
-    usual prompts. Out-of-plant questions are refused before this is called (other_plant)."""
+    usual prompts. Code rails on top: commercial questions get an honest no; picks that miss the numbers the question
+    names are dropped; a question asking for a dashboard always gets the best existing one first (reuse).
+    Out-of-plant questions are refused before this is called (other_plant)."""
+    if _COMMERCIAL.search(text):
+        return Suggestions("Sales and plan numbers are for management and finance, so they are not in your floor view. "
+                           "Ask your manager, or use Other department to request what you need.")
     options = menu(steward, user, supply)
+    metrics, need = words_to_metrics(text)
+    reply, by_ai, items = "", False, []
     if steward.llm is not None:
         try:
             raw = steward.llm.generate_json(render_prompt(
@@ -255,24 +270,45 @@ def suggest(steward, user: User, text: str, supply) -> Suggestions:
                 plant=user.plant, question=text, menu="\n".join(f"- {k}: {v}" for k, v in options.items()),
             ))
             picks = [p for p in raw.get("picks", []) if isinstance(p, dict) and p.get("id") in options]
-            items = [Suggestion(p["id"], _label(options[p["id"]]), str(p.get("why", ""))[:80]) for p in picks]
-            items = _on_topic(steward, items, words_to_metrics(text)[0])
-            if items:
-                return Suggestions(" ".join(str(raw.get("reply", "")).split()), _unique(items)[:MAX_PICKS], True)
+            items = [Suggestion(p["id"], _label(p["id"], options[p["id"]]), str(p.get("why", ""))[:80]) for p in picks]
+            items = _on_topic(steward, items, metrics)
+            reply, by_ai = " ".join(str(raw.get("reply", "")).split()), bool(items)
         except Exception:
             logger.warning("worker_suggest_failed", exc_info=True)
-    metrics, need = words_to_metrics(text)
-    usual = [m for p in PROMPTS.get(user.department or "", []) for m in p.metric_ids]
-    picked = metrics or usual  # a specific question gets its own numbers only; a broad one the department's usual
-    items = [Suggestion(f"kpi:{m}", options[f"kpi:{m}"]) for m in picked if f"kpi:{m}" in options]
-    reply = (f"{need.capitalize()} is not measured in governed data yet. " if need else "") + (
-        "Here is what you can open now." if metrics else f"Here is what {user.department or 'your team'} usually "
-        "checks first.")
-    return Suggestions(reply, _unique(items)[:MAX_PICKS])
+    if not items:
+        usual = [m for p in PROMPTS.get(user.department or "", []) for m in p.metric_ids]
+        picked = metrics or usual  # a specific question gets its own numbers only; a broad one the department's usual
+        items = [Suggestion(f"kpi:{m}", options[f"kpi:{m}"]) for m in picked if f"kpi:{m}" in options]
+        reply = (f"{need[0].upper() + need[1:]} is not in governed data yet. " if need else "") + (
+            "Here is what you can open now." if metrics else f"Here is what {user.department or 'your team'} usually "
+            "checks first.")
+    if _WANTS_REPORT.search(text) and not any(i.id.startswith("report:") for i in items):
+        best = _best_report(steward, options, [i.id.partition(":")[2] for i in items] or metrics)
+        if best:
+            items.insert(0, Suggestion(best, _label(best, options[best]), "existing dashboard with these numbers"))
+            if not by_ai:
+                reply = f"The existing dashboard {options[best].split(' (')[0]} already shows some of these. " + reply
+    return Suggestions(reply, _unique(items)[:MAX_PICKS], by_ai)
 
 
-def _label(text: str) -> str:
-    return text.split(" (")[0]
+def _best_report(steward, options: dict[str, str], wanted: list[str]) -> str:
+    """The menu report carrying most of the wanted numbers (menu order breaks ties: most floor KPIs, certified...)."""
+    reports = [k for k in options if k.startswith("report:")]
+    if not reports:
+        return ""
+    want = set(wanted) or OPS_METRICS
+
+    def hits(key: str) -> int:
+        return len(artifact_covered_metrics(steward.catalog.artifacts[key.partition(":")[2]], steward.catalog) & want)
+
+    best = max(reports, key=hits)  # max keeps the first of equals = menu order
+    return best if hits(best) else ""
+
+
+def _label(item_id: str, text: str) -> str:
+    """Chip text: a KPI by name; a report as "Dashboard: <title>" so the worker sees it is an existing dashboard."""
+    title = text.split(" (")[0]
+    return f"Dashboard: {title}" if item_id.startswith("report:") else title
 
 
 def _unique(items: list[Suggestion]) -> list[Suggestion]:
