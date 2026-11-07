@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 00:45
-now: T3a gap: intake check catches 13/20 hand-labelled conflicts (steward/requests.py); G2 interview prompt not started
-done: d328262 Intent + data-pack loader; 81fdabe catalog.py split (Martynas OK'd); f9f0c54 request-conflict CLARIFY + data-pack goldens
-next: extend intake rule to 20/20 after T6 decision; G2 prompts/interview.yaml; G3 question bank
+updated: 2026-11-07 02:07
+now: G2 interview prompt (prompts/interview.yaml) + G3 question bank, starting
+done: cce201e T6 option C request/metadata severities; a85b174 asks_global + 'global' note corrected; 156f331 global decision; replies sent to Martynas, Donatas, Margiris
+next: G2/G3, then wire Intent into the app with Donatas Sat
 blocked: T6 conventions decision (mine, below)
