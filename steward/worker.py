@@ -9,6 +9,7 @@ button to request it from the BI team. Nothing here creates a dashboard or a KPI
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -18,6 +19,9 @@ from .auth import User, can_see
 from .intent import Intent
 from .linking import artifact_covered_metrics
 from .models import Candidate, Decision, StewardResult, Verdict
+from .prompts import render_prompt
+
+logger = logging.getLogger(__name__)
 
 SUPPLY = ["on_time_in_full", "inventory_coverage", "demand_forecast_accuracy"]
 
@@ -108,14 +112,25 @@ def other_plant(user: User, sites: list[str]) -> str:
     return next((s for s in sites if s not in user.plants), "")
 
 
+_PLANT = re.compile(r"\bplant[\s-]*([abc])\b", re.I)
+_CMO = re.compile(r"\b(cmo|contract manufactur\w*)\b", re.I)
+
+
+def sites_named(text: str) -> list[str]:
+    """Plants named in free text, without a model call ("plant b", "Plant-B", "the CMO")."""
+    found = [f"Plant-{m.upper()}" for m in _PLANT.findall(text)]
+    return found + (["External-CMO"] if _CMO.search(text) else [])
+
+
 def refusal(user: User, site: str) -> str:
     if user.role == "worker":
         return f"You are signed in for {user.plant}. {site}'s numbers come through your manager."
     return f"{site} is not in your access yet. Ask the BI team for it (a builder grants access)."
 
 
-def reuse_only(steward, user: User, metric_ids: list[str], text: str, supply) -> WorkerAnswer:
-    """The best existing report this user may see that carries the asked numbers, on the user's plant. No build."""
+def reuse_only(steward, user: User, metric_ids: list[str], text: str, supply, prefer: str = "") -> WorkerAnswer:
+    """The best existing report this user may see that carries the asked numbers, on the user's plant. No build.
+    prefer: an artifact id that wins when visible (a report the user picked)."""
     if not metric_ids:
         return WorkerAnswer()
     intent = Intent(
@@ -129,7 +144,7 @@ def reuse_only(steward, user: User, metric_ids: list[str], text: str, supply) ->
         if not can_see(user, a.product_scope, a.market_scope, supply):
             continue
         has = [m for m in metric_ids if m in artifact_covered_metrics(a, steward.catalog)]  # canonical KPI ids only
-        key = (len(has), a.certified, a.platform != "Tableau", a.views_30d, -rank)
+        key = (a.id == prefer, len(has), a.certified, a.platform != "Tableau", a.views_30d, -rank)
         if has and (best is None or key > best[0]):
             best, covered = (key, hit), has
     if best is None:
@@ -175,3 +190,80 @@ def read_log(data_dir: Path) -> list[dict]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+# -- dynamic suggestions (chat): the AI picks single KPIs or existing reports, never a new build -------------------
+MAX_PICKS = 4
+MENU_REPORTS = 8
+
+
+@dataclass
+class Suggestion:
+    id: str  # "kpi:<metric_id>" or "report:<artifact_id>"
+    label: str
+    why: str = ""
+
+
+@dataclass
+class Suggestions:
+    reply: str
+    items: list[Suggestion] = field(default_factory=list)
+    by_ai: bool = False
+
+
+def menu(steward, user: User, supply) -> dict[str, str]:
+    """What this user can open right now: every governed KPI a visible report carries, plus the most trusted reports.
+    id -> label. The AI may only pick from here (validated after the call)."""
+    visible = [a for a in steward.catalog.artifacts.values() if can_see(user, a.product_scope, a.market_scope, supply)]
+    carried = {m for a in visible for m in artifact_covered_metrics(a, steward.catalog)}
+    items = {f"kpi:{m}": steward.catalog.metrics[m].name for m in steward.catalog.metrics if m in carried}
+    governed = [a for a in visible if artifact_covered_metrics(a, steward.catalog)]  # a report of variants only: no
+    top = sorted(governed, key=lambda a: (a.certified, a.platform != "Tableau", a.views_30d), reverse=True)
+    for a in top[:MENU_REPORTS]:
+        names = ", ".join(steward.catalog.metrics[m].name for m in sorted(artifact_covered_metrics(a, steward.catalog)))
+        items[f"report:{a.id}"] = f"{a.title} ({names})"
+    return items
+
+
+def suggest(steward, user: User, text: str, supply) -> Suggestions:
+    """AI first (validated picks from the menu), else the offline rule: words in the question, then the department's
+    usual prompts. Out-of-plant questions are refused before this is called (other_plant)."""
+    options = menu(steward, user, supply)
+    if steward.llm is not None:
+        try:
+            raw = steward.llm.generate_json(render_prompt(
+                steward.settings.prompts_dir, "worker_suggest", department=user.department or user.role,
+                plant=user.plant, question=text, menu="\n".join(f"- {k}: {v}" for k, v in options.items()),
+            ))
+            picks = [p for p in raw.get("picks", []) if isinstance(p, dict) and p.get("id") in options]
+            items = [Suggestion(p["id"], _label(options[p["id"]]), str(p.get("why", ""))[:80]) for p in picks]
+            if items:
+                return Suggestions(" ".join(str(raw.get("reply", "")).split()), _unique(items)[:MAX_PICKS], True)
+        except Exception:
+            logger.warning("worker_suggest_failed", exc_info=True)
+    metrics, need = words_to_metrics(text)
+    usual = [m for p in PROMPTS.get(user.department or "", []) for m in p.metric_ids]
+    items = [Suggestion(f"kpi:{m}", options[f"kpi:{m}"]) for m in metrics + usual if f"kpi:{m}" in options]
+    reply = (f"{need.capitalize()} is not measured in governed data yet. " if need else "") + (
+        "Here is what you can open now." if metrics else f"Here is what {user.department or 'your team'} usually "
+        "checks first.")
+    return Suggestions(reply, _unique(items)[:MAX_PICKS])
+
+
+def _label(text: str) -> str:
+    return text.split(" (")[0]
+
+
+def _unique(items: list[Suggestion]) -> list[Suggestion]:
+    seen: set[str] = set()
+    return [s for s in items if not (s.id in seen or seen.add(s.id))]
+
+
+def open_item(steward, user: User, item_id: str, supply) -> WorkerAnswer:
+    """A picked suggestion, reuse only: one KPI -> its best visible report; a report -> that report's KPIs."""
+    kind, _, key = item_id.partition(":")
+    if kind == "kpi":
+        return reuse_only(steward, user, [key], steward.catalog.metrics[key].name, supply)
+    asset = steward.catalog.artifacts[key]
+    metrics = sorted(artifact_covered_metrics(asset, steward.catalog))
+    return reuse_only(steward, user, metrics, asset.title, supply, prefer=key)

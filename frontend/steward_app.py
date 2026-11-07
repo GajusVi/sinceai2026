@@ -915,6 +915,7 @@ with tab_ask:
                 building = st.empty()
                 with building.container():
                     render_messages(extra="Use the recommended setup" if skip else question.strip())
+                    ui.html(ui.typing("Thinking"))  # the AI is working: visible under the question
                     ui.skeleton(full=skip or bool(st.session_state.get("expert_mode")))
             if skip:
                 skip_to_defaults()

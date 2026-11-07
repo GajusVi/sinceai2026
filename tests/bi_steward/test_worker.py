@@ -9,7 +9,7 @@ from streamlit.testing.v1 import AppTest
 from steward import Steward, semantic
 from steward.auth import login
 from steward.models import Verdict
-from steward.worker import other_plant, refusal, reuse_only, words_to_metrics
+from steward.worker import menu, open_item, other_plant, refusal, reuse_only, sites_named, suggest, words_to_metrics
 
 APP = str(Path(__file__).resolve().parents[2] / "frontend" / "steward_app.py")
 
@@ -68,3 +68,37 @@ def test_worker_screen_has_buttons_not_a_chat_box(monkeypatch, tmp_path):
     assert labels[0] == "Chat" and "Other department" in labels and "Is supply safe at my plant?" in labels
     next(b for b in at.button if b.label == "Weeks of stock on hand").click().run()
     assert not at.exception and any(c.value.startswith("From the existing report") for c in at.caption)
+
+
+class FakeLLM:
+    def __init__(self, raw):
+        self.raw = raw
+
+    def generate_json(self, prompt):
+        assert "kpi:inventory_coverage" in prompt  # the menu is in the prompt
+        return self.raw
+
+
+def test_plan_my_day_suggests_kpis_without_building(env):
+    steward, supply = env
+    worker = login("Worker21", "Worker123")
+    offline = suggest(steward, worker, "how do I plan my day", supply)  # no LLM: the department's usual numbers
+    assert offline.items and all(i.id.startswith("kpi:") for i in offline.items) and not offline.by_ai
+    first = open_item(steward, worker, offline.items[0].id, supply)
+    assert first.result is None or first.result.decision.verdict == Verdict.REUSE
+
+
+def test_ai_picks_are_validated_against_the_menu(env, monkeypatch):
+    steward, supply = env
+    worker = login("Worker21", "Worker123")
+    raw = {"reply": "Start with stock.", "picks": [{"id": "kpi:inventory_coverage", "why": "stock first"},
+                                                  {"id": "kpi:made_up", "why": "x"}, {"id": "dashboard:new"}]}
+    monkeypatch.setattr(steward, "llm", FakeLLM(raw))
+    answer = suggest(steward, worker, "how do I plan my day", supply)
+    assert answer.by_ai and [i.id for i in answer.items] == ["kpi:inventory_coverage"]  # invented ids dropped
+    report = next(k for k in menu(steward, worker, supply) if k.startswith("report:"))
+    assert open_item(steward, worker, report, supply).result.decision.best.artifact.id == report.split(":")[1]
+
+
+def test_plants_named_in_text():
+    assert sites_named("how is plant b doing") == ["Plant-B"] and sites_named("the CMO") == ["External-CMO"]

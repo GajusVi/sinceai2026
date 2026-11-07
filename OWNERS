@@ -34,6 +34,9 @@ steward/takeaway.py     gajus
 prompts/takeaway.yaml   gajus
 tools/compare_modes.py  gajus
 prompts/to_spec.yaml    gajus
+prompts/worker_suggest.yaml gajus
+steward/auth.py         gajus
+steward/worker.py       gajus
 steward/lint.py         margiris
 steward/render.py       donatas
 catalog/bayer/measures.json martynas

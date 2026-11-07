@@ -16,13 +16,16 @@ from steward.worker import (
     DEPARTMENTS,
     NEEDS,
     PROMPTS,
+    Suggestions,
     WorkerAnswer,
     log_request,
+    open_item,
     other_plant,
     refusal,
     request_entry,
     reuse_only,
-    words_to_metrics,
+    sites_named,
+    suggest,
 )
 
 CSS = f"""<style>
@@ -40,7 +43,7 @@ def render(steward, user: User, supply, render_dashboard) -> None:
     granted = st.session_state.setdefault("grants", {}).get(user.username, [])
     with st.container(horizontal=True, key="w-row"):
         if st.button("Chat", key="w-chat", help="Ask in your own words"):
-            st.session_state.update(w_chat=not st.session_state.get("w_chat"), w_other=None)
+            st.session_state.update(w_chat=True, w_other=None)
         for i, prompt in enumerate(PROMPTS.get(user.department, [])):
             if st.button(prompt.label, key=f"w-p-{i}"):
                 _answer_prompt(steward, user, prompt, supply)
@@ -54,10 +57,7 @@ def render(steward, user: User, supply, render_dashboard) -> None:
                     _answer_prompt(steward, user, prompt, supply)
 
     if st.session_state.get("w_chat"):
-        with st.form("w-chat-form", clear_on_submit=True, border=False):
-            text = st.text_input("Your question", placeholder="e.g. how many weeks of stock do we have?")
-            if st.form_submit_button("Ask", type="primary") and text.strip():
-                _answer_text(steward, user, text.strip(), supply)
+        _chat(steward, user, supply)
     if st.session_state.get("w_other"):
         _render_other(steward, user)
     answer = st.session_state.get("w_answer")
@@ -74,19 +74,41 @@ def _answer_prompt(steward, user: User, prompt, supply) -> None:
                                                                supply))
 
 
-def _answer_text(steward, user: User, text: str, supply) -> None:
-    """Free text: understand it once (no follow-up questions), refuse other plants, then reuse only."""
-    intent = steward.interviewer.start(text).intent
-    site = other_plant(user, intent.sites)
-    if site:
-        st.session_state.w_answer = (text, WorkerAnswer(refused=refusal(user, site)))
-        return
-    words, need = words_to_metrics(text)
-    metrics = intent.metric_ids or steward.interviewer.themes.get(intent.theme, {}).get("metrics", []) or words
-    if not metrics:
-        st.session_state.w_answer = (text, WorkerAnswer(not_governed=need))
-        return
-    st.session_state.w_answer = (text, reuse_only(steward, user, list(metrics), text, supply))
+def _close_chat() -> None:
+    st.session_state.w_chat = False
+
+
+@st.dialog("Chat", width="large", on_dismiss=_close_chat)
+def _chat(steward, user: User, supply) -> None:
+    """Pop-out chat. The AI answers with what to open (single KPIs or existing reports), never a new build.
+    While it works, a "Thinking" bubble sits under the question. A pick closes the chat and opens the answer."""
+    log = st.session_state.setdefault("w_chat_log", [])
+    if not log:
+        st.caption(f"Ask about {user.plant}. I point you to numbers and reports that already exist.")
+    for n, m in enumerate(log):
+        ui.html(ui.message(m["role"], m["text"], new=n == len(log) - 1))
+        if m.get("items"):
+            with st.container(horizontal=True, key=f"w-picks-{n}"):
+                for k, item in enumerate(m["items"]):
+                    if st.button(item.label, key=f"w-pick-{n}-{k}", help=item.why or None):
+                        picked = open_item(steward, user, item.id, supply)
+                        st.session_state.update(w_answer=(item.label, picked), w_chat=False)
+                        st.rerun()
+    pending = st.session_state.pop("w_pending", None)
+    if pending:
+        slot = st.empty()
+        slot.html(ui.typing("Thinking"))
+        site = other_plant(user, sites_named(pending))
+        answer = Suggestions(refusal(user, site)) if site else suggest(steward, user, pending, supply)
+        slot.empty()
+        log.append({"role": "assistant", "text": answer.reply, "items": answer.items})
+        st.rerun(scope="fragment")
+    with st.form("w-chat-form", clear_on_submit=True, border=False):
+        text = st.text_input("Your question", placeholder="e.g. how do I plan my day?", label_visibility="collapsed")
+        if st.form_submit_button("Send", type="primary") and text.strip():
+            log.append({"role": "user", "text": text.strip()})
+            st.session_state.w_pending = text.strip()
+            st.rerun(scope="fragment")
 
 
 def _names(steward, metric_ids: list[str]) -> str:

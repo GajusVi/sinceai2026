@@ -58,6 +58,12 @@ def message(role: str, text: str, new: bool = False, counter: str = "") -> str:
     return f'<div class="bs-msg {who}{" new" if new else ""}">{count}{escape(text)}</div>'
 
 
+def typing(label: str = "Thinking") -> str:
+    """The AI is working: a pill with three pulsing dots (steward.css .bs-typing). Returned as HTML for a slot."""
+    dots = '<span class="dots"><span></span><span></span><span></span></span>'
+    return f'<div class="bs-typing">{dots}{escape(label)}</div>'
+
+
 def section(title: str) -> None:
     html(f'<div class="bs-section">{escape(title)}</div>')
 
