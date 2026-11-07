@@ -9,7 +9,6 @@ eval/                   margiris
 backend/ingest.py       martynas
 backend/models.py       martynas
 data/                   martynas
-frontend/steward_app.py gajus     NIGHT, back to donatas at 08:00
 frontend/               donatas
 steward/models.py       gajus     NIGHT (additive fields only, e.g. StewardResult.spec), back to martynas at 08:00
 steward/spec.py         gajus     NIGHT Sat 03:30-08:00, back to martynas at 08:00
@@ -31,7 +30,7 @@ templates/pbip/         martynas
 steward/specbuild.py    gajus
 prompts/to_spec.yaml    gajus
 steward/lint.py         margiris
-steward/render.py       gajus     NIGHT, back to donatas at 08:00
+steward/render.py       donatas
 catalog/bayer/measures.json gajus NIGHT, back to martynas at 08:00
 catalog/                martynas
 demo/                   donatas
