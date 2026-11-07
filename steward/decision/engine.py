@@ -4,10 +4,11 @@ from datetime import date
 
 from ..catalog import Catalog
 from ..config import EXTEND_MIN_COVERAGE, REUSE_MIN_COVERAGE, REUSE_MIN_TRUST
+from ..linking import kpi_index
 from ..models import Candidate, Decision, Evidence, Gap, GapKind, ParsedQuestion, Verdict
 from ..search import SearchHit
-from ..linking import kpi_index
 from .conflicts import find_conflicts
+from .consolidate import cluster_evidence, duplicate_clusters
 from .feasible import not_feasible
 from .signals import coverage, trust, trust_gaps
 
@@ -38,6 +39,66 @@ def score_candidates(question: ParsedQuestion, hits: list[SearchHit], catalog: C
 
 def _is_tableau(candidate: Candidate) -> bool:
     return candidate.artifact.platform == "Tableau"
+
+
+def _reuse_eligible(c: Candidate) -> bool:
+    return c.coverage >= REUSE_MIN_COVERAGE and c.trust >= REUSE_MIN_TRUST and not _is_tableau(c)
+
+
+def _with_duplicates(decision: Decision, candidates: list[Candidate], catalog: Catalog) -> Decision:
+    """CONSOLIDATE precedence, option A (Gajus): the best asset answers the question. When it sits in a duplicate cluster
+    (same product scope, KPI Jaccard >= CONSOLIDATE_JACCARD) the verdict is CONSOLIDATE only if no member is REUSE-eligible;
+    otherwise the verdict stays and the duplicates ride along as a CONSOLIDATE flag with RULE-001 evidence."""
+    if not decision.best or not kpi_index(catalog)[0]:  # the sample catalog has no KPI ids: goldens unchanged
+        return decision
+    pool = [c for c in candidates if c.coverage >= EXTEND_MIN_COVERAGE]
+    cluster = next(
+        (
+            c
+            for c in duplicate_clusters(pool, catalog)
+            if decision.best.artifact.id in {m.artifact.id for m in c.members}
+        ),
+        None,
+    )
+    if cluster is None:
+        return decision
+    evidence = [e for e in decision.evidence if e.rule_id != "RULE-006"] + cluster_evidence(cluster)
+    if any(_reuse_eligible(m) for m in cluster.members):
+        return decision.model_copy(
+            update={
+                "evidence": decision.evidence + cluster_evidence(cluster),
+                "flags": [*decision.flags, "CONSOLIDATE"],
+            }
+        )
+    keeper = cluster.keeper
+    flags = ["CONSOLIDATE"]
+    if _is_tableau(keeper):
+        flags.append("MIGRATE")
+        evidence.append(_tableau_evidence(keeper))
+    ids = {m.artifact.id for m in cluster.members}
+    others = cluster.others + [c for c in candidates if c.artifact.id not in ids][:2]
+    return decision.model_copy(
+        update={
+            "verdict": Verdict.CONSOLIDATE,
+            "best": keeper,
+            "alternatives": others,
+            "evidence": evidence,
+            "flags": flags,
+            "reasons": [
+                f"{len(cluster.members)} reports repeat the same metrics for the same product; none is good enough to reuse as is.",
+                f"Keep {keeper.artifact.id} (trust {keeper.trust:.2f}), retire {', '.join(c.artifact.id for c in cluster.others)}.",
+            ],
+        }
+    )
+
+
+def _tableau_evidence(best: Candidate) -> Evidence:
+    return Evidence(
+        claim=f"{best.artifact.id} is on Tableau: rationalise before migrating, no 1:1 recreation (RULE-006)",
+        rule_id="RULE-006",
+        record_ids=[best.artifact.id],
+        severity="warning",
+    )
 
 
 def conflict_evidence(conflicts: list, catalog: Catalog, limit: int = 10) -> list[Evidence]:
@@ -103,15 +164,19 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
     alternatives = [c for c in candidates if c is not best][:4]
 
     if best and best.coverage >= REUSE_MIN_COVERAGE and best.trust >= REUSE_MIN_TRUST and not _is_tableau(best):
-        return Decision(
-            verdict=Verdict.REUSE,
-            best=best,
-            alternatives=alternatives,
-            conflicts=conflicts,
-            reasons=[
-                "The report covers every part of the question.",
-                f"Trust {best.trust:.2f} meets the threshold {REUSE_MIN_TRUST}.",
-            ],
+        return _with_duplicates(
+            Decision(
+                verdict=Verdict.REUSE,
+                best=best,
+                alternatives=alternatives,
+                conflicts=conflicts,
+                reasons=[
+                    "The report covers every part of the question.",
+                    f"Trust {best.trust:.2f} meets the threshold {REUSE_MIN_TRUST}.",
+                ],
+            ),
+            candidates,
+            catalog,
         )
 
     covers_a_metric = best is not None and any(i.startswith(f"{GapKind.METRIC.value}:") for i in best.covered)
@@ -138,7 +203,7 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
             reasons.append(
                 f"Trust {best.trust:.2f} is below the threshold {REUSE_MIN_TRUST}: it needs an owner or certification."
             )
-        return Decision(
+        extend = Decision(
             verdict=Verdict.EXTEND,
             best=best,
             alternatives=alternatives,
@@ -147,6 +212,7 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
             evidence=evidence,
             flags=flags,
         )
+        return _with_duplicates(extend, candidates, catalog)
 
     if not covers_a_metric:
         return Decision(
