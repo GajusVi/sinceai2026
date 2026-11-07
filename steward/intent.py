@@ -53,10 +53,14 @@ class Intent(BaseModel):
         return not self.missing()
 
     def should_stop(self, questions_asked: int) -> bool:
-        """Expert mode asks only on conflicts; otherwise stop when complete or after MAX_QUESTIONS."""
-        if self.mode == "expert":
-            return not self.conflicts
-        return self.is_complete() or questions_asked >= MAX_QUESTIONS
+        """Open conflicts keep the interview going (any mode); expert mode asks only on conflicts.
+
+        MAX_QUESTIONS always stops it."""
+        if questions_asked >= MAX_QUESTIONS:
+            return True
+        if self.conflicts:
+            return False
+        return self.mode == "expert" or self.is_complete()
 
     def to_parsed_question(self) -> ParsedQuestion:
         """Adapter so the current engine runs on an Intent: one value -> filter, several -> breakdown dimension."""
