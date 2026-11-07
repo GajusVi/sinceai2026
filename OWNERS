@@ -69,4 +69,4 @@ setup_windows.ps1       gajus
 data/build_bayer_dictionaries.py martynas
 catalog/bayer/dimensions.json martynas
 tests/bi_steward/test_overview.py donatas
-frontend/steward_app.py donatas   (TEMP until submission, owner gajus: OVERVIEW, Gajus OK 1108-011104)
+frontend/steward_app.py gajus   (OVERVIEW if-branch by Donatas in fe0dd19, Gajus OK 1108-011104)
