@@ -229,18 +229,33 @@ StewardResult     question + decision + explanation
 JournalEntry      who, when, question, verdict, approved or rejected, reason
 ```
 
-## Where the language model is used and where plain code is
+## AI roles: where a language model is used and where plain code decides
 
-| Step | Who | Why |
-|---|---|---|
-| Parsing the question | Claude, fallback: rules | A model understands free text better |
-| Search by meaning | Offline trigrams (Gemini embeddings if Gemini is the provider) | Compares meaning, not words |
-| Search by words and structure | Code | Fast and precise |
-| Verdict | Rule-based code | Explainable and repeatable |
-| Explanation | Claude, fallback: template | Natural-sounding text |
-| Approval | Human | Accountability |
+Not autonomous agents: an orchestrated pipeline where each AI role has one job, one prompt file in `prompts/` and a typed output
+that code validates. The verdict is plain code on purpose (explainable, identical on every run), which is what the governance
+criterion asks for.
 
-Everything works without a key. This matters for the demo: no internet, no problem.
+| Role | Prompt file | Input → output | Model | Fallback | What code checks afterwards |
+|---|---|---|---|---|---|
+| Interviewer | `prompts/interview.yaml` | conversation → `Intent` (`steward/interview.py`) | Gemini Flash, or a small local model so raw words stay on the device | rules parser + fixed questions | ids must be in the dictionary, else `unmapped_terms`; `Intent.should_stop` ends the interview |
+| Question parser | `prompts/query_parser.yaml` | question → `ParsedQuestion` | Gemini Flash | `RuleBasedParser` | ids outside the dictionary are dropped, unknown words listed as unmapped |
+| Explainer | `prompts/explain.yaml` | `Decision` → text | Gemini Flash | template text | none yet: the prompt forbids changing the decision, nothing verifies it |
+| Spec writer | planned, own file | `Decision` → `DashboardSpec` | Gemini Flash | hand-written example spec | planned: measures must be canonical KPI ids |
+| Verdict engine | none | candidates → `Decision` | plain code | n/a | `tests/bi_steward/golden_*.json` |
+| Search, health, approval | none | code, and a human for approval | | | journal of every human action |
+
+Request intake (`steward/requests.py`) is also plain code: it compares the request text with its metadata and returns a blocker
+(forces CLARIFY) or a confirm (a warning).
+
+### Design rules we follow today
+
+1. **The model proposes, code decides.** The verdict, the stop rule of the interview and every threshold live in code.
+2. **Closed vocabularies.** A model may only use ids from the dictionary. Anything else is kept as an unmapped term, never dropped silently and never mapped to "the closest id".
+3. **Every model step has a fallback**, so the app works without a key or a network.
+4. **One prompt, one file** in `prompts/`, loaded by `steward/prompts.py`; no prompt text in code.
+5. **Least privilege.** No model has a tool or writes anything. Only `governance.py` writes, after a human approves, and the journal records it.
+6. **Fail toward asking.** A conflict or an unrecognised word gives CLARIFY, not a confident REUSE. The false-REUSE rate is the headline number of the evaluation.
+7. **Every decision cites evidence** with a rule id and record ids (RULE-008).
 
 ## What was taken from `zenzap-ai-search`
 
