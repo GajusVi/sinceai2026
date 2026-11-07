@@ -90,3 +90,15 @@ def test_invalid_json_is_not_a_transport_failure(chain):
     with pytest.raises(llm.LLMError, match="invalid JSON"):
         llm.complete_json("sys", "user", Answer)
     assert chain["gemini"].calls == 0
+
+
+def test_demo_mode_replays_text_and_never_calls_the_network(chain, monkeypatch):
+    """T1.5: a live text answer is cached; DEMO_MODE replays it with zero calls, and refuses an uncached input."""
+    chain["aitta"].error, chain["aitta"].text = None, "live words"
+    messages = [{"role": "user", "content": "explain"}]
+    assert llm.chat_text(messages) == "live words"
+    demo = llm.get_settings().model_copy(update={"demo_mode": True})
+    monkeypatch.setattr(llm, "get_settings", lambda: demo)
+    assert llm.chat_text(messages) == "live words" and chain["aitta"].calls == 1
+    with pytest.raises(llm.LLMError):
+        llm.chat_text([{"role": "user", "content": "never asked"}])

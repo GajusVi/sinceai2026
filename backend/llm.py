@@ -89,8 +89,22 @@ def _with_fallback(call: Callable[[Settings], T]) -> T:
         return result
 
 
-def chat_text(messages: list[dict], temperature: float = 0.2) -> str:
-    """Plain-text completion through the provider chain."""
+TEXT_TAG = "chat_text"  # cache tag of plain-text calls (JSON calls use the schema name)
+
+
+def _text_path(messages: list[dict]):
+    return CACHE_DIR / f"{_cache_key('', json.dumps(messages, sort_keys=True), TEXT_TAG)}.txt"
+
+
+def chat_text(messages: list[dict], temperature: float = 0.0) -> str:
+    """Plain-text completion through the provider chain. Cached like complete_json (demo/cache/<key>.txt); DEMO_MODE
+    replays the cache and never touches the network. Temperature 0: the same request reads the same on stage."""
+    s = get_settings()
+    path = _text_path(messages)
+    if s.demo_mode:
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+        raise LLMError("DEMO_MODE: no cached text for this input")
 
     def call(cfg: Settings) -> str:
         model = cfg.resolved()[2]
@@ -102,7 +116,11 @@ def chat_text(messages: list[dict], temperature: float = 0.2) -> str:
             raise LLMTransportError(f"{type(e).__name__}: {e}") from e
         return (resp.choices[0].message.content or "").strip()
 
-    return _with_fallback(call)
+    text = _with_fallback(call)
+    if text:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    return text
 
 
 def _cache_key(system: str, user: str, tag: str) -> str:

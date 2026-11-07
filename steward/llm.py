@@ -25,6 +25,7 @@ class ClaudeClient:
         response = self._client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
+            temperature=0,  # T1.5: the same request reads the same on stage
             messages=[{"role": "user", "content": prompt}],
         )
         return "".join(block.text for block in response.content if block.type == "text").strip()
@@ -64,7 +65,7 @@ class GeminiClient:
         response = self._client.models.generate_content(
             model=self.model,
             contents=prompt,
-            config={"temperature": 0.2},
+            config={"temperature": 0},
         )
         return response.text.strip()
 
@@ -110,7 +111,18 @@ class BackendClient:
 LLMClient = Union[ClaudeClient, GeminiClient, BackendClient]
 
 
+def _demo_mode() -> bool:
+    try:
+        from backend.config import get_settings
+
+        return bool(get_settings().demo_mode)
+    except Exception:
+        return False
+
+
 def get_llm(settings: Settings) -> LLMClient | None:
+    if settings.use_llm != "off" and _demo_mode():  # DEMO_MODE: every call replays demo/cache, no key needed
+        return BackendClient()
     if not settings.llm_enabled:
         return None
     provider = settings.provider
