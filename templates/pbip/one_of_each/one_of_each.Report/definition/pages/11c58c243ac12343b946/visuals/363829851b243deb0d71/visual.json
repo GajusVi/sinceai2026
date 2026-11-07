@@ -1,0 +1,150 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "363829851b243deb0d71",
+  "position": {
+    "x": 10,
+    "y": 870,
+    "z": 2001,
+    "height": 210,
+    "width": 280,
+    "tabOrder": 2001
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "sample_sales"
+                    }
+                  },
+                  "Property": "month"
+                }
+              },
+              "queryRef": "sample_sales.month",
+              "nativeQueryRef": "month"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "sample_sales"
+                    }
+                  },
+                  "Property": "product_name"
+                }
+              },
+              "queryRef": "sample_sales.product_name",
+              "nativeQueryRef": "product_name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "sample_sales"
+                    }
+                  },
+                  "Property": "market_name"
+                }
+              },
+              "queryRef": "sample_sales.market_name",
+              "nativeQueryRef": "market_name"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "sample_sales"
+                        }
+                      },
+                      "Property": "net_sales_m_eur_syn"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(sample_sales.net_sales_m_eur_syn)",
+              "nativeQueryRef": "Sum of net_sales_m_eur_syn"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "7bd1c8e6780da1b15a70",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "sample_sales"
+              }
+            },
+            "Property": "product_name"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "dd35ebe07bb00b4e063a",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "sample_sales"
+              }
+            },
+            "Property": "market_name"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "b5ff2df03977b60e96c5",
+        "field": {
+          "Aggregation": {
+            "Expression": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "sample_sales"
+                  }
+                },
+                "Property": "net_sales_m_eur_syn"
+              }
+            },
+            "Function": 0
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "c2acdf5096b7a0da5e10",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "sample_sales"
+              }
+            },
+            "Property": "month"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
+  }
+}

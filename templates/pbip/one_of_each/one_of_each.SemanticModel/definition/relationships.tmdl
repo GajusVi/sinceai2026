@@ -1,0 +1,5 @@
+relationship d90a0d61-5261-4426-84a9-0a4607d6e8c6
+	joinOnDateBehavior: datePartOnly
+	fromColumn: sample_sales.month
+	toColumn: LocalDateTable_884d11a4-3929-4362-b433-3c4def371cac.Date
+

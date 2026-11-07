@@ -1,0 +1,75 @@
+table sample_sales
+	lineageTag: 8caf703a-e0b7-41a4-a984-5959c5810ea1
+
+	column month
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: fa78e3a3-b785-473d-9303-b4eba627d365
+		summarizeBy: none
+		sourceColumn: month
+
+		variation Variation
+			isDefault
+			relationship: d90a0d61-5261-4426-84a9-0a4607d6e8c6
+			defaultHierarchy: LocalDateTable_884d11a4-3929-4362-b433-3c4def371cac.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column product_name
+		dataType: string
+		lineageTag: 30707ebb-d05a-4d00-b9ed-c14fd0e51d61
+		summarizeBy: none
+		sourceColumn: product_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column market_name
+		dataType: string
+		lineageTag: 88eec723-c55e-4e20-bc0e-0d554dc7a5ef
+		summarizeBy: none
+		sourceColumn: market_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: 9f2bb87f-4d26-46f3-9184-1e17a034c9f9
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	column net_sales_m_eur_syn
+		dataType: double
+		lineageTag: b7486438-ab26-4a38-9669-2ca270188a52
+		summarizeBy: sum
+		sourceColumn: net_sales_m_eur_syn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column forecast_m_eur_syn
+		dataType: double
+		lineageTag: 764648f3-c16b-42f1-968c-617306d40af1
+		summarizeBy: sum
+		sourceColumn: forecast_m_eur_syn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition sample_sales = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Users\Martynas\SinceAI2026\templates\pbip\source\sample_sales.csv"),[Delimiter=",", Columns=6, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"month", type date}, {"product_name", type text}, {"market_name", type text}, {"region", type text}, {"net_sales_m_eur_syn", type number}, {"forecast_m_eur_syn", type number}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+
