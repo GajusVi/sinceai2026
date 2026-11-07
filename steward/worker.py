@@ -160,7 +160,7 @@ def reuse_only(steward, user: User, metric_ids: list[str], text: str, supply, pr
         question=shown.to_parsed_question(), decision=Decision(verdict=Verdict.REUSE, best=candidate),
         explanation="", as_of=steward.as_of,
     )
-    return WorkerAnswer(result=steward.build(result, shown), covered=covered, missing=missing)
+    return WorkerAnswer(result=steward.build(result, shown, user), covered=covered, missing=missing)
 
 
 # -- requests from the floor (Other / missing numbers) -> the builders' queue --------------------------------------

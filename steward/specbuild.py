@@ -17,6 +17,7 @@ from . import semantic
 from .catalog import Catalog
 from .datapack import ALL_PHARMA, DEFAULT_XLSX, GLOBAL
 from .intent import Intent
+from .layout import Layouter, Option
 from .linking import artifact_variants, asset_metric_ids
 from .models import Artifact, Decision, Verdict
 from .semantic import ASSET_LEVEL_KPIS as ASSET_LEVEL
@@ -32,6 +33,7 @@ EXCEPTIONS = {
 }
 COMPARED_TO_FORECAST = {"KPI-001", "KPI-042"}
 DIMENSION_WORD = {"market": "country", "product": "product", "region": "region"}
+DIMENSION_PLURAL = {"market": "countries", "product": "products", "region": "regions"}
 
 
 def spec_hash(spec: DashboardSpec) -> str:
@@ -40,7 +42,13 @@ def spec_hash(spec: DashboardSpec) -> str:
     return hashlib.sha256(body.encode()).hexdigest()[:16]
 
 
-def build_spec(decision: Decision, intent: Intent, catalog: Catalog, feasibility: Feasibility) -> DashboardSpec | None:
+def build_spec(
+    decision: Decision,
+    intent: Intent,
+    catalog: Catalog,
+    feasibility: Feasibility,
+    layouter: Layouter | None = None,
+) -> DashboardSpec | None:
     verdict = decision.verdict
     if verdict in (Verdict.CLARIFY, Verdict.NOT_FEASIBLE):
         return None
@@ -52,10 +60,14 @@ def build_spec(decision: Decision, intent: Intent, catalog: Catalog, feasibility
         measures = [measure("KPI-001")] + measures  # a forecast variance is read against net sales: context measure
     best = decision.best.artifact if decision.best else None
     if verdict == Verdict.CONSOLIDATE and best:
-        return _consolidate(best, decision, intent, catalog, measures)
-    if verdict in (Verdict.REUSE, Verdict.EXTEND) and best:
-        return spec_from_asset(best, decision, intent, catalog, measures)
-    return _create(decision, intent, catalog, measures)
+        spec = _consolidate(best, decision, intent, catalog, measures, layouter)
+    elif verdict in (Verdict.REUSE, Verdict.EXTEND) and best:
+        spec = spec_from_asset(best, decision, intent, catalog, measures, layouter)
+    else:
+        spec = _create(decision, intent, catalog, measures, layouter)
+    if layouter is not None:
+        spec.provenance.update(layouter.info)  # layout_source llm | template (+ model, prompt, role); not in the hash
+    return spec
 
 
 def _change_type(asset: Artifact, decision: Decision) -> str:
@@ -82,14 +94,19 @@ def _owner_change(asset: Artifact) -> tuple[str, SpecChange]:
 
 
 def spec_from_asset(
-    asset: Artifact, decision: Decision, intent: Intent, catalog: Catalog, measures: list[Measure]
+    asset: Artifact,
+    decision: Decision,
+    intent: Intent,
+    catalog: Catalog,
+    measures: list[Measure],
+    layouter: Layouter | None = None,
 ) -> DashboardSpec:
     """REUSE: the asset as it is. RESCUE: the same, with a successor owner. EXTEND: its next version. MIGRATE: a
     rationalised Power BI rebuild of a Tableau asset (canonical KPIs only, RULE-006), never a 1:1 copy."""
     change_type = _change_type(asset, decision)
     reuse = change_type == "reuse"
     dimension = _dimension(intent)
-    page = _page(measures, intent, catalog, dimension)
+    page = _page(measures, intent, catalog, dimension, layouter)
     changes: list[SpecChange] = []
     owner = asset.owner_id
     model_id = asset.model_id
@@ -136,7 +153,12 @@ def spec_from_asset(
 
 
 def _consolidate(
-    keeper: Artifact, decision: Decision, intent: Intent, catalog: Catalog, measures: list[Measure]
+    keeper: Artifact,
+    decision: Decision,
+    intent: Intent,
+    catalog: Catalog,
+    measures: list[Measure],
+    layouter: Layouter | None = None,
 ) -> DashboardSpec:
     """CONSOLIDATE: the keeper's next version carries the union of the cluster's canonical KPIs (up to MAX_CARDS,
     requested ones first); every other member is merged in and retired, with its downstream impact (RULE-001, -004)."""
@@ -144,7 +166,7 @@ def _consolidate(
     others = [c.artifact for c in decision.alternatives if c.artifact.id in in_cluster and c.artifact.id != keeper.id]
     members = [keeper, *others]
     measures = _union(measures, members, catalog)
-    spec = spec_from_asset(keeper, decision, intent, catalog, measures)
+    spec = spec_from_asset(keeper, decision, intent, catalog, measures, layouter)
     merges = [
         SpecChange(
             kind="merge_from",
@@ -189,10 +211,12 @@ def _union(measures: list[Measure], members: list[Artifact], catalog: Catalog) -
     return out
 
 
-def _create(decision: Decision, intent: Intent, catalog: Catalog, measures: list[Measure]) -> DashboardSpec:
+def _create(
+    decision: Decision, intent: Intent, catalog: Catalog, measures: list[Measure], layouter: Layouter | None = None
+) -> DashboardSpec:
     model = best_model(intent)
     dimension = _dimension(intent)
-    page = _page(measures, intent, catalog, dimension)
+    page = _page(measures, intent, catalog, dimension, layouter)
     change = SpecChange(
         kind="assign_owner",
         detail=f"Default owner = owner {model['owner_id']} of the source model {model['model_id']} (editable)",
@@ -242,59 +266,83 @@ def _scope_label(intent: Intent, catalog: Catalog) -> str:
     return who
 
 
-def _page(measures: list[Measure], intent: Intent, catalog: Catalog, dimension: str) -> Page:
+def _card(m: Measure, who: str, intent: Intent) -> Visual:
+    return Visual(
+        type="card",
+        title=f"{who} {m.name.lower()}",
+        measures=[m.name],
+        comparison=_comparison(m, intent),
+        purpose=f"Headline: {m.name}" if m.feasible else f"Governed KPI without source data: {m.name}",
+    )
+
+
+def _line(m: Measure, who: str) -> Visual:
+    vs = "forecast" if m.kpi_id in COMPARED_TO_FORECAST else None
+    return Visual(
+        type="line",
+        title=f"{who} {m.name.lower()} by month" + (" vs forecast" if vs else ""),
+        measures=[m.name],
+        dimension="month",
+        comparison=vs,
+        purpose="See when it moved",
+    )
+
+
+def _bar(m: Measure, who: str, dimension: str) -> Visual:
+    return Visual(
+        type="bar",
+        title=f"{who} {m.name.lower()}, by {DIMENSION_WORD[dimension]}",
+        measures=[m.name],
+        dimension=dimension,
+        purpose=f"Which {DIMENSION_PLURAL[dimension]} drive it",
+    )
+
+
+def _table(m: Measure, dimension: str) -> Visual:
+    threshold, title = EXCEPTIONS[m.kpi_id]
+    plural = {"market": "Countries", "product": "Products", "region": "Regions"}[dimension]
+    return Visual(
+        type="table",
+        title=title.format(who=plural),
+        measures=[m.name],
+        dimension=dimension,
+        threshold=threshold,
+        purpose=f"Which {DIMENSION_PLURAL[dimension]} to look at first",
+    )
+
+
+def _menu(measures: list[Measure], intent: Intent, catalog: Catalog, dimension: str) -> list[Option]:
+    """Every visual the rules allow for these measures (the layout menu): cards (gaps last), a trend per monthly
+    measure, a breakdown per measure that has one, an exceptions table per measure with a governed threshold. The
+    template layout is the first of each kind; the LLM layout (layout.py) chooses and orders from this menu only."""
     who = _scope_label(intent, catalog)
     buildable = [m for m in measures if m.feasible]
-    visuals: list[Visual] = []
-    for m in (buildable + [m for m in measures if not m.feasible])[:MAX_CARDS]:
-        visuals.append(
-            Visual(
-                type="card",
-                title=f"{who} {m.name.lower()}",
-                measures=[m.name],
-                comparison=_comparison(m, intent),
-                purpose=f"Headline: {m.name}" if m.feasible else f"Governed KPI without source data: {m.name}",
-            )
-        )
-    trend = next((m for m in buildable if grain_of(m.kpi_id) == "month"), None)
-    if trend:
-        vs = "forecast" if trend.kpi_id in COMPARED_TO_FORECAST else None
-        visuals.append(
-            Visual(
-                type="line",
-                title=f"{who} {trend.name.lower()} by month" + (" vs forecast" if vs else ""),
-                measures=[trend.name],
-                dimension="month",
-                comparison=vs,
-                purpose="See when it moved",
-            )
-        )
-    by_dim = next((m for m in buildable if m.kpi_id not in ASSET_LEVEL), None)
-    if by_dim:
-        visuals.append(
-            Visual(
-                type="bar",
-                title=f"{who} {by_dim.name.lower()}, by {DIMENSION_WORD[dimension]}",
-                measures=[by_dim.name],
-                dimension=dimension,
-                purpose=f"Which {DIMENSION_WORD[dimension]}s drive it",
-            )
-        )
-    rule = next((m for m in buildable if m.kpi_id in EXCEPTIONS), None)
-    if rule:
-        threshold, title = EXCEPTIONS[rule.kpi_id]
-        plural = {"market": "Countries", "product": "Products", "region": "Regions"}[dimension]
-        visuals.append(
-            Visual(
-                type="table",
-                title=title.format(who=plural),
-                measures=[rule.name],
-                dimension=dimension,
-                threshold=threshold,
-                purpose=f"Which {DIMENSION_WORD[dimension]}s to look at first",
-            )
-        )
-    return Page(name="What needs attention", purpose=f"Where {who} needs action", visuals=visuals)
+    out = [Option(f"card:{m.kpi_id}", _card(m, who, intent), m.kpi_id, m.feasible) for m in buildable]
+    out += [Option(f"card:{m.kpi_id}", _card(m, who, intent), m.kpi_id, False) for m in measures if not m.feasible]
+    out += [Option(f"line:{m.kpi_id}", _line(m, who), m.kpi_id) for m in buildable if grain_of(m.kpi_id) == "month"]
+    out += [
+        Option(f"bar:{m.kpi_id}", _bar(m, who, dimension), m.kpi_id)
+        for m in buildable
+        if m.kpi_id not in ASSET_LEVEL
+    ]
+    out += [Option(f"table:{m.kpi_id}", _table(m, dimension), m.kpi_id) for m in buildable if m.kpi_id in EXCEPTIONS]
+    return out
+
+
+def _page(
+    measures: list[Measure], intent: Intent, catalog: Catalog, dimension: str, layouter: Layouter | None = None
+) -> Page:
+    """The template layout of BUILD_PLAN 5.1 (<= 4 cards, 1 trend, 1 breakdown, 1 exceptions table). With a `layouter`
+    the order, the density and the choice from the menu follow the viewer (layout.py); without one: template."""
+    options = _menu(measures, intent, catalog, dimension)
+    first = lambda kind: next((o.visual for o in options if o.visual.type == kind), None)  # noqa: E731
+    cards = [o.visual for o in options if o.visual.type == "card"][:MAX_CARDS]
+    visuals = cards + [v for v in (first("line"), first("bar"), first("table")) if v]
+    who = _scope_label(intent, catalog)
+    template = Page(name="What needs attention", purpose=f"Where {who} needs action", visuals=visuals)
+    if layouter is None:
+        return template
+    return layouter.arrange(options, template, intent)
 
 
 def _comparison(m: Measure, intent: Intent) -> str | None:

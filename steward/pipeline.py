@@ -225,7 +225,7 @@ class Steward:
         explanation = self.explainer.explain(question, decision, self.as_of) + self._horizon_note(question, decision)
         return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
 
-    def build(self, result: StewardResult, intent=None) -> StewardResult:
+    def build(self, result: StewardResult, intent=None, user=None) -> StewardResult:
         """W3 feasibility -> W5 spec -> W6 lint. Returns a copy of `result` with `.spec` set; `.spec` stays None when the
         verdict builds nothing (CLARIFY, NOT_FEASIBLE) or on the sample catalog. Without an interview there is no Intent:
         it is derived from the parsed question."""
@@ -234,11 +234,13 @@ class Steward:
         if not kpi_index(self.catalog)[0]:
             return result
         from .intent import intent_from_parsed
+        from .layout import Layouter
         from .semantic import feasibility
         from .specbuild import build_spec, spec_hash
 
         intent = intent or intent_from_parsed(result.question, self.catalog)
-        spec = build_spec(result.decision, intent, self.catalog, feasibility(intent))
+        layouter = Layouter(self.llm, self.settings.prompts_dir, user)  # who reads it decides the order (layout.py)
+        spec = build_spec(result.decision, intent, self.catalog, feasibility(intent), layouter)
         if spec is not None:
             try:
                 from .lint import lint  # Margiris's N5; until it lands the spec simply has no lint results
