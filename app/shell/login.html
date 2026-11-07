@@ -78,6 +78,8 @@
   @keyframes drift-a { to { transform: translate(140px, 120px) scale(1.15); } }
   @keyframes drift-b { to { transform: translate(-160px, -90px) scale(.9); } }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; filter: blur(.4px); }
+  /* cobe (real WebGL globe, vendor/cobe.js); the dot canvas above is the fallback when WebGL or modules are off */
+  #cobe { inset: auto; opacity: 0; transition: opacity .5s; cursor: grab; filter: blur(.3px); }
 
   .hud { position: absolute; left: 32px; top: 28px; font-family: var(--mono); font-size: 11px; color: var(--night-muted);
          letter-spacing: .12em; text-transform: uppercase; }
@@ -148,6 +150,7 @@
     <div class="glow a"></div>
     <div class="glow b"></div>
     <canvas id="globe"></canvas>
+    <canvas id="cobe"></canvas>
     <div class="hud">Governance chain <b>online</b></div>
     <div class="console">
       <header><span>bi-steward / trace</span><span id="clock"></span></header>
@@ -203,7 +206,10 @@
     g.addColorStop(0, "rgba(26,75,224,0)"); g.addColorStop(0.5, "rgba(26,75,224,.10)"); g.addColorStop(1, "rgba(26,75,224,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.25, 0, 6.283); ctx.fill();
   }
-  function loop(t) { angle += 0.0016; draw(t); requestAnimationFrame(loop); }
+  function loop(t) {
+    if (window.BS_COBE) { ctx.clearRect(0, 0, W, H); return; }  // the real globe took over
+    angle += 0.0016; draw(t); requestAnimationFrame(loop);
+  }
   size(); addEventListener("resize", size);
   if (reduce) draw(0); else requestAnimationFrame(loop);
 
@@ -284,6 +290,53 @@
   $("form").addEventListener("submit", signIn);
   $("pass").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); signIn(); } });
 })();
+</script>
+<script type="module">
+// The globe: cobe 2.0.1 (vendor/cobe.js, MIT, Shu Ding), configured as Magic UI's Globe component
+// (magicuidesign/magicui@37ce829 apps/www/registry/magicui/globe.tsx, MIT): theta 0.3, diffuse 0.4, 16k samples,
+// mapBrightness 1.2, DPR 2, phi +0.005 per frame, drag damping 1400 with a spring, 500 ms fade-in.
+// Ported from React + motion/react to plain JS; cobe 2 has no onRender, so our loop calls globe.update().
+// Colours and markers are ours (night panel; markets from the data pack). Any failure keeps the fallback dot globe.
+import createGlobe from "./vendor/cobe.js";
+const right = document.querySelector(".right"), cv = document.getElementById("cobe");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MARKERS = [   // Leverkusen (Bayer HQ) + markets in the data pack
+  [51.03, 6.98, 0.045], [52.52, 13.40, 0.03], [35.68, 139.69, 0.035], [31.23, 121.47, 0.035],
+  [-23.55, -46.63, 0.035], [40.71, -74.01, 0.035], [48.86, 2.35, 0.025], [19.43, -99.13, 0.03],
+].map(([lat, lon, size]) => ({ location: [lat, lon], size }));
+let size = 0, phi = 0, drag = null, r = 0, rs = 0, vel = 0, globe;
+function place() {
+  const W = right.clientWidth, H = right.clientHeight;
+  size = Math.round(Math.min(W, H) * 0.66);
+  Object.assign(cv.style, { width: size + "px", height: size + "px", left: Math.round(W * 0.56 - size / 2) + "px",
+                            top: Math.round(H * 0.36 - size / 2) + "px" });
+}
+try {
+  place();
+  globe = createGlobe(cv, {
+    devicePixelRatio: 2, width: size * 2, height: size * 2, phi: 0, theta: 0.3, dark: 1, diffuse: 0.4,
+    mapSamples: 16000, mapBrightness: 1.2, baseColor: [0.32, 0.4, 0.75], markerColor: [0.29, 0.87, 0.5],
+    glowColor: [0.1, 0.29, 0.88], markers: MARKERS,
+  });
+  window.BS_COBE = true; document.getElementById("globe").style.display = "none";
+  setTimeout(() => (cv.style.opacity = "1"), 0);
+  addEventListener("resize", () => { place(); globe.update({ width: size * 2, height: size * 2 }); });
+  cv.addEventListener("pointerdown", (e) => { drag = e.clientX; cv.style.cursor = "grabbing"; });
+  const end = () => { drag = null; cv.style.cursor = "grab"; };
+  cv.addEventListener("pointerup", end); cv.addEventListener("pointerout", end);
+  cv.addEventListener("pointermove", (e) => { if (drag !== null) { r += (e.clientX - drag) / 1400; drag = e.clientX; } });
+  const frame = () => {
+    if (drag === null && !reduce) phi += 0.005;
+    vel += ((r - rs) * 100 - vel * 30) / 60 / 1;  // spring: stiffness 100, damping 30, mass 1 (motion/react defaults used by Magic UI)
+    rs += vel / 60;
+    globe.update({ phi: phi + rs });
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+} catch (e) {
+  console.warn("cobe unavailable, keeping the dot globe:", e);
+  window.BS_COBE = false; cv.remove();
+}
 </script>
 </body>
 </html>
