@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 18:35
-now: AUDIT phase 1 (blind): my deep stretch 0-3, 6, 8
-done: dfed228 audit brief posted
-next: post AUDIT DONE by 20:00, then attack the others, then draft DECISION.md
+updated: 2026-11-07 18:43
+now: AUDIT DONE: docs/audit/gajus.md (6428f24)
+done: audit phase 1
+next: attack the other three audits once pushed
 blocked: T6 conventions decision (mine, below)
