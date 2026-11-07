@@ -115,3 +115,54 @@ def test_spec_id_uses_the_pipeline_hash_when_it_is_one(spec):
     assert pbip_server.spec_id(spec) == pbip_server.spec_id(spec) and len(pbip_server.spec_id(spec)) == 16
     spec.provenance["spec_hash"] = "0123456789abcdef"
     assert pbip_server.spec_id(spec) == "0123456789abcdef"
+
+
+# -- the live export itself (pbip.build_files(..., live=...)) -------------------------------------------------------
+
+SM = "Nubeqa_net_sales_draft.SemanticModel/definition/tables/{}.tmdl"
+
+
+def _embedded_rows(files: dict, table: str):
+    encoded = re.search(r'Binary.FromText\("([^"]+)"', files[SM.format(table)]).group(1)
+    return json.loads(zlib.decompress(base64.b64decode(encoded), -15))
+
+
+def test_live_export_loads_from_the_app_and_embeds_no_data(served, spec, frames):
+    source, _ = served
+    files = build_files(spec, frames, live=source)
+    for table in ("fact_pmm", "dim_product"):
+        tmdl = files[SM.format(table)]
+        assert f'Web.Contents("{source.table_url(table)}", [Query = [key = "{source.key}"]])' in tmdl
+        assert "Binary.FromText" not in tmdl and "Table.FromRows(Raw[rows]" in tmdl
+        assert "Table.TransformColumnTypes(Source" in tmdl  # same typing step as the embedded export
+    assert "LIVE-REFRESH" in files["README.txt"] and source.base_url in files["README.txt"]
+    assert "Anonymous" in files["README.txt"]
+
+
+def test_everything_except_the_tables_and_readme_is_identical_to_the_embedded_export(served, spec, frames):
+    source, _ = served
+    embedded, live = build_files(spec, frames), build_files(spec, frames, live=source)
+    assert set(embedded) == set(live)
+    differing = {p for p in embedded if embedded[p] != live[p]}
+    assert differing == {SM.format("fact_pmm"), SM.format("dim_product"), "README.txt"}
+
+
+def test_simulated_refresh_gets_exactly_the_embedded_rows(served, spec, frames):
+    """What Desktop does on Refresh: take the URL and key from the generated model and load them."""
+    source, _ = served
+    embedded, live = build_files(spec, frames), build_files(spec, frames, live=source)
+    for table in ("fact_pmm", "dim_product"):
+        url, key = re.search(r'Web.Contents\("([^"]+)", \[Query = \[key = "([^"]+)"\]\]\)', live[SM.format(table)]).groups()
+        status, body = _get(f"{url}?key={key}")
+        assert status == 200
+        assert body["rows"] == _embedded_rows(embedded, table), table
+
+
+def test_live_export_is_deterministic_and_named_apart(served, spec, frames, tmp_path):
+    from steward.pbip import export_pbip
+
+    source, _ = served
+    assert build_files(spec, frames, live=source) == build_files(spec, frames, live=source)
+    live_zip = export_pbip(spec, frames, tmp_path, live=source)
+    plain_zip = export_pbip(spec, frames, tmp_path)
+    assert live_zip.name.endswith(".live.pbip.zip") and plain_zip.name.endswith(".pbip.zip") and live_zip != plain_zip

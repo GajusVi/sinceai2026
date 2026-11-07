@@ -29,7 +29,7 @@ prompts/                margiris
 prompts/layout.yaml     gajus
 steward/catalog.py      martynas
 steward/semantic.py     gajus
-steward/pbip.py         gajus
+steward/pbip.py         martynas
 steward/pbip_server.py  martynas
 templates/pbip/         martynas
 steward/specbuild.py    gajus
