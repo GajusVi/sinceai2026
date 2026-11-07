@@ -299,3 +299,123 @@ def test_no_question_means_no_subtitle_and_quotes_are_doubled_like_dax(spec, fra
     assert list(v) == ["visualType", "query", "visualContainerObjects", "drillFilterOtherVisuals"]  # Desktop's key order
     spec.pages[0].visuals = [Visual(type="card", title="", measures=["Net Sales"])]
     assert "visualContainerObjects" not in _visuals(build_files(spec, frames))[0]["visual"]  # nothing to show, nothing written
+
+
+# -- overview pages: 12-column grid, kpi_strip, chart types without a Desktop template ------------------------------------
+
+
+def _visual_class():
+    """Visual with span / row: the real one once spec.py has them, else a stand-in with the same field names."""
+    if "span" in Visual.model_fields:
+        return Visual
+
+    class _Visual(Visual):
+        span: int | None = None
+        row: int | None = None
+
+    return _Visual
+
+
+def _overview(spec, visuals, extra_measures=()):
+    spec.measures += list(extra_measures)
+    spec.pages[0].visuals = visuals
+    return spec
+
+
+def _placed(files):
+    """title -> (x, y, width, height), from the exported visual.json files."""
+    out = {}
+    for v in _visuals(files):
+        title = v["visual"]["visualContainerObjects"]["title"][0]["properties"]["text"]["expr"]["Literal"]["Value"].strip("'")
+        p = v["position"]
+        out[title] = (p["x"], p["y"], p["width"], p["height"])
+    return out
+
+
+def test_spans_are_placed_on_a_12_column_grid(spec, frames):
+    V = _visual_class()
+    cards = [V(type="card", title=f"c{i}", measures=["Net Sales"], span=4) for i in range(3)]
+    placed = _placed(build_files(_overview(spec, cards), frames))
+    xs = sorted(placed[f"c{i}"][0] for i in range(3))
+    assert len({placed[f"c{i}"][1] for i in range(3)}) == 1 and xs == sorted(set(xs))  # one row, three columns
+    assert len({placed[f"c{i}"][2] for i in range(3)}) == 1
+    last = max(placed.values())  # right edge of the last tile touches the page margin
+    assert last[0] + last[2] == 1920 - 20 and min(x for x, *_ in placed.values()) == 20
+
+
+def test_a_row_wraps_when_the_12_columns_are_full_and_span_8_plus_4_share_a_row(spec, frames):
+    V = _visual_class()
+    visuals = [
+        V(type="bar", title="wide", measures=["Net Sales"], dimension="product", span=8),
+        V(type="card", title="narrow", measures=["Net Sales"], span=4),
+        V(type="bar", title="next", measures=["Net Sales"], dimension="product", span=6),
+    ]
+    placed = _placed(build_files(_overview(spec, visuals), frames))
+    assert placed["wide"][1] == placed["narrow"][1] and placed["wide"][2] > 1.9 * placed["narrow"][2]
+    assert placed["next"][1] > placed["wide"][1]  # 8 + 4 = 12 is full: the next one starts a new row
+
+
+def test_explicit_rows_come_in_ascending_order_whatever_the_listing_order(spec, frames):
+    V = _visual_class()
+    visuals = [
+        V(type="card", title="second", measures=["Net Sales"], span=6, row=2),
+        V(type="card", title="first", measures=["Net Sales"], span=6, row=1),
+    ]
+    placed = _placed(build_files(_overview(spec, visuals), frames))
+    assert placed["first"][1] < placed["second"][1]
+
+
+def test_kpi_strip_becomes_one_card_per_measure_in_one_row_and_drops_gaps_with_a_note(spec, frames):
+    V = _visual_class()
+    units = Measure(name="Units", kpi_id="KPI-014", expression="SUM(fact_pmm[units])", format="#,##0")
+    gap = Measure(name="Gross-to-Net Rate", kpi_id="KPI-034", feasible=False, gap_reason="no source data")
+    strip = V(type="kpi_strip", title="Status", measures=["Net Sales", "Units", "Gross-to-Net Rate"])
+    files = build_files(_overview(spec, [strip], [units, gap]), frames)
+    placed = _placed(files)
+    assert set(placed) == {"Net Sales", "Units"}  # the gap tile is not exported
+    (x1, y1, w1, _), (x2, y2, w2, _) = placed["Net Sales"], placed["Units"]
+    assert y1 == y2 and x2 > x1 and w1 == w2 and x2 + w2 == 1920 - 20  # two equal tiles share the full width
+    assert 'Tile "Gross-to-Net Rate" of "Status" is not exported' in files["README.txt"]
+
+
+def test_kpi_strip_shows_at_most_eight_measures(spec, frames):
+    V = _visual_class()
+    many = [Measure(name=f"M{i}", kpi_id="", expression="SUM(fact_pmm[units])") for i in range(9)]
+    strip = V(type="kpi_strip", title="Everything", measures=[m.name for m in many])
+    files = build_files(_overview(spec, [strip], many), frames)
+    assert len(_visuals(files)) == 8 and "first 8 measures; 1 more are left out" in files["README.txt"]
+
+
+def test_new_chart_types_are_drawn_as_clustered_bars_with_a_note(spec, frames):
+    V = _visual_class()
+    visuals = [
+        V(type=t, title=f"as {t}", measures=["Net Sales"], dimension="product", span=6)
+        for t in ("bullet", "diverging_bar", "stacked_100")
+    ]
+    files = build_files(_overview(spec, visuals), frames)
+    assert [v["visual"]["visualType"] for v in _visuals(files)] == ["clusteredBarChart"] * 3
+    for t in ("bullet", "diverging_bar", "stacked_100"):
+        assert f'Visual "as {t}" ({t}) is drawn as a clustered bar chart' in files["README.txt"]
+
+
+def test_specs_without_span_or_row_export_exactly_as_before(spec, frames):
+    """The default layout is untouched: same files whether the visuals are plain Visuals or carry empty span / row."""
+    V = _visual_class()
+    plain = build_files(spec, frames)
+    spec.pages[0].visuals = [V(**v.model_dump()) for v in spec.pages[0].visuals]
+    assert build_files(spec, frames) == plain
+
+
+def test_on_an_overview_page_unnumbered_visuals_keep_the_listed_order(spec, frames):
+    """A kpi_strip without a step must stay on top; steps re-order only when every visual has one."""
+    V = _visual_class()
+    visuals = [
+        V(type="card", title="first", measures=["Net Sales"], span=12),
+        V(type="bar", title="second", measures=["Net Sales"], dimension="product", span=12, step=1),
+    ]
+    placed = _placed(build_files(_overview(spec, visuals), frames))
+    assert placed["first"][1] < placed["second"][1]
+    for v in visuals:
+        v.step = 2 if v.title == "first" else 1  # fully numbered now: the steps decide
+    placed = _placed(build_files(_overview(spec, visuals), frames))
+    assert placed["second"][1] < placed["first"][1]

@@ -41,6 +41,13 @@ VISUALS = {
     "bar": ("clusteredBarChart", "Category", "Y"),
     "table": ("tableEx", "Values", "Values"),
 }
+
+# Overview-dashboard visual types (Donatas' brief) with no saved Desktop template yet: drawn as the nearest one,
+# with a note in the README. kpi_strip is not a chart: it becomes one card per measure (see _expand).
+ALIASES = {"bullet": "bar", "diverging_bar": "bar", "stacked_100": "bar"}
+STRIP_MAX = 8
+DEFAULT_SPAN = {"card": 3, "line": 6, "bar": 6, "table": 12}  # columns of the 12-column grid when a visual sets none
+ROW_HEIGHT = {"card": 150, "line": 380, "bar": 380, "table": 340}
 # spec dimension name -> (entity, column), first entity that is in the model wins
 DIMENSIONS = {
     "month": [("dim_month", "month"), ("fact_pmm", "month")],
@@ -65,7 +72,8 @@ Power BI Desktop (version 2.159 or newer) and click Refresh.
 - The first Refresh asks for credentials for {base_url}: choose "Anonymous" and Connect. If it asks for a privacy level,
   choose "Organizational" or "Ignore".
 - "Unable to connect" = the app is not running (or another copy took the port: STEWARD_PBIP_PORT).
-- An error ending in "(410): Gone" = the BI team withdrew this decision, so Refresh stops on purpose; ask for a new export.
+- An error ending in "(410): Gone" = the BI team withdrew this decision, so Refresh stops on purpose;
+  ask for a new export.
 - The key in the table queries belongs to this export only. It is not a login: the app's login is a mock.
 spec.json is the approved spec (KPI ids, lint result, provenance).
 {notes}"""
@@ -406,6 +414,76 @@ def _visual_json(spec: DashboardSpec, page: str, index: int, v: Visual, box, hom
     }
 
 
+Placed = tuple[Visual, "float | None", "int | None", bool]  # (visual, grid columns, explicit row, starts a new row)
+
+
+def _expand(visuals: list[Visual], gap_names: set[str], notes: list[str]) -> list[Placed]:
+    """Overview types -> what the .PBIP can draw. Without span / row / kpi_strip nothing changes (cols, row = None)."""
+    out: list[Placed] = []
+    for v in visuals:
+        span, row = getattr(v, "span", None), getattr(v, "row", None)
+        if v.type == "kpi_strip":
+            names = [n for n in v.measures if n not in gap_names]
+            for n in v.measures:
+                if n in gap_names:
+                    notes.append(f'Tile "{n}" of "{v.title}" is not exported: it needs a governed gap.')
+            if len(names) > STRIP_MAX:
+                left = len(names) - STRIP_MAX
+                notes.append(f'"{v.title}" shows its first {STRIP_MAX} measures; {left} more are left out.')
+                names = names[:STRIP_MAX]
+            for k, n in enumerate(names):  # one row, equal tiles; a gap tile is dropped and the others share the width
+                out.append((Visual(type="card", title=n, measures=[n], step=v.step), 12 / len(names), row, k == 0))
+            continue
+        if v.type in ALIASES:
+            notes.append(
+                f'Visual "{v.title}" ({v.type}) is drawn as a clustered bar chart in the .PBIP: '
+                "there is no saved Desktop template for that chart yet."
+            )
+            v = v.model_copy(update={"type": ALIASES[v.type]})
+        out.append((v, float(span) if span else None, row, False))
+    return out
+
+
+def _cols(item: Placed) -> float:
+    v, cols = item[0], item[1]
+    return min(12.0, max(1.0, cols if cols else DEFAULT_SPAN.get(v.type, 12)))
+
+
+def _grid(placed: list[Placed]) -> list[tuple[int, int, int, int]]:
+    """(x, y, width, height) per visual, same order, on a 12-column grid. Explicit `row` numbers are placed in ascending
+    order; visuals without one follow in reading order and wrap to a new row when 12 columns are full."""
+    colw = (PAGE_W - 2 * MARGIN - 11 * GAP) / 12
+    explicit: dict[int, list[int]] = {}
+    for i, item in enumerate(placed):
+        if item[2] is not None:
+            explicit.setdefault(item[2], []).append(i)
+    groups = [explicit[r] for r in sorted(explicit)] + [[i for i, item in enumerate(placed) if item[2] is None]]
+    rows: list[list[int]] = []
+    for group in groups:
+        current: list[int] = []
+        used = 0.0
+        for i in group:
+            c = _cols(placed[i])
+            if current and (used + c > 12 + 1e-9 or placed[i][3]):
+                rows.append(current)
+                current, used = [], 0.0
+            current.append(i)
+            used += c
+        if current:
+            rows.append(current)
+    boxes: list[tuple[int, int, int, int] | None] = [None] * len(placed)
+    y = MARGIN
+    for row in rows:
+        height = max(ROW_HEIGHT.get(placed[i][0].type, 340) for i in row)
+        start = 0.0
+        for i in row:
+            c = _cols(placed[i])
+            boxes[i] = (round(MARGIN + start * (colw + GAP)), y, round(c * colw + (c - 1) * GAP), height)
+            start += c
+        y += height + GAP
+    return boxes  # type: ignore[return-value]
+
+
 def _report_files(spec: DashboardSpec, name: str, measures: list[Measure], extra: dict[str, str], notes: list[str]) -> dict[str, str]:
     rp = f"{name}.Report"
     home = _home(spec)
@@ -423,16 +501,22 @@ def _report_files(spec: DashboardSpec, name: str, measures: list[Measure], extra
     for p_index, page in enumerate(spec.pages):
         page_id = _short_id("page", spec.name, str(p_index))
         order.append(page_id)
-        keep: list[Visual] = []
-        for v in page.visuals:
+        placed: list[Placed] = []
+        for v, cols, row, brk in _expand(page.visuals, gap_names, notes):
             if v.type not in VISUALS:
                 notes.append(f'Visual "{v.title}" ({v.type}) is not exported: no saved Desktop template for that type.')
             elif any(n in gap_names for n in v.measures):
                 notes.append(f'Visual "{v.title}" is not exported: it needs a governed gap (no source data), shown as a gap in the app.')
             else:
-                keep.append(v)
-        keep = _in_reading_order(keep)
-        boxes = _layout(keep)
+                placed.append((v, cols, row, brk))
+        if any(t[1] is not None or t[2] is not None for t in placed):  # an overview page: 12-column grid
+            if all(t[0].step > 0 for t in placed):  # fully numbered: reading order; else the order the spec lists them
+                placed.sort(key=lambda t: t[0].step)
+            keep = [t[0] for t in placed]
+            boxes = _grid(placed)
+        else:  # today's pages: unchanged
+            keep = _in_reading_order([t[0] for t in placed])
+            boxes = _layout(keep)
         height = max(PAGE_H, max((y + h for _, y, _, h in boxes), default=0) + MARGIN)
         files[f"{rp}/definition/pages/{page_id}/page.json"] = _json(
             {
