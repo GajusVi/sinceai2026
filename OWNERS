@@ -49,10 +49,6 @@ catalog/                martynas
 demo/                   donatas
 submission/             donatas
 README.md               gajus
-docs/                   gajus
-docs/audit/donatas      donatas  (audit + attack files, BRIEF 1107)
-docs/audit/margiris     margiris
-docs/audit/martynas     martynas
 backend/config.py       gajus
 backend/main.py         gajus
 requirements.in         gajus
