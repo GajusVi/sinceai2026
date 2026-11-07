@@ -1,5 +1,7 @@
 # BI Steward architecture
 
+> **Skeleton-era document.** Written with Vlada's bi-steward skeleton (vladafink/bi-steward), before the Bayer brief was released. The flow and the verdict logic still describe the app. Out of date: the running example (herbicide revenue in LATAM) comes from the invented sample catalog and is Crop Science, which the challenge excludes; the current build also adds an intake check (request text vs its metadata, CLARIFY on conflict), KPI matching by ID on the data pack, and the Orphan rescue tab. Current decisions: NOTES.md and docs/BUILD_PLAN.md.
+
 ## The idea in one paragraph
 
 AI builds new dashboards in minutes, and companies drown in hundreds of overlapping reports with different numbers and no owners. BI Steward works the other way round: for every business question it first looks for what already exists, checks whether it can be trusted, and proposes reuse or an extension. A new report is created only when nothing suitable exists, and only with an owner and the official metric definition. A human always has the final word.

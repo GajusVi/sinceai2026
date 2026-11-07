@@ -4,6 +4,72 @@ For any business question, BI Steward first looks for what already exists, check
 and only then allows something new: REUSE, EXTEND, CREATE or CLARIFY, approved by a human and journaled.
 Challenge notes: docs/challenge/. Design: docs/steward/architecture.md.
 
+## How it works
+
+Diagrams from Vlada's bi-steward skeleton, drawn before the Bayer brief was released. The flow is still how the app works;
+the herbicide/LATAM example comes from the invented sample catalog (Crop Science, out of scope for the challenge), and the
+current build adds the intake check, KPI-id matching on the data pack and the Orphan rescue tab. Full write-up: docs/steward/architecture.md.
+
+**The whole flow.** Solid arrows are the question; dashed lines are reads from and writes to the catalog.
+
+```mermaid
+flowchart TD
+    Q["1. A person asks a question<br/>'Herbicide revenue in LATAM vs plan for Q3'"]
+    P["2. The system understands the question<br/>metrics, filters, period"]
+    S["3. The system searches for similar reports<br/>by words, by meaning and by metrics"]
+    D["4. The system compares what it found<br/>and picks one verdict"]
+    E["5. The system explains the verdict<br/>in plain language, with reasons"]
+    H{"6. Does the person agree?"}
+    YES["Catalog is updated<br/>report reused, extended or created with an owner"]
+    NO["Catalog stays unchanged"]
+    LOG[("Journal<br/>question, verdict, who decided and why")]
+
+    CAT[("Catalog<br/>reports and official metric definitions")]
+
+    Q --> P --> S --> D --> E --> H
+    H -->|Yes| YES
+    H -->|No| NO
+    YES --> LOG
+    NO --> LOG
+
+    CAT -.->|reads| S
+    CAT -.->|reads| D
+    YES -.->|writes| CAT
+```
+
+**Step 4: choosing the verdict.** A conflict is a warning shown with any verdict. A question with no known metric gets CLARIFY.
+
+```mermaid
+flowchart TD
+    D["Step 4. What already exists in the catalog?"]
+    D -->|"A report answers the question and is trustworthy"| REUSE["Reuse as is"]
+    D -->|"A report almost fits; a filter or breakdown is missing"| EXT["Extend the existing one"]
+    D -->|"Nothing similar exists"| CREATE["Propose a new report"]
+    D -->|"The same metric is calculated differently in different reports"| CONF["Show the conflict; do not mix the numbers"]
+
+    REUSE --> NEXT["Then step 5: explain and ask the human"]
+    EXT --> NEXT
+    CREATE --> NEXT
+    CONF --> NEXT
+```
+
+**Steps 5-6: what the human sees.** Reject needs a reason; both outcomes are journaled.
+
+```mermaid
+flowchart TD
+    SCREEN["Decision screen"]
+
+    SCREEN --> TEXT["Text:<br/>Extend the Finance report 'Global Net Revenue vs Plan'.<br/>It is certified and was refreshed yesterday.<br/>Only the 'herbicides' filter is missing.<br/>Do not compare it with the LATAM Sales Dashboard:<br/>revenue there is calculated before discounts."]
+
+    TEXT --> BUTTONS{"The person chooses"}
+
+    BUTTONS -->|Approve the extension| YES["A new version of the same report is added to the catalog<br/>with the 'herbicides' filter and the Finance owner"]
+    BUTTONS -->|Reject| NO["The catalog stays as it was"]
+
+    YES --> LOG[("The journal records:<br/>question, verdict, who clicked and why")]
+    NO --> LOG
+```
+
 After `git pull`: nothing to install. `make test`, then `make ui` (Windows: `.\run.ps1 test`, `.\run.ps1 ui`).
 
 ## First run (once, on good Wi-Fi)
