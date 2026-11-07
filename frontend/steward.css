@@ -263,19 +263,6 @@ div[data-testid="stButton"] button, div[data-testid="stFormSubmitButton"] button
 :root:has(.bs-day) [data-testid="stExpander"] summary svg { color: var(--muted); }
 :root:has(.bs-day) [data-testid="stAlert"] { background: var(--raised); }
 :root:has(.bs-day) hr { border-color: var(--line) !important; }
-:root:has(.bs-day) /* charts: render.py builds night figures by default; until the app passes theme='day' to render(),
-:root:has(.bs-day) restyle the SVG */
-.js-plotly-plot .main-svg .xtick text,
-:root:has(.bs-day) .js-plotly-plot .main-svg .ytick text,
-:root:has(.bs-day) .js-plotly-plot .main-svg .g-xtitle text,
-:root:has(.bs-day) .js-plotly-plot .main-svg .g-ytitle text,
-:root:has(.bs-day) .js-plotly-plot .main-svg .legendtext { fill: #52525b !important; }
-:root:has(.bs-day) .js-plotly-plot .main-svg .gtitle { fill: #09090b !important; }
-:root:has(.bs-day) .js-plotly-plot .main-svg .gridlayer path,
-:root:has(.bs-day) .js-plotly-plot .main-svg .zerolinelayer path { stroke: #e4e4e7 !important; }
-:root:has(.bs-day) .js-plotly-plot .main-svg .scatterlayer .trace:first-child .js-line { stroke: #1a4be0 !important; }
-:root:has(.bs-day) .js-plotly-plot .main-svg .scatterlayer .trace:nth-child(2) .js-line { stroke: #71717a !important; }
-:root:has(.bs-day) .js-plotly-plot .main-svg .barlayer path { fill: #1a4be0 !important; }
 
 @media (max-width: 640px) {
   .block-container { padding-left: 0.8rem; padding-right: 0.8rem; }
