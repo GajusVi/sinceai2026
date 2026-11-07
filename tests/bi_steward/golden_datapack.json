@@ -9,8 +9,8 @@
   {
     "question": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
     "verdict": "EXTEND",
-    "artifact_id": "AST-0143",
-    "note": "Same text, no metadata: all 3 metrics are governed, no asset has all of them. Search now surfaces partial matches (AST-0143 forecast variance; AST-0015, AST-0335 are alternatives) so EXTEND. 'global' is a scope filter (market=Global, decision 2026-11-07): AST-0143 stays because its market_scope field is Global; its name says EMEA (trap 18, name is not trusted)."
+    "artifact_id": "AST-0335",
+    "note": "Same text, no metadata: all 3 metrics are governed, no asset has all of them, so EXTEND from a partial match. Trust per BUILD_PLAN 2.3 makes AST-0335 (promoted, healthy model, Global scope) the best; AST-0015 and AST-0143 are alternatives. 'global' is a scope filter (market=Global); AST-0143 is named EMEA but its market_scope field is Global (trap 18), so it stays eligible."
   },
   {
     "question": "Inventory Coverage Mgmt",

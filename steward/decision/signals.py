@@ -61,7 +61,25 @@ def coverage(question: ParsedQuestion, artifact: Artifact, catalog: Catalog) -> 
     return round(share, 2), covered, gaps, compatible
 
 
+def trust_datapack(artifact: Artifact) -> float:
+    """BUILD_PLAN 2.3 on real fields: endorsement, accountable owner, model refresh, reach, minus open high signals.
+    Platform is not part of trust (it only blocks REUSE for Tableau)."""
+    score = {"certified": 0.40, "promoted": 0.25}.get(artifact.endorsement, 0.0)
+    if artifact.owner_status == "active":
+        score += 0.20
+    elif artifact.owner_status == "inactive" and artifact.successor_candidates:
+        score += 0.10  # owner left but the role is still staffed
+    score += {"healthy": 0.25, "warning": 0.10}.get(artifact.refresh_status, 0.0)
+    if artifact.usage:
+        avg_users = sum(u.unique_users for u in artifact.usage) / len(artifact.usage)
+        score += 0.15 if avg_users >= 50 else 0.05 if avg_users >= 10 else 0.0
+    open_high = sum(1 for sig in artifact.signals if sig.split(":")[1:3] == ["high", "open"])
+    return round(max(score - 0.10 * open_high, 0.0), 2)
+
+
 def trust(artifact: Artifact, as_of: date) -> float:
+    if artifact.platform:  # data-pack asset
+        return trust_datapack(artifact)
     score = 0.0
     if artifact.certified:
         score += 0.4
@@ -83,6 +101,14 @@ def trust(artifact: Artifact, as_of: date) -> float:
 
 def trust_gaps(artifact: Artifact, as_of: date) -> list[Gap]:
     gaps = []
+    if artifact.platform:
+        if artifact.endorsement != "certified":
+            gaps.append(Gap(kind=GapKind.TRUST, key="certification"))
+        if artifact.owner_status != "active":
+            gaps.append(Gap(kind=GapKind.TRUST, key="owner"))
+        if artifact.refresh_status != "healthy":
+            gaps.append(Gap(kind=GapKind.TRUST, key="refresh"))
+        return gaps
     if not artifact.certified:
         gaps.append(Gap(kind=GapKind.TRUST, key="certification"))
     if not artifact.has_owner:

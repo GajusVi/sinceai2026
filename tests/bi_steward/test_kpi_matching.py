@@ -98,12 +98,36 @@ def test_global_request_is_a_scope_filter_only_global_assets_are_compatible(pack
     assert any(c.artifact.market_scope != "Global" and not c.compatible for c in candidates)
 
 
-def test_req_0001_best_asset_has_global_market_scope_even_though_its_name_says_emea(pack):
+def test_req_0001_global_request_keeps_name_vs_scope_mismatch_asset_eligible(pack):
     """AST-0143 is named '... - EMEA' but market_scope is Global (trap 18): scope comes from the field, never the name."""
-    best = pack.ask(REQ_0001).decision.best.artifact
-    assert best.id == "AST-0143" and best.market_scope == "Global"
-    assert any(d.startswith("NAME_SCOPE_MISMATCH") for d in best.data_quality)
+    decision = pack.ask(REQ_0001).decision
+    assert decision.best.artifact.market_scope == "Global"
+    by_id = {c.artifact.id: c for c in [decision.best, *decision.alternatives]}
+    assert "AST-0143" in by_id and by_id["AST-0143"].compatible
+    assert any(d.startswith("NAME_SCOPE_MISMATCH") for d in by_id["AST-0143"].artifact.data_quality)
 
 
 def test_unrelated_text_gets_no_global_filter(pack):
     assert "market" not in RuleBasedParser(pack.catalog).parse("Net sales growth by month").filters
+
+
+def test_trust_follows_build_plan_2_3_on_real_fields(pack):
+    from steward.decision.signals import trust
+
+    promoted = pack.catalog.artifact("AST-0019")  # Tableau, promoted, healthy model, active owner
+    assert promoted.endorsement == "promoted" and promoted.refresh_status == "healthy" and promoted.owner_status == "active"
+    assert trust(promoted, AS_OF) == 0.85  # .25 promoted + .20 owner + .25 refresh + .15 users (avg 51/month), no open high signal
+    unendorsed = pack.catalog.artifact("AST-0191")  # Power BI, unendorsed, healthy, 103 users
+    assert trust(unendorsed, AS_OF) == 0.6  # .20 owner + .25 refresh + .15 users (avg 65/month)
+
+
+def test_tableau_is_never_reused_it_is_extended_with_migrate_flag(pack):
+    from steward.search.engine import SearchHit
+
+    question = ParsedQuestion(text="net sales", metrics=["net_sales"], filters={"product": "P-XAR", "market": "BR"}, dimensions=["month"])
+    tableau = pack.catalog.artifact("AST-0019")
+    hits = [SearchHit(tableau, 1.0, {})]
+    decision = decide(question, hits, pack.catalog, AS_OF)
+    assert decision.verdict.value == "EXTEND" and decision.best.artifact.id == "AST-0019"
+    assert "MIGRATE" in decision.flags
+    assert any(e.rule_id == "RULE-006" for e in decision.evidence)

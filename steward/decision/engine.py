@@ -4,7 +4,7 @@ from datetime import date
 
 from ..catalog import Catalog
 from ..config import EXTEND_MIN_COVERAGE, REUSE_MIN_COVERAGE, REUSE_MIN_TRUST
-from ..models import Candidate, Decision, Evidence, GapKind, ParsedQuestion, Verdict
+from ..models import Candidate, Decision, Evidence, Gap, GapKind, ParsedQuestion, Verdict
 from ..search import SearchHit
 from ..linking import kpi_index
 from .conflicts import find_conflicts
@@ -33,6 +33,10 @@ def score_candidates(question: ParsedQuestion, hits: list[SearchHit], catalog: C
             )
         )
     return sorted(candidates, key=lambda c: (c.compatible, c.score), reverse=True)
+
+
+def _is_tableau(candidate: Candidate) -> bool:
+    return candidate.artifact.platform == "Tableau"
 
 
 def conflict_evidence(conflicts: list, catalog: Catalog, limit: int = 10) -> list[Evidence]:
@@ -87,7 +91,7 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
     best = eligible[0] if eligible else None
     alternatives = [c for c in candidates if c is not best][:4]
 
-    if best and best.coverage >= REUSE_MIN_COVERAGE and best.trust >= REUSE_MIN_TRUST:
+    if best and best.coverage >= REUSE_MIN_COVERAGE and best.trust >= REUSE_MIN_TRUST and not _is_tableau(best):
         return Decision(
             verdict=Verdict.REUSE,
             best=best,
@@ -102,10 +106,26 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
     covers_a_metric = best is not None and any(i.startswith(f"{GapKind.METRIC.value}:") for i in best.covered)
     if best and covers_a_metric and best.coverage >= EXTEND_MIN_COVERAGE:
         reasons = [f"The report covers {best.coverage:.0%} of the question and contains the required metric."]
-        if best.coverage >= REUSE_MIN_COVERAGE:
+        flags: list[str] = []
+        evidence: list[Evidence] = []
+        if _is_tableau(best):
+            flags.append("MIGRATE")
+            best.gaps.append(Gap(kind=GapKind.TRUST, key="platform"))
+            reasons.append("It is a Tableau report: Tableau is never reused as is, the extension is a Power BI version (migrate, do not copy 1:1).")
+            evidence.append(
+                Evidence(
+                    claim=f"{best.artifact.id} is on Tableau: rationalise before migrating, no 1:1 recreation (RULE-006)",
+                    rule_id="RULE-006",
+                    record_ids=[best.artifact.id],
+                    severity="warning",
+                )
+            )
+        elif best.coverage >= REUSE_MIN_COVERAGE:
             best.gaps.extend(trust_gaps(best.artifact, as_of))
             reasons.append(f"Trust {best.trust:.2f} is below the threshold {REUSE_MIN_TRUST}: it needs an owner or certification.")
-        return Decision(verdict=Verdict.EXTEND, best=best, alternatives=alternatives, conflicts=conflicts, reasons=reasons)
+        return Decision(
+            verdict=Verdict.EXTEND, best=best, alternatives=alternatives, conflicts=conflicts, reasons=reasons, evidence=evidence, flags=flags
+        )
 
     if not covers_a_metric:
         return Decision(
