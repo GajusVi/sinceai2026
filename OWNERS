@@ -4,6 +4,8 @@
 # override (puts their own name back) and takes the file over. Decided by Gajus as lead; logged in NOTES.md.
 # The pre-commit hook (.githooks/pre-commit) refuses commits that touch someone else's files.
 backend/llm.py          margiris
+eval/eval.py            gajus   (TEMP: delete only, Margiris OK 1108)
+eval/holdout.jsonl      gajus   (TEMP: delete only, Margiris OK 1108)
 eval/                   margiris
 data/                   martynas
 frontend/               gajus   (design + AI blocks; Donatas OK 1107-094359, he keeps demo/, submission/, render.py, pitch)
