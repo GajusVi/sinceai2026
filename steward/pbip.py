@@ -267,8 +267,47 @@ def _dimension(spec_dimension: str | None, entities: list[str]) -> tuple[str, st
     return None
 
 
+def _in_reading_order(visuals: list[Visual]) -> list[Visual]:
+    """Visual.step is the reading order (1 = the answer); unset (0) visuals keep their place after the numbered ones."""
+    if not any(v.step for v in visuals):
+        return visuals
+    return sorted(visuals, key=lambda v: v.step if v.step > 0 else 10**6)  # sorted() is stable
+
+
+def _flow(visuals: list[Visual]) -> list[tuple[int, int, int, int]]:
+    """Reading-order layout: each visual follows the one before it. A run of cards shares a row (at most 4), charts
+    pair up two per row, a table or anything else takes the full width. Same geometry as _layout, different order."""
+    boxes: list[tuple[int, int, int, int]] = []
+    half = (PAGE_W - 2 * MARGIN - GAP) // 2
+    y, i = MARGIN, 0
+    while i < len(visuals):
+        kind = "card" if visuals[i].type == "card" else "chart" if visuals[i].type in ("line", "bar") else "other"
+        j = i
+        while j < len(visuals) and j - i < (4 if kind == "card" else 2 if kind == "chart" else 1):
+            same = "card" if visuals[j].type == "card" else "chart" if visuals[j].type in ("line", "bar") else "other"
+            if same != kind:
+                break
+            j += 1
+        row = j - i
+        if kind == "card":
+            width = min(460, (PAGE_W - 2 * MARGIN - (row - 1) * GAP) // row)
+            boxes += [(MARGIN + k * (width + GAP), y, width, 150) for k in range(row)]
+            y += 150 + GAP
+        elif kind == "chart":
+            boxes += [(MARGIN + k * (half + GAP), y, half, 380) for k in range(row)]
+            y += 380 + GAP
+        else:
+            boxes.append((MARGIN, y, PAGE_W - 2 * MARGIN, 340))
+            y += 340 + GAP
+        i = j
+    return boxes
+
+
 def _layout(visuals: list[Visual]) -> list[tuple[int, int, int, int]]:
-    """(x, y, width, height) per visual, same order. Cards in one row, charts two per row, tables full width."""
+    """(x, y, width, height) per visual, same order. Without steps: cards in one row, charts two per row, tables full
+    width. With steps (the layout contract): follow the reading order."""
+    if any(v.step for v in visuals):
+        return _flow(visuals)
     boxes: list[tuple[int, int, int, int] | None] = [None] * len(visuals)
     y = MARGIN
     cards = [i for i, v in enumerate(visuals) if v.type == "card"]
@@ -345,6 +384,7 @@ def _report_files(spec: DashboardSpec, name: str, measures: list[Measure], extra
                 notes.append(f'Visual "{v.title}" is not exported: it needs a governed gap (no source data), shown as a gap in the app.')
             else:
                 keep.append(v)
+        keep = _in_reading_order(keep)
         boxes = _layout(keep)
         height = max(PAGE_H, max((y + h for _, y, _, h in boxes), default=0) + MARGIN)
         files[f"{rp}/definition/pages/{page_id}/page.json"] = _json(

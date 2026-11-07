@@ -17,7 +17,7 @@ from functools import lru_cache
 
 import pandas as pd
 
-from .config import ROOT_DIR
+from .config import LAYOUT_MIN_TREND_MONTHS, LAYOUT_RANK_MAX_MEMBERS, LAYOUT_RANK_MIN_MEMBERS, ROOT_DIR
 from .datapack import ALL_PHARMA, DEFAULT_XLSX, GLOBAL
 from .intent import Intent
 from .spec import Measure, Relationship
@@ -166,6 +166,89 @@ def feasibility(intent: Intent) -> Feasibility:
             if label not in result.nearest and k not in {m.kpi_id for m in result.buildable}:
                 result.nearest.append(label)
     return result
+
+
+# -- data shape (layout input) ------------------------------------------------------------------------------------
+
+PROFILE_DIMENSIONS = ("market", "product", "region")  # breakdowns a bar / table can use (month is the trend axis)
+
+
+@dataclass
+class MeasureProfile:
+    """What the data can show for one measure in one scope. Layout code (layout.py) may only pick a form listed in `forms`."""
+
+    name: str
+    kpi_id: str
+    feasible: bool
+    gap_reason: str = ""
+    grain: str = ""  # "month" | "snapshot" | "" (gap)
+    months: int = 0  # months with a value in scope (0 for snapshot data)
+    members: dict[str, int] = field(default_factory=dict)  # dimension -> members with a value in scope
+    null_share: float = 0.0  # share of source rows with no value in the measure's column
+    dq: list[str] = field(default_factory=list)  # data-quality notes from compute()
+    forms: list[str] = field(default_factory=list)  # legal visual types: card | line | bar | table | gap
+    bar_dimensions: list[str] = field(default_factory=list)  # dimensions a ranking may use
+
+
+def profile(
+    measures: list[Measure], frames: dict[str, pd.DataFrame] | None = None, filters: dict[str, str] | None = None
+) -> dict[str, MeasureProfile]:
+    """Data shape per measure name, in the given scope. A gap has forms == ["gap"] and is never computed.
+    Thresholds: steward/config.py LAYOUT_* (assumptions)."""
+    frames = frames if frames is not None else load_frames()
+    filters = filters or {}
+    out: dict[str, MeasureProfile] = {}
+    for m in measures:
+        if not m.feasible:
+            out[m.name] = MeasureProfile(m.name, m.kpi_id, False, gap_reason=m.gap_reason, forms=["gap"])
+            continue
+        e = _entries()[m.kpi_id]
+        p = MeasureProfile(m.name, m.kpi_id, True, grain=e["grain"])
+        scoped = _scope(frames[e["table"]], filters, frames) if e["table"] in ("fact_pmm", "fact_supply", "fact_access") else None
+        if scoped is not None and e.get("column") in scoped.columns and len(scoped):
+            p.null_share = float(scoped[e["column"]].isna().mean())
+        try:
+            monthly = compute(m, frames, filters, by="month") if e["grain"] == "month" else None
+        except ValueError:
+            monthly = None
+        if monthly is not None:
+            p.months = int(len(monthly))
+            p.dq = list(monthly.attrs.get("dq", []))
+        for dim in PROFILE_DIMENSIONS:
+            try:
+                res = compute(m, frames, filters, by=dim)
+            except ValueError:  # asset-level data has no such breakdown
+                continue
+            p.members[dim] = int(len(res))
+            p.dq = p.dq or list(res.attrs.get("dq", []))
+        p.bar_dimensions = [d for d, n in p.members.items() if LAYOUT_RANK_MIN_MEMBERS <= n <= LAYOUT_RANK_MAX_MEMBERS]
+        p.forms = ["card"]
+        if p.months >= LAYOUT_MIN_TREND_MONTHS:
+            p.forms.append("line")
+        if p.bar_dimensions:
+            p.forms.append("bar")
+        p.forms.append("table")
+        out[m.name] = p
+    return out
+
+
+def check_visual(profiles: dict[str, MeasureProfile], vtype: str, measures: list[str], dimension: str | None) -> list[str]:
+    """Problems with a proposed visual, empty = legal. layout.validate calls this. Gaps may only appear as type "gap"."""
+    problems: list[str] = []
+    for name in measures:
+        p = profiles.get(name)
+        if p is None:
+            problems.append(f"unknown measure {name!r}")
+            continue
+        if vtype == "gap" and p.feasible:
+            problems.append(f"{name} has data: it cannot be shown as a gap")
+        elif vtype != "gap" and not p.feasible:
+            problems.append(f"{name} is a gap: it can only be a gap card, never a {vtype}")
+        elif vtype not in p.forms and p.feasible:
+            problems.append(f"{vtype} is not legal for {name} (allowed: {', '.join(p.forms)})")
+        elif vtype == "bar" and dimension and dimension not in p.bar_dimensions:
+            problems.append(f"{name} cannot be ranked by {dimension} (allowed: {', '.join(p.bar_dimensions) or 'none'})")
+    return problems
 
 
 # -- computing ----------------------------------------------------------------------------------------------------

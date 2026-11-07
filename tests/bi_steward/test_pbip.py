@@ -224,3 +224,47 @@ def test_export_holds_only_the_specs_scope_and_the_fixture_dax_is_the_governed_d
     governed = {m.kpi_id: m.expression for m in all_measures()}
     assert all(m.expression == governed[m.kpi_id] for m in spec.measures if m.kpi_id in governed)
     assert "Scope: the model holds only product = Nubeqa." in build_files(spec, frames)["README.txt"]
+
+
+def _reading(files: dict[str, str]) -> list[str]:
+    """PBIR visual types in tab order (= reading order)."""
+    vs = sorted(_visuals(files), key=lambda v: v["position"]["tabOrder"])
+    return [v["visual"]["visualType"] for v in vs]
+
+
+def test_steps_set_the_reading_order_and_tab_order(spec, frames):
+    visuals = spec.pages[0].visuals  # card, bar, table
+    visuals[0].step, visuals[1].step, visuals[2].step = 3, 1, 2
+    files = build_files(spec, frames)
+    assert _reading(files) == ["clusteredBarChart", "tableEx", "cardVisual"]
+    # the page flows downward in that order: each visual starts at or below the one before it
+    ys = [v["position"]["y"] for v in sorted(_visuals(files), key=lambda v: v["position"]["tabOrder"])]
+    assert ys == sorted(ys)
+
+
+def test_unset_steps_keep_the_old_layout_and_unnumbered_visuals_go_last(spec, frames):
+    assert _reading(build_files(spec, frames)) == ["cardVisual", "clusteredBarChart", "tableEx"]  # nothing set: as before
+    spec.pages[0].visuals[2].step = 1  # only the table is numbered
+    assert _reading(build_files(spec, frames)) == ["tableEx", "cardVisual", "clusteredBarChart"]
+
+
+def test_flow_layout_is_deterministic_and_inside_the_page(spec, frames):
+    for n, v in enumerate(spec.pages[0].visuals, 1):
+        v.step = 4 - n
+    first, second = build_files(spec, frames), build_files(spec, frames)
+    assert first == second
+    for v in _visuals(first):
+        p = v["position"]
+        assert p["x"] >= 0 and p["y"] >= 0 and p["x"] + p["width"] <= 1920
+
+
+def test_flow_groups_neighbouring_cards_and_charts(spec, frames):
+    spec.pages[0].visuals = [
+        Visual(type="card", title="a", measures=["Net Sales"], step=1),
+        Visual(type="card", title="b", measures=["Net Sales"], step=2),
+        Visual(type="bar", title="c", measures=["Net Sales"], dimension="product", step=3),
+        Visual(type="card", title="d", measures=["Net Sales"], step=4),
+    ]
+    pos = [v["position"] for v in sorted(_visuals(build_files(spec, frames)), key=lambda v: v["position"]["tabOrder"])]
+    assert pos[0]["y"] == pos[1]["y"] and pos[0]["x"] < pos[1]["x"]  # the two cards share a row
+    assert pos[2]["y"] > pos[1]["y"] and pos[3]["y"] > pos[2]["y"]  # the chart, then the last card, each on their own row

@@ -119,3 +119,9 @@ AMBIGUOUS_PHRASES = (
     "supply risk",
     "supply-risk",
 )
+
+# Dashboard layout: which visual forms the data shape allows (semantic.profile). ASSUMPTIONS, stated in the README:
+# a trend needs enough months to show a direction, a ranking needs a few members to rank and few enough to read.
+LAYOUT_MIN_TREND_MONTHS = 6  # data is monthly Jan-Oct 2026 (10 months); fewer than this is not a trend
+LAYOUT_RANK_MIN_MEMBERS = 3  # a bar chart ranks at least this many members of a dimension
+LAYOUT_RANK_MAX_MEMBERS = 20  # above this a ranking is unreadable: the detail goes to a table
