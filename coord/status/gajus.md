@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 05:08
-now: F9-F12 interview patch pushed; waiting on Margiris F1-F8
-done: 402e2d3 grill-me comfort + F9-F12 (intent/interview/app), message to Margiris 1107-050145
-next: hand-over note for Donatas, README G6, euro case G5
+updated: 2026-11-07 08:55
+now: hand-off posted to all three; 269 tests green, no xfail
+done: F9-F12 402e2d3; OWNERS temp rights returned; G11 handed to Margiris
+next: 08:15 handover lines, 08:30 S2, 09:00 Panu Q&A; then G9 specbuild, G10, README G6/G7
 blocked: T6 conventions decision (mine, below)
