@@ -28,7 +28,9 @@ import pandas as pd
 from .spec import DashboardSpec
 
 PBIP_SCHEMA = "https://developer.microsoft.com/json-schemas/fabric/pbip/pbipProperties/1.0.0/schema.json"
-PBISM_SCHEMA = "https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/definitionProperties/1.0.0/schema.json"
+PBISM_SCHEMA = (
+    "https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/definitionProperties/1.0.0/schema.json"
+)
 PBIR_SCHEMA = "https://developer.microsoft.com/json-schemas/fabric/item/report/definitionProperties/2.0.0/schema.json"
 COMPATIBILITY_LEVEL = 1567  # as in Microsoft's TMDL example
 _QUOTE_CHARS = set(".=:' ")
@@ -91,7 +93,12 @@ def _table_tmdl(entity: str, frame: pd.DataFrame, columns: list[str], measures: 
     for column in columns:
         data_type, m_type = _dtype(frame[column])
         types.append(f'{{"{column}", {m_type}}}')
-        lines += [f"\tcolumn {_q(column)}", f"\t\tdataType: {data_type}", f"\t\tsourceColumn: {column}", "\t\tsummarizeBy: none"]
+        lines += [
+            f"\tcolumn {_q(column)}",
+            f"\t\tdataType: {data_type}",
+            f"\t\tsourceColumn: {column}",
+            "\t\tsummarizeBy: none",
+        ]
         if column in keys:
             lines.append("\t\tisKey" if column.endswith("_id") and entity.startswith("dim") else "\t\tisHidden")
         lines.append("")
@@ -121,9 +128,18 @@ def build_files(spec: DashboardSpec, frames: dict[str, pd.DataFrame]) -> dict[st
     home = _measure_table(spec)
 
     files: dict[str, str] = {
-        f"{name}.pbip": _json({"$schema": PBIP_SCHEMA, "version": "1.0", "artifacts": [{"report": {"path": rp}}], "settings": {"enableAutoRecovery": True}}),
+        f"{name}.pbip": _json(
+            {
+                "$schema": PBIP_SCHEMA,
+                "version": "1.0",
+                "artifacts": [{"report": {"path": rp}}],
+                "settings": {"enableAutoRecovery": True},
+            }
+        ),
         f"{sm}/definition.pbism": _json({"$schema": PBISM_SCHEMA, "version": "4.0", "settings": {}}),
-        f"{rp}/definition.pbir": _json({"$schema": PBIR_SCHEMA, "version": "4.0", "datasetReference": {"byPath": {"path": f"../{sm}"}}}),
+        f"{rp}/definition.pbir": _json(
+            {"$schema": PBIR_SCHEMA, "version": "4.0", "datasetReference": {"byPath": {"path": f"../{sm}"}}}
+        ),
         f"{sm}/definition/database.tmdl": f"database {_q(name)}\n\tcompatibilityLevel: {COMPATIBILITY_LEVEL}\n",
         f"{sm}/definition/model.tmdl": "model Model\n\tculture: en-US\n\tdefaultPowerBIDataSourceVersion: powerBI_V3\n\n"
         + "".join(f"ref table {_q(e)}\n" for e in entities),
@@ -145,7 +161,10 @@ def build_files(spec: DashboardSpec, frames: dict[str, pd.DataFrame]) -> dict[st
                 f"relationship {rid}\n\tfromColumn: {_q(rel.from_entity)}.{_q(rel.key)}\n\ttoColumn: {_q(rel.to_entity)}.{_q(rel.key)}\n"
             )
     files[f"{sm}/definition/relationships.tmdl"] = "\n".join(relationships)
-    gap_text = "".join(f"\nGap, not in the model: {m.name} ({m.kpi_id}): {getattr(m, 'gap_reason', '') or 'no governed source data'}" for m in gaps)
+    gap_text = "".join(
+        f"\nGap, not in the model: {m.name} ({m.kpi_id}): {getattr(m, 'gap_reason', '') or 'no governed source data'}"
+        for m in gaps
+    )
     files["README.txt"] = README.format(name=name, gaps=gap_text)
     return files
 
