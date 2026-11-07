@@ -18,12 +18,15 @@
 <style>
   @font-face { font-family: "Instrument Sans"; src: url("../../frontend/static/fonts/InstrumentSans-Regular.ttf"); font-weight: 400; }
   @font-face { font-family: "Instrument Sans"; src: url("../../frontend/static/fonts/InstrumentSans-Bold.ttf"); font-weight: 700; }
+  @font-face { font-family: "Geist Mono"; src: url("../../frontend/static/fonts/GeistMono-Regular.ttf"); font-weight: 400; }
 
   :root {
-    --ground: #FFFFFF; --fill: #F4F4F4; --ink: #111111; --muted: #6B6B6B; --accent: #1A4BE0; --bad: #B91C1C;
+    /* dark design system (docs/steward/DESIGN.md): zinc-950 ground, raised #18181B, 1 px #27272A lines */
+    --ground: #09090B; --fill: #18181B; --line: #27272A; --ink: #FAFAFA; --muted: #A1A1AA; --faint: #71717A;
+    --accent: #1A4BE0; --focus: #3B6BFF; --bad: #F87171;
     --night: #070B14; --night-ink: #E6ECFF; --night-muted: #7C8AB0; --dot: 122, 154, 255; --ok: #4ADE80;
     --sans: "Instrument Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
-    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; }
@@ -31,18 +34,19 @@
          -webkit-font-smoothing: antialiased; user-select: none; }
 
   /* ---- left: the login ---------------------------------------------------------------------------------- */
-  .left { flex: 0 0 400px; display: flex; flex-direction: column; justify-content: space-between; padding: 44px 44px 28px; }
+  .left { flex: 0 0 400px; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; padding: 44px 44px 28px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: .01em; }
   .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); position: relative; }
   .mark::after { content: ""; position: absolute; inset: 6px; border-radius: 2px; background: var(--ground); }
   h1 { font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
   .sub { color: var(--muted); font-size: 14px; line-height: 1.45; margin-bottom: 28px; }
-  label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; letter-spacing: .02em; }
-  input { width: 100%; font: 15px var(--sans); color: var(--ink); background: var(--fill); border: 0; border-radius: 8px;
-          padding: 12px 14px; margin-bottom: 16px; outline: none; transition: background .15s, box-shadow .15s; user-select: text; }
-  input:focus { background: var(--ground); box-shadow: 0 0 0 2px var(--accent); }
-  button { width: 100%; font: 700 15px var(--sans); color: #fff; background: var(--accent); border: 0; border-radius: 8px;
-           padding: 13px; cursor: pointer; transition: transform .1s, opacity .15s; }
+  label { display: block; font: 11px var(--mono); text-transform: uppercase; color: var(--muted); margin: 0 0 6px; letter-spacing: .08em; }
+  input { width: 100%; font: 14px var(--sans); color: var(--ink); background: var(--fill); border: 1px solid var(--line);
+          border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; outline: none;
+          transition: border-color .15s, box-shadow .15s; user-select: text; }
+  input:focus { border-color: var(--focus); box-shadow: 0 0 0 3px rgba(59, 107, 255, .22); }
+  button { width: 100%; font: 700 14px var(--sans); color: #fff; background: var(--accent); border: 0; border-radius: 6px;
+           padding: 11px; cursor: pointer; transition: transform .1s, opacity .15s; }
   button:active { transform: scale(.97); }
   button:disabled { opacity: .55; cursor: default; }
   #error { min-height: 20px; color: var(--bad); font-size: 13px; margin-top: 12px; }
@@ -51,18 +55,18 @@
   summary::-webkit-details-marker { display: none; }
   details table { margin-top: 8px; border-collapse: collapse; font-family: var(--mono); font-size: 11.5px; }
   details td { padding: 2px 14px 2px 0; color: var(--ink); }
-  details td:last-child { color: var(--muted); }
-  .foot { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+  details td:last-child { color: var(--faint); }
+  .foot { font-size: 11.5px; color: var(--faint); line-height: 1.5; }
 
   /* loading state: replaces the form in place */
   #loading { display: none; }
   body.loading form, body.loading details { display: none; }
   body.loading #loading { display: block; }
-  .bar { height: 3px; background: var(--fill); border-radius: 2px; overflow: hidden; margin: 18px 0 14px; }
+  .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin: 18px 0 14px; }
   .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
-  #steps { font-family: var(--mono); font-size: 12px; line-height: 1.9; color: var(--muted); list-style: none; padding: 0; }
+  #steps { font-family: var(--mono); font-size: 12px; line-height: 1.9; color: var(--faint); list-style: none; padding: 0; }
   #steps li.done { color: var(--ink); }
-  #steps li.done::before { content: "\2713  "; color: var(--accent); }
+  #steps li.done::before { content: "\2713  "; color: var(--focus); }
   #steps li:not(.done)::before { content: "\2022  "; }
 
 
