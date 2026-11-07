@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BI Steward</title>
+<!--
+  T2.6 login + loading window (Donatas: design, Gajus: plumbing). Self-contained: no CDN, works offline.
+  Contract with app/main.py (pywebview):
+    ids     #user #pass #signin #error #loading
+    JS API  await window.pywebview.api.login(user, pass) -> {ok: bool, error?: string}
+            await window.pywebview.api.ready() -> bool      (polled every 300 ms after a good login)
+            window.pywebview.api.open()                      (grow the window into the workspace)
+  Opened in a plain browser (no pywebview) the page runs a mock so the design can be reviewed.
+  Visual reference only (not code): Aceternity/Magic UI globe + terminal, Blueprint density.
+-->
+<style>
+  @font-face { font-family: "Instrument Sans"; src: url("../../frontend/static/fonts/InstrumentSans-Regular.ttf"); font-weight: 400; }
+  @font-face { font-family: "Instrument Sans"; src: url("../../frontend/static/fonts/InstrumentSans-Bold.ttf"); font-weight: 700; }
+
+  :root {
+    --ground: #FFFFFF; --fill: #F4F4F4; --ink: #111111; --muted: #6B6B6B; --accent: #1A4BE0; --bad: #B91C1C;
+    --night: #070B14; --night-ink: #E6ECFF; --night-muted: #7C8AB0; --dot: 122, 154, 255; --ok: #4ADE80;
+    --sans: "Instrument Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { font-family: var(--sans); color: var(--ink); background: var(--ground); display: flex; overflow: hidden;
+         -webkit-font-smoothing: antialiased; user-select: none; }
+
+  /* ---- left: the login ---------------------------------------------------------------------------------- */
+  .left { flex: 0 0 400px; display: flex; flex-direction: column; justify-content: space-between; padding: 44px 44px 28px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: .01em; }
+  .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); position: relative; }
+  .mark::after { content: ""; position: absolute; inset: 6px; border-radius: 2px; background: var(--ground); }
+  h1 { font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 14px; line-height: 1.45; margin-bottom: 28px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; letter-spacing: .02em; }
+  input { width: 100%; font: 15px var(--sans); color: var(--ink); background: var(--fill); border: 0; border-radius: 8px;
+          padding: 12px 14px; margin-bottom: 16px; outline: none; transition: background .15s, box-shadow .15s; user-select: text; }
+  input:focus { background: var(--ground); box-shadow: 0 0 0 2px var(--accent); }
+  button { width: 100%; font: 700 15px var(--sans); color: #fff; background: var(--accent); border: 0; border-radius: 8px;
+           padding: 13px; cursor: pointer; transition: transform .1s, opacity .15s; }
+  button:active { transform: scale(.97); }
+  button:disabled { opacity: .55; cursor: default; }
+  #error { min-height: 20px; color: var(--bad); font-size: 13px; margin-top: 12px; }
+  details { margin-top: 18px; font-size: 12px; color: var(--muted); }
+  summary { cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  details table { margin-top: 8px; border-collapse: collapse; font-family: var(--mono); font-size: 11.5px; }
+  details td { padding: 2px 14px 2px 0; color: var(--ink); }
+  details td:last-child { color: var(--muted); }
+  .foot { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+  /* loading state: replaces the form in place */
+  #loading { display: none; }
+  body.loading form, body.loading details { display: none; }
+  body.loading #loading { display: block; }
+  .bar { height: 3px; background: var(--fill); border-radius: 2px; overflow: hidden; margin: 18px 0 14px; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+  #steps { font-family: var(--mono); font-size: 12px; line-height: 1.9; color: var(--muted); list-style: none; padding: 0; }
+  #steps li.done { color: var(--ink); }
+  #steps li.done::before { content: "\2713  "; color: var(--accent); }
+  #steps li:not(.done)::before { content: "\2022  "; }
+
+  /* ---- right: the night panel --------------------------------------------------------------------------- */
+  .right { flex: 1; position: relative; background: var(--night); overflow: hidden; color: var(--night-ink); }
+  .grid { position: absolute; inset: 0; opacity: .5;
+          background-image: linear-gradient(rgba(var(--dot), .07) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(var(--dot), .07) 1px, transparent 1px);
+          background-size: 36px 36px;
+          mask-image: radial-gradient(ellipse at 60% 45%, #000 30%, transparent 75%);
+          -webkit-mask-image: radial-gradient(ellipse at 60% 45%, #000 30%, transparent 75%); }
+  .glow { position: absolute; width: 520px; height: 520px; border-radius: 50%; filter: blur(90px); opacity: .45; }
+  .glow.a { background: #1A4BE0; left: 8%; top: -12%; animation: drift-a 18s ease-in-out infinite alternate; }
+  .glow.b { background: #0E9F8F; right: -10%; bottom: -18%; opacity: .28; animation: drift-b 23s ease-in-out infinite alternate; }
+  @keyframes drift-a { to { transform: translate(140px, 120px) scale(1.15); } }
+  @keyframes drift-b { to { transform: translate(-160px, -90px) scale(.9); } }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; filter: blur(.4px); }
+
+  .hud { position: absolute; left: 32px; top: 28px; font-family: var(--mono); font-size: 11px; color: var(--night-muted);
+         letter-spacing: .12em; text-transform: uppercase; }
+  .hud b { color: var(--ok); font-weight: 400; }
+  .hud b::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
+                   margin-right: 7px; vertical-align: 1px; animation: blink 2.4s infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+
+  .console { position: absolute; left: 32px; right: 32px; bottom: 28px; max-width: 560px;
+             background: rgba(7, 11, 20, .72); border-radius: 10px; padding: 14px 16px 16px;
+             box-shadow: 0 0 0 1px rgba(var(--dot), .16), 0 0 40px rgba(26, 75, 224, .12);
+             backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .console header { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px;
+                    color: var(--night-muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
+  #log { font-family: var(--mono); font-size: 12.5px; line-height: 1.75; height: 10.6em; overflow: hidden; white-space: pre; }
+  #log .k { color: #8FA8FF; }
+  #log .v { color: var(--night-ink); }
+  #log .m { color: var(--night-muted); }
+  #log .cur { display: inline-block; width: 7px; height: 1.05em; background: #8FA8FF; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+
+  @media (max-width: 720px) { .right { display: none; } .left { flex: 1; } }
+  @media (prefers-reduced-motion: reduce) { .glow, .hud b::before, #log .cur { animation: none; } }
+</style>
+</head>
+<body>
+  <section class="left">
+    <div class="brand"><span class="mark"></span>BI Steward</div>
+
+    <div>
+      <h1>Build less.<br>Build better.</h1>
+      <p class="sub">Governed analytics for Bayer Pharma. Every number traces to a governed KPI and a named owner.</p>
+
+      <form id="form" autocomplete="off" onsubmit="return false">
+        <label for="user">Username</label>
+        <input id="user" name="user" autofocus spellcheck="false">
+        <label for="pass">Password</label>
+        <input id="pass" name="pass" type="password">
+        <button id="signin" type="submit">Sign in</button>
+        <div id="error" role="alert"></div>
+      </form>
+
+      <details>
+        <summary>Demo accounts</summary>
+        <table>
+          <tr><td>Builder12</td><td>Admin123</td><td>BI team, approves</td></tr>
+          <tr><td>Manager07</td><td>Manage123</td><td>Site head, Plant-B</td></tr>
+          <tr><td>Worker21</td><td>Worker123</td><td>Shift lead, Plant-A</td></tr>
+        </table>
+      </details>
+
+      <div id="loading" aria-live="polite">
+        <h1 id="hello" style="font-size:20px">Signing in</h1>
+        <div class="bar"><i id="progress"></i></div>
+        <ul id="steps">
+          <li>Loading the Bayer data pack</li>
+          <li>Building the governed KPI index</li>
+          <li>Checking owners and refresh status</li>
+          <li>Opening your workspace</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="foot">Mock login for the SinceAI 2026 demo. Synthetic data from the Bayer data pack, not Bayer performance.</p>
+  </section>
+
+  <section class="right" aria-hidden="true">
+    <div class="grid"></div>
+    <div class="glow a"></div>
+    <div class="glow b"></div>
+    <canvas id="globe"></canvas>
+    <div class="hud">Governance chain <b>online</b></div>
+    <div class="console">
+      <header><span>bi-steward / trace</span><span id="clock"></span></header>
+      <div id="log"></div>
+    </div>
+  </section>
+
+<script>
+(() => {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---- dot globe: Fibonacci sphere, rotated and projected, depth-shaded --------------------------------------
+  const cv = document.getElementById("globe"), ctx = cv.getContext("2d");
+  const N = 900, pts = [];
+  for (let i = 0; i < N; i++) {           // even points on a sphere
+    const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), t = i * 2.399963;
+    pts.push([Math.cos(t) * r, y, Math.sin(t) * r]);
+  }
+  // a few "sites" that pulse (plants and markets), as fixed points on the sphere
+  const sites = [[0.32, 0.55, 0.77], [0.55, 0.42, 0.72], [-0.2, 0.62, 0.76], [0.7, -0.2, 0.68], [-0.62, 0.1, 0.78]];
+  let W = 0, H = 0, dpr = 1, angle = 0;
+  function size() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    const R = Math.min(W, H) * 0.27, cx = W * 0.56, cy = H * 0.36, tilt = 0.38;
+    const ca = Math.cos(angle), sa = Math.sin(angle), ct = Math.cos(tilt), st = Math.sin(tilt);
+    const proj = ([x, y, z]) => {
+      const x1 = x * ca + z * sa, z1 = -x * sa + z * ca;      // spin around y
+      const y2 = y * ct - z1 * st, z2 = y * st + z1 * ct;     // tilt toward the viewer
+      return [cx + x1 * R, cy + y2 * R, z2];
+    };
+    for (const p of pts) {
+      const [x, y, z] = proj(p);
+      const a = z > 0 ? 0.18 + 0.62 * z : 0.05 + 0.08 * (1 + z);   // back side faint
+      ctx.fillStyle = `rgba(122,154,255,${a.toFixed(3)})`;
+      const s = z > 0 ? 1.15 + 0.6 * z : 0.8;
+      ctx.fillRect(x, y, s, s);
+    }
+    for (let i = 0; i < sites.length; i++) {
+      const [x, y, z] = proj(sites[i]);
+      if (z <= 0.05) continue;
+      const pulse = reduce ? 0.5 : (Math.sin(t / 700 + i * 1.7) + 1) / 2;
+      ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 6.283); ctx.fillStyle = "rgba(74,222,128,.95)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, 4 + pulse * 9, 0, 6.283);
+      ctx.strokeStyle = `rgba(74,222,128,${(0.5 * (1 - pulse)).toFixed(3)})`; ctx.lineWidth = 1; ctx.stroke();
+    }
+    // rim light
+    const g = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, R * 1.25);
+    g.addColorStop(0, "rgba(26,75,224,0)"); g.addColorStop(0.5, "rgba(26,75,224,.10)"); g.addColorStop(1, "rgba(26,75,224,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.25, 0, 6.283); ctx.fill();
+  }
+  function loop(t) { angle += 0.0016; draw(t); requestAnimationFrame(loop); }
+  size(); addEventListener("resize", size);
+  if (reduce) draw(0); else requestAnimationFrame(loop);
+
+  // ---- console: the BI Steward chain, one step per line (numbers from the audit trace, docs/audit/donatas.md) --
+  const LINES = [
+    ["login", "Manager07 · management · Plant-B"],
+    ["ask", "“Is supply safe for Plant-B?”"],
+    ["understand", "OTIF · inventory cover · forecast acc · Plant-B"],
+    ["search", "360 governed assets · KPI index"],
+    ["decide", "CREATE · no asset covers 3 of 3 KPIs"],
+    ["spec", "3 cards · trend · exceptions table"],
+    ["lint", "10 pass · 0 warn · 0 block"],
+    ["render", "OTIF 78.3% · 7 products below 90%"],
+    ["approve", "Builder12 for Manager07 · spec ee7ee0fe"],
+    ["export", "Power BI .pbip · 12/12 measures verified"],
+  ];
+  const log = document.getElementById("log"), MAX = 6;
+  const shown = [];
+  const pad = (s) => (s + "            ").slice(0, 11);
+  function paint(partial) {
+    const rows = shown.map(([k, v]) => `<span class="m">&gt; </span><span class="k">${pad(k)}</span><span class="v">${v}</span>`);
+    if (partial) rows.push(`<span class="m">&gt; </span><span class="k">${pad(partial[0])}</span><span class="v">${partial[1]}</span><span class="cur"></span>`);
+    else rows.push(`<span class="m">&gt; </span><span class="cur"></span>`);
+    log.innerHTML = rows.slice(-MAX).join("\n");
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function typeLoop() {
+    if (reduce) { LINES.slice(-MAX + 1).forEach((l) => shown.push(l)); paint(); return; }
+    for (;;) {
+      for (const [k, v] of LINES) {
+        for (let i = 1; i <= v.length; i++) { paint([k, v.slice(0, i)]); await sleep(18 + Math.random() * 26); }
+        shown.push([k, v]); if (shown.length > MAX) shown.shift(); paint(); await sleep(520);
+      }
+      await sleep(1800); shown.length = 0;
+    }
+  }
+  typeLoop();
+  const clock = document.getElementById("clock");
+  const tick = () => { clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
+  tick(); setInterval(tick, 1000);
+
+  // ---- login contract (app/main.py) ------------------------------------------------------------------------
+  const MOCK = {  // a plain browser has no pywebview: preview the flow
+    login: async (u, p) => { await sleep(500); return p ? { ok: true } : { ok: false, error: "Wrong username or password." }; },
+    ready: (() => { let n = 0; return async () => ++n > 6; })(),
+    open: () => { document.getElementById("hello").textContent = "Workspace opens here (mock)"; },
+  };
+  const api = () => (window.pywebview && window.pywebview.api) || MOCK;
+  const $ = (id) => document.getElementById(id);
+  const steps = [...document.querySelectorAll("#steps li")];
+
+  async function signIn() {
+    const user = $("user").value.trim(), pass = $("pass").value;
+    $("error").textContent = "";
+    if (!user || !pass) { $("error").textContent = "Enter your username and password."; return; }
+    $("signin").disabled = true; $("signin").textContent = "Signing in…";
+    let r;
+    try { r = await api().login(user, pass); } catch (e) { r = { ok: false, error: "Sign-in failed: " + e }; }
+    if (!r || !r.ok) {
+      $("error").textContent = (r && r.error) || "Wrong username or password.";
+      $("signin").disabled = false; $("signin").textContent = "Sign in"; $("pass").select(); return;
+    }
+    document.body.classList.add("loading");
+    $("hello").textContent = "Welcome, " + user;
+    let i = 0;
+    for (;;) {  // the steps advance on a timer; the window opens only when the server says ready
+      if (i < steps.length - 1) { steps[i].classList.add("done"); i++; }
+      $("progress").style.width = Math.min(92, (i / steps.length) * 100) + "%";
+      let ok = false;
+      try { ok = await api().ready(); } catch (e) { ok = false; }
+      if (ok) break;
+      await sleep(300);
+    }
+    steps.forEach((s) => s.classList.add("done")); $("progress").style.width = "100%";
+    await sleep(250);
+    api().open();
+  }
+  $("form").addEventListener("submit", signIn);
+  $("pass").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); signIn(); } });
+})();
+</script>
+</body>
+</html>

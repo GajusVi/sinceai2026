@@ -10,6 +10,9 @@ backend/ingest.py       martynas
 backend/models.py       martynas
 data/                   martynas
 frontend/               gajus   (design + AI blocks; Donatas OK 1107-094359, he keeps demo/, submission/, render.py, pitch)
+frontend/steward.css    donatas   (T2.6 UX design, Gajus OK 1107-210507)
+frontend/ui.py          donatas   (T2.6 UX design, Gajus OK 1107-210507)
+app/shell/              donatas   (T2.6 login + loader design; Gajus wires app/main.py)
 steward/models.py       martynas
 steward/spec.py         gajus
 steward/intent.py       gajus
