@@ -1,6 +1,6 @@
 # margiris
-updated: 2026-11-07 21:12
-now: T1.5: DEMO_MODE replay for text calls + temperature 0
-done: T1.3 proof on both paths (d40dd41); T1.2 engine+lint (0a53ee4)
-next: seed check (warn only, A8), then T2.1 RULE-ANSWER
+updated: 2026-11-07 21:49
+now: T1.5 LLM half pushed
+done: T1.5: DEMO_MODE replays text calls, temperature 0, demo routes steward calls via cache (cdb290d)
+next: Donatas re-runs make warm-layout for the explain texts; Margiris runs live LLM tests
 blocked: hold-out relabels (ask to Martynas)
