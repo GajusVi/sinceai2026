@@ -64,6 +64,28 @@ def fetch(force: bool = False) -> None:
     stamp.touch()
 
 
+def read_many(paths: list[str]) -> dict[str, str]:
+    """read_remote for many files in ONE git call (one git process per file took 30 s on Windows)."""
+    got: dict[str, str] = {}
+    try:
+        req = "".join(f"origin/main:{p}\n" for p in paths).encode("utf-8")
+        raw = subprocess.run(["git", "cat-file", "--batch"], cwd=ROOT, input=req,
+                             capture_output=True, timeout=20).stdout
+        for p in paths:
+            header, _, raw = raw.partition(b"\n")
+            if not header or header.endswith(b" missing"):
+                continue
+            size = int(header.split()[-1])
+            got[p] = raw[:size].decode("utf-8", "replace").strip()
+            raw = raw[size + 1:]
+    except (subprocess.SubprocessError, OSError, ValueError):
+        got = {}
+    for p in paths:
+        if not got.get(p):
+            got[p] = (ROOT / p).read_text(encoding="utf-8").strip() if (ROOT / p).exists() else ""
+    return got
+
+
 def read_remote(path: str) -> str:
     """Prefer origin/main (teammates' latest), fall back to the working tree."""
     text = git("show", f"origin/main:{path}")
@@ -84,17 +106,19 @@ def parse(text: str) -> dict[str, str]:
 def asks() -> list[dict[str, str]]:
     names = set(git("ls-tree", "--name-only", "origin/main", "coord/asks/").splitlines())
     names |= {f"coord/asks/{p.name}" for p in (ROOT / "coord" / "asks").glob("*.md")}
-    return [parse(read_remote(n)) | {"file": n} for n in sorted(names) if n.endswith(".md") and "README" not in n]
+    names = sorted(n for n in names if n.endswith(".md") and "README" not in n)
+    texts = read_many(names)
+    return [parse(texts[n]) | {"file": n} for n in names]
 
 
 def messages() -> list[dict[str, str]]:
     names = set(git("ls-tree", "--name-only", "origin/main", "coord/chat/").splitlines())
     names |= {f"coord/chat/{p.name}" for p in (ROOT / "coord" / "chat").glob("*.md")}
+    names = sorted(n for n in names if n.endswith(".md") and "README" not in n)
+    texts = read_many(names)
     out = []
-    for n in sorted(names):
-        if not n.endswith(".md") or "README" in n:
-            continue
-        head, _, body = read_remote(n).partition("\n---\n")
+    for n in names:
+        head, _, body = texts[n].partition("\n---\n")
         out.append(parse(head) | {"body": body.strip(), "file": n})
     return out
 

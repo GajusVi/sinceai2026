@@ -14,7 +14,7 @@ def test_parse_fields():
 
 def test_brief_runs_offline():
     out = subprocess.run([sys.executable, str(ROOT / "tools" / "coord.py"), "brief", "--full", "--no-fetch"],
-                         capture_output=True, text=True, timeout=30)
+                         capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert out.returncode == 0
     assert "TEAM BOARD" in out.stdout
     assert "None" not in out.stdout.splitlines()
