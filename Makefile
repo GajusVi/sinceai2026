@@ -7,11 +7,11 @@ setup:      ## install/repair everything (idempotent)
 extras:     ## track extras: forecasting, privacy, routing, graphs (uses ./wheelhouse if offline)
 	uv pip install --python $(PY) --find-links wheelhouse -r requirements-extras.in
 
-ui:         ## BI Steward screen (LLM if a key is in .env, else rules + templates)
-	$(PY) -m streamlit run frontend/steward_app.py
+ui:         ## BI Steward on the Bayer data pack (LLM if a key is in .env, else rules + templates)
+	STEWARD_CATALOG=datapack $(PY) -m streamlit run frontend/steward_app.py
 
-demo:       ## BI Steward screen with the LLM forced off (stage-safe, no network)
-	STEWARD_USE_LLM=off $(PY) -m streamlit run frontend/steward_app.py
+demo:       ## BI Steward on the Bayer data pack, LLM forced off (stage-safe, no network)
+	STEWARD_CATALOG=datapack STEWARD_USE_LLM=off $(PY) -m streamlit run frontend/steward_app.py
 
 bayer:      ## BI Steward on the Bayer data pack (360 assets)
 	STEWARD_CATALOG=datapack $(PY) -m streamlit run frontend/steward_app.py
