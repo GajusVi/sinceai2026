@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 02:13
-now: G2/G3 pushed; next: try the interview prompt on a real model, then Intent wiring for Sat
-done: 217088b interview prompt + persona bank + steward/interview.py; cce201e T6 severities; a85b174 asks_global
-next: real-model run of prompts/interview.yaml; handover to Donatas for the chat wiring (A1/A3)
+updated: 2026-11-07 02:43
+now: interview prompt run on real model (gemini-3.5-flash); waiting for Gemini quota to re-verify one prompt rule
+done: 217088b G2/G3; b2b89f2 architecture roles + rules; interview fixes pushed (see git log)
+next: Intent/interview handover note for Donatas (chat wiring), README section 07 (G6), euro case (G5)
 blocked: T6 conventions decision (mine, below)
