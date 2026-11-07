@@ -184,8 +184,8 @@ class Interviewer:
         return intent
 
     def _fill_gaps(self, intent: Intent, state: InterviewState) -> None:
-        """Some models hand back an empty Intent. The rules parser fills ONLY empty entity fields from the user's own words;
-        whatever the model did fill is never overwritten."""
+        """Some models hand back an empty Intent. The rules parser fills ONLY empty entity fields from the user's
+        own words; whatever the model did fill is never overwritten."""
         rules = self._rules_intent(state)
         for name in ("products", "markets", "regions", "metric_ids"):
             if not getattr(intent, name) and getattr(rules, name):
