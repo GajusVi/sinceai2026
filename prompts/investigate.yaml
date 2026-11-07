@@ -37,6 +37,8 @@ template: |
     "risks": ["one short line each, at most three"]}}
   - Say an asset has a KPI only if it is in that asset's "KPIs" list; what it lacks is exactly its "still missing" list.
   - If the search found nothing compatible but the estate lists assets of the product, say which one the request most
-    likely means (for example the Tableau dashboard it wants replaced) and recommend from that.
+    likely means (for example the Tableau dashboard it wants replaced) and put its id in best_asset_id, even when the
+    rules said CLARIFY: a human confirms it. A request to replace or migrate a Tableau workbook names a Tableau asset
+    of that product; recommend EXTEND (rebuilt in Power BI).
   Give 3 to 6 steps, in the order an analyst would check: what was asked, the best candidates, why the best one wins or
   fails (KPIs, owner, refresh, platform, usage), duplicates, gaps in governed data.

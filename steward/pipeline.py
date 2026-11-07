@@ -118,9 +118,42 @@ class Steward:
                 investigate, self.llm, self.settings.prompts_dir, text, summary, result.decision, estate, gaps
             )
             expl = pool.submit(self.explainer.explain, result.question, result.decision, self.as_of)
-            explanation = expl.result() + self._horizon_note(result.question, result.decision)
+            explanation = expl.result()
             investigation = inv.result()
+        adopted = self._adopt_asset(intent, investigation, result)
+        if adopted is not None:  # the AI found the asset the request is about: decide again on its KPIs
+            result = adopted
+            explanation = self.explainer.explain(result.question, result.decision, self.as_of)
+        explanation += self._horizon_note(result.question, result.decision)
         return result.model_copy(update={"explanation": explanation, "investigation": investigation})
+
+    def _adopt_asset(self, intent, investigation, result: StewardResult) -> StewardResult | None:
+        """CLARIFY only because no metric was named ("replace our Tableau Xarelto workbook"), no open conflict, and the
+        AI investigation named the asset the request is about: its canonical metrics become the request, flagged as
+        an AI proposal the requester confirms. The rules engine then decides again (e.g. EXTEND + MIGRATE)."""
+        from .linking import asset_metric_ids
+        from .models import Verdict
+
+        if investigation is None or not investigation.best_asset_id or intent.metric_ids or intent.conflicts:
+            return None
+        if result.decision.verdict != Verdict.CLARIFY:
+            return None
+        asset = self.catalog.artifacts.get(investigation.best_asset_id)
+        metrics = sorted(asset_metric_ids(asset, self.catalog)) if asset else []
+        if not metrics:
+            return None
+        proposed = intent.model_copy(update={"metric_ids": metrics})
+        again = self.ask_intent(proposed, explain=False)
+        again.decision.evidence.insert(
+            0,
+            Evidence(
+                claim=f'AI proposal: the request is about {asset.id} "{asset.title}"; its governed KPIs are used as the '
+                "scope. Confirm with the requester.",
+                record_ids=[asset.id],
+                severity="warning",
+            ),
+        )
+        return again
 
     def _horizon_note(self, question, decision) -> str:
         """F7: a period outside the months the data covers is said out loud (evidence + a line in the answer)."""
