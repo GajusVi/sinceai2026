@@ -58,7 +58,11 @@ class Interviewer:
     # -- one turn ------------------------------------------------------------------------------------------------
 
     def _step(self, state: InterviewState) -> InterviewState:
-        intent = self._llm_intent(state) or self._rules_intent(state)
+        intent = self._llm_intent(state)
+        if intent:
+            self._fill_gaps(intent, state)
+        else:
+            intent = self._rules_intent(state)
         state.intent = intent
         if intent.should_stop(state.questions_asked):
             state.question, state.last_asked = None, ""
@@ -178,6 +182,16 @@ class Interviewer:
                 confidence[name] = max(confidence.get(name, 0.0), 0.9)
         intent.confidence = confidence
         return intent
+
+    def _fill_gaps(self, intent: Intent, state: InterviewState) -> None:
+        """Some models hand back an empty Intent. The rules parser fills ONLY empty entity fields from the user's own words;
+        whatever the model did fill is never overwritten."""
+        rules = self._rules_intent(state)
+        for name in ("products", "markets", "regions", "metric_ids"):
+            if not getattr(intent, name) and getattr(rules, name):
+                setattr(intent, name, getattr(rules, name))
+                key = "markets" if name == "regions" else name
+                intent.confidence[name] = max(intent.confidence.get(name, 0.0), rules.confidence.get(key, 0.9))
 
     def _scope_replies(self, state: InterviewState) -> list[str]:
         """The user's replies that describe the request. The answer to the decision question is prose, not a request."""

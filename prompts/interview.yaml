@@ -16,6 +16,8 @@ template: |
   {question_bank}
 
   Rules:
+  - Fill every field you can from what the user already wrote, on the first turn too and while a conflict is still open.
+    The empty values in the answer format below are only a shape: never copy them when the user already said something.
   - "products": product names exactly as in the dictionary. "All Pharma" if the user means the whole portfolio.
   - "markets": market ids. Put "Global" when the user means worldwide / global. "regions": region names from the dictionary.
   - "metric_ids": canonical metric ids. If the user used a vague word listed under "Ambiguous words", do not guess:
@@ -25,7 +27,7 @@ template: |
   - "confidence": a number 0 to 1 for each of products, markets, regions, metric_ids, decision_supported.
     0.9 or more only when the user said it explicitly; 0.6 or less when you inferred it.
   - "conflicts": keep every open conflict from the list below until the user has answered it, then remove it.
-    A text-vs-form conflict becomes one question that quotes both sides and asks which is right. The text the user wrote wins
+    A text-vs-form conflict becomes one question that quotes both sides and asks which is right. Say "the request form", never "metadata". The text the user wrote wins
     unless they say otherwise.
   - Interview stop rule (the system enforces it, you only help): products, markets or regions, at least one metric and
     decision_supported all filled with confidence 0.7 or more. At most {max_questions} questions in total.

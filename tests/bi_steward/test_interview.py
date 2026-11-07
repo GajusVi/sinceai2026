@@ -157,3 +157,14 @@ def test_rules_fallback_ignores_the_decision_answer_and_replaced_words(pack):
     assert state.done and state.intent.metric_ids == ["net_sales"] and state.intent.markets == ["Global"]
     assert "batch" not in state.intent.unmapped_terms and "review" not in state.intent.unmapped_terms
     assert not {"worldwide", "prepare", "business", "review"} & set(state.intent.unmapped_terms)
+
+
+def test_empty_model_intent_is_filled_from_the_users_words_but_never_overwritten(pack):
+    empty = {"intent": {}, "next_question": "Which product?"}
+    state = interviewer(pack, FakeLLM(empty)).start("Net sales for Nubeqa in Germany")
+    assert state.intent.products == ["Nubeqa"] and state.intent.markets == ["DE"] and state.intent.metric_ids == ["net_sales"]
+    assert state.intent.confidence["products"] >= 0.7
+
+    own = {"intent": {"products": ["Eylea"], "confidence": {"products": 0.95}}, "next_question": None}
+    state = interviewer(pack, FakeLLM(own)).start("Net sales for Nubeqa in Germany")
+    assert state.intent.products == ["Eylea"]  # the model's value wins
