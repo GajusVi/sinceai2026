@@ -105,3 +105,18 @@ def test_star_schema_has_the_dims_and_relationships():
     pmm = {(r.to_entity, r.key) for r in rel if r.from_entity == "fact_pmm"}
     assert pmm == {("dim_product", "product_id"), ("dim_market", "market_id"), ("dim_month", "month")}
     assert all(r.cardinality == "many_to_one" for r in rel)
+
+
+def test_site_filter_keeps_only_the_pairs_the_site_supplies():
+    from steward import semantic
+
+    frames = semantic.load_frames()
+    otif = semantic.measure("KPI-020")
+    everything = semantic.compute(otif, frames, {}, by="product")
+    plant_b = semantic.compute(otif, frames, {"site": "Plant-B"}, by="product")
+    assert 0 < len(plant_b) <= len(everything)
+    supply = frames["fact_supply"]
+    scoped = semantic._scope(frames["fact_pmm"], {"site": "Plant-B"}, frames)
+    pairs = set(zip(supply.loc[supply.supply_source == "Plant-B", "product_id"],
+                    supply.loc[supply.supply_source == "Plant-B", "market_id"], strict=True))
+    assert set(zip(scoped.product_id, scoped.market_id, strict=True)) <= pairs

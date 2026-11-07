@@ -139,8 +139,9 @@ def _create(decision: Decision, intent: Intent, catalog: Catalog, measures: list
 
 
 def _dimension(intent: Intent) -> str:
-    """Breakdown dimension: product if several products are asked, else market (several markets, a region, global)."""
-    if len(intent.products) > 1:
+    """Breakdown dimension: product if several products are asked, else market (several markets, a region, global).
+    A site supplies several medicines: break it down by product."""
+    if len(intent.products) > 1 or (intent.sites and len(intent.products) != 1):
         return "product"
     if len(intent.markets) == 1 and intent.markets[0] != GLOBAL and len(intent.products) != 1:
         return "product"
@@ -150,6 +151,8 @@ def _dimension(intent: Intent) -> str:
 def _scope_label(intent: Intent, catalog: Catalog) -> str:
     names = [p for p in intent.products if p != ALL_PHARMA]
     who = names[0] if len(names) == 1 else "Bayer Pharma"
+    if len(intent.sites) == 1:
+        who = f"{intent.sites[0]}" + (f" {names[0]}" if len(names) == 1 else "")
     if len(intent.markets) == 1 and intent.markets[0] != GLOBAL:
         who += f" in {catalog.dimension_value_label('market', intent.markets[0])}"
     elif len(intent.regions) == 1:
@@ -329,6 +332,8 @@ def _filters(intent: Intent) -> dict[str, str]:
         f["market"] = intent.markets[0]
     if len(intent.regions) == 1:
         f["region"] = intent.regions[0]
+    if len(intent.sites) == 1:
+        f["site"] = intent.sites[0]
     return f
 
 

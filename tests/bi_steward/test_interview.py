@@ -169,3 +169,67 @@ def test_empty_model_intent_is_filled_from_the_users_words_but_never_overwritten
     own = {"intent": {"products": ["Eylea"], "confidence": {"products": 0.95}}, "next_question": None}
     state = interviewer(pack, FakeLLM(own)).start("Net sales for Nubeqa in Germany")
     assert state.intent.products == ["Eylea"]  # the model's value wins
+
+
+# -- grill-me for non-technical users: goal themes and supply sites (Sat 7 Nov) ------------------------------------
+
+
+def test_offline_plant_question_asks_site_then_confirms_theme_then_decision(pack):
+    iv = interviewer(pack, None)
+    state = iv.start("How efficiently is this plant running? I'd like to know")
+    assert state.last_asked == "sites" and "Plant-B" in state.question
+    state = iv.answer(state, "Plant B")
+    assert state.last_asked == "theme_confirm" and "on-time in-full" in state.question and "OEE" in state.question
+    state = iv.answer(state, "yes, and add net sales")
+    assert state.last_asked == "decision_supported"
+    state = iv.answer(state, "board update next month")
+    intent = state.intent
+    assert state.done and intent.is_complete() and state.questions_asked == 3
+    assert intent.sites == ["Plant-B"] and intent.theme == "plant_efficiency" and intent.unmapped_terms == []
+    assert intent.metric_ids[-1] == "net_sales" and "on_time_in_full" in intent.metric_ids
+
+
+def test_theme_answer_only_replaces_the_bundle(pack):
+    iv = interviewer(pack, None)
+    state = iv.answer(iv.start("How efficient is Plant-C?"), "just OTIF and stock cover")
+    assert state.intent.metric_ids == ["on_time_in_full", "inventory_coverage"]
+
+
+def test_model_cannot_skip_confirming_a_theme(pack):
+    """The model proposes the theme's numbers at 0.9 on turn one: code caps them at 0.6, so the user is asked."""
+    llm = FakeLLM(
+        {"intent": {"sites": ["plant-b"], "theme": "plant_efficiency", "metric_ids": ["on_time_in_full"],
+                    "decision_supported": "monitor", "unmapped_terms": ["efficiently", "know"],
+                    "confidence": {"sites": 0.9, "metric_ids": 0.9, "decision_supported": 0.8}},
+         "next_question": "Is on-time delivery the right picture?"},
+        {"intent": {"sites": ["Plant-B"], "theme": "plant_efficiency", "metric_ids": ["on_time_in_full"],
+                    "decision_supported": "monitor",
+                    "confidence": {"sites": 0.9, "metric_ids": 0.9, "decision_supported": 0.8}},
+         "next_question": None},
+    )
+    iv = interviewer(pack, llm)
+    state = iv.start("How efficiently is Plant B running?")
+    assert not state.done and state.intent.confidence["metric_ids"] == 0.6
+    assert state.intent.sites == ["Plant-B"] and state.intent.unmapped_terms == []
+    state = iv.answer(state, "yes")
+    assert state.done and state.intent.is_complete()
+
+
+def test_prompt_carries_themes_sites_and_executive_persona(pack):
+    llm = FakeLLM({"intent": {}, "next_question": None})
+    interviewer(pack, llm).start("how are we doing")
+    prompt = llm.prompts[0]
+    assert "plant_efficiency" in prompt and "Plant-A" in prompt and "External-CMO" in prompt
+    assert "shareholder" in prompt and "{themes}" not in prompt
+
+
+def test_plant_question_ends_in_a_site_dashboard(pack):
+    steward, _ = pack
+    iv = steward.interviewer
+    state = iv.start("How efficiently is this plant running?")
+    for reply in ("Plant-B", "yes", "weekly ops review"):
+        state = iv.answer(state, reply)
+    result = steward.build(steward.ask_intent(state.intent), state.intent)
+    assert result.decision.verdict.value in ("REUSE", "EXTEND", "CREATE")
+    assert result.spec is not None and result.spec.filters["site"] == "Plant-B"
+    assert any("not measured in governed data" in e.claim.lower() for e in result.decision.evidence)

@@ -42,6 +42,9 @@ class Steward:
         self.parser = get_parser(self.catalog, self.llm, self.settings.prompts_dir)
         self.explainer = get_explainer(self.catalog, self.llm, self.settings.prompts_dir)
         self.governance = Governance(self.catalog, self.data_dir)
+        from .interview import Interviewer  # grill-me: novice users are interviewed before anything is decided
+
+        self.interviewer = Interviewer(self.catalog, self.llm, self.settings.prompts_dir)
 
     def _load_catalog(self) -> Catalog:
         """STEWARD_CATALOG=datapack (or catalog_dir = the .xlsx) uses the Bayer data pack and catalog/bayer/."""
@@ -69,6 +72,33 @@ class Steward:
         decision = decide(question, hits, self.catalog, self.as_of)
         for c in confirm:
             decision.evidence.append(Evidence(claim=f"Confirm with the requester: {c}", severity="warning"))
+        explanation = self.explainer.explain(question, decision, self.as_of)
+        return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
+
+    def ask_intent(self, intent) -> StewardResult:
+        """The interview's end: the confirmed Intent goes through the same search -> decide -> explain as `ask`;
+        then `build(result, intent)` makes the dashboard. A site scope (Plant-B) has no asset-level equivalent:
+        search runs on the metrics and the site becomes a data filter of the dashboard (semantic._scope)."""
+        question = intent.to_parsed_question()
+        hits = self.search.search(question)
+        decision = decide(question, hits, self.catalog, self.as_of)
+        if intent.sites:
+            decision.evidence.append(
+                Evidence(
+                    claim="Scope is a supply site: " + ", ".join(intent.sites)
+                    + " (every product and market it supplies, from Supply_Operations)",
+                    severity="info", record_ids=list(intent.sites),
+                )
+            )
+        theme = self.interviewer.themes.get(intent.theme, {})
+        if theme.get("not_governed"):
+            decision.evidence.append(
+                Evidence(
+                    claim="Not measured in governed data yet (a domain owner must define it first): "
+                    + ", ".join(theme["not_governed"]),
+                    severity="info",
+                )
+            )
         explanation = self.explainer.explain(question, decision, self.as_of)
         return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
 

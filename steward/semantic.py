@@ -151,8 +151,10 @@ def feasibility(intent: Intent) -> Feasibility:
     products = set(frames["dim_product"]["product_name"]) | {ALL_PHARMA}
     markets = set(frames["dim_market"]["market_id"]) | {GLOBAL}
     regions = set(frames["dim_market"]["region"])
+    sites = set(frames["fact_supply"]["supply_source"].dropna())
     result.scope_ok = (
-        all(p in products for p in intent.products)
+        all(s in sites for s in intent.sites)
+        and all(p in products for p in intent.products)
         and all(m in markets for m in intent.markets)
         and all(r in regions for r in intent.regions)
     )
@@ -174,6 +176,12 @@ def _scope(df: pd.DataFrame, filters: dict[str, str], frames: dict[str, pd.DataF
     out = df.merge(frames["dim_product"][["product_id", "product_name"]], on="product_id", how="left")
     out = out.merge(frames["dim_market"][["market_id", "region"]], on="market_id", how="left")
     out = _months(out, filters)
+    site = filters.get("site")
+    if site:  # a supply site = the product x market pairs it supplies (Supply_Operations.supply_source)
+        supply = frames["fact_supply"]
+        pairs = supply.loc[supply["supply_source"] == site, ["product_id", "market_id"]].drop_duplicates()
+        keys = ["product_id", "market_id"]
+        out = out[out.set_index(keys).index.isin(pairs.set_index(keys).index)]
     product = filters.get("product")
     if product and product != ALL_PHARMA:
         out = out[(out["product_id"] == product) | (out["product_name"].str.lower() == product.lower())]

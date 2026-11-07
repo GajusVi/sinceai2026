@@ -21,6 +21,8 @@ class Intent(BaseModel):
     products: list[str] = Field(default_factory=list)  # product names as in the data pack ("Nubeqa")
     markets: list[str] = Field(default_factory=list)  # market ids ("DE")
     regions: list[str] = Field(default_factory=list)  # "EMEA", "North America", ...
+    sites: list[str] = Field(default_factory=list)  # supply sites: "Plant-A" .. "Plant-C", "External-CMO"
+    theme: str = ""  # goal theme key from prompts/interview.yaml ("plant_efficiency"); its metrics need confirming
     metric_ids: list[str] = Field(default_factory=list)  # canonical metric ids from catalog/bayer/metrics.json
     unmapped_terms: list[str] = Field(
         default_factory=list
@@ -34,13 +36,17 @@ class Intent(BaseModel):
     text: str = ""  # the original question, for display and for search
 
     def missing(self) -> list[str]:
-        """Required fields that are empty or below CONFIDENCE_MIN. Order = the order the interview should ask in."""
+        """Required fields that are empty or below CONFIDENCE_MIN. Order = the order the interview should ask in.
+        A named site is a full scope on its own (everything the site supplies): products and markets are not asked."""
+        site_scope = bool(self.sites) and self._conf("sites") >= CONFIDENCE_MIN
         required = {
-            "products": bool(self.products),
-            "markets": bool(self.markets or self.regions),
+            "products": site_scope or bool(self.products),
+            "markets": site_scope or bool(self.markets or self.regions),
             "metric_ids": bool(self.metric_ids),
             "decision_supported": bool(self.decision_supported),
         }
+        if site_scope:
+            required = {k: v for k, v in required.items() if k not in ("products", "markets")}
         return [name for name, filled in required.items() if not filled or self._conf(name) < CONFIDENCE_MIN]
 
     def _conf(self, name: str) -> float:

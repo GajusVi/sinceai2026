@@ -97,6 +97,8 @@ STOPWORDS = frozenset(
     power bi tableau legacy replacement workbook commercial finance executive comparing combining one
     actually just good really quickly basically maybe also simply very quite only still so well some number numbers
     worldwide globally net bayer pharma indicator indicators coverage status progress launch
+    id im ive know understand picture sense quick whether keep eye eyes worried worry concerned happening going
+    shareholder shareholders board investor investors business our ours
     """.split()
 )
 

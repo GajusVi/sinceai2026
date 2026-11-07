@@ -61,3 +61,18 @@ def test_orphan_rescue_on_sample_catalog(monkeypatch, tmp_path):
     at = AppTest.from_file(APP, default_timeout=60).run()
     assert not at.exception
     assert any("make bayer" in i.value for i in at.info)
+
+
+def test_novice_chat_runs_the_interview_then_shows_a_dashboard(monkeypatch, tmp_path):
+    monkeypatch.setenv("STEWARD_USE_LLM", "off")
+    monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STEWARD_CATALOG", "datapack")
+    at = AppTest.from_file(APP, default_timeout=180).run()
+    at.chat_input[0].set_value("How efficiently is this plant running?").run()
+    assert not at.exception and "Plant-A" in at.session_state["messages"][-1]["content"]
+    for reply in ("Plant-B", "yes", "board update"):
+        at.chat_input[0].set_value(reply).run()
+        assert not at.exception
+    assert at.session_state["messages"][-2]["content"].startswith("Got it. Scope: Plant-B")
+    assert at.session_state["result"].spec.filters["site"] == "Plant-B"
+    assert any("Dashboard:" in m.value for m in at.markdown)

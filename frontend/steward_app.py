@@ -25,6 +25,8 @@ EXAMPLES = [
 ]
 
 BAYER_EXAMPLES = [
+    "How efficiently is this plant running?",
+    "I'm a shareholder: how is the business doing in Europe?",
     "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
     "Net sales for Eylea in Japan",
     "Net sales and OTIF for Hyrnuo in China",
@@ -114,6 +116,7 @@ with st.sidebar:
     for example in (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES):
         if st.button(example, width="stretch"):
             st.session_state.pending_question = example
+            st.session_state.interview = None  # an example is a new question, not an answer
     st.divider()
     if st.button("Reset demo", width="stretch"):
         for name in (CHANGES_FILE, JOURNAL_FILE):
@@ -128,14 +131,47 @@ def verdict_title(verdict) -> str:
 
 
 def ask(text: str) -> None:
-    """Run one question; keep chat history (question, one-line verdict) and the latest full result."""
-    result = steward.build(steward.ask(text))  # W3-W6: the dashboard this decision implies (None for CLARIFY)
+    """One chat turn. Novice (default): grill-me interview until the Intent is confirmed, then decide + dashboard.
+    Expert mode: one shot through the parser, as before. Keeps chat history and the latest full result."""
+    messages = st.session_state.setdefault("messages", [])
+    messages.append({"role": "user", "content": text})
+    if st.session_state.get("expert_mode"):
+        _finish(steward.build(steward.ask(text)))  # W3-W6: the dashboard this decision implies (None for CLARIFY)
+        return
+    state = st.session_state.get("interview")
+    if state is not None and not state.done:
+        state = steward.interviewer.answer(state, text)
+    else:
+        st.session_state.result = None
+        state = steward.interviewer.start(text)
+    st.session_state.interview = state
+    if not state.done:
+        messages.append({"role": "assistant", "content": state.question})
+        return
+    st.session_state.interview = None
+    messages.append({"role": "assistant", "content": understood(state.intent)})
+    _finish(steward.build(steward.ask_intent(state.intent), state.intent))
+
+
+def _finish(result: StewardResult) -> None:
     best = result.decision.best
     summary = verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else "")
-    st.session_state.setdefault("messages", []).extend(
-        [{"role": "user", "content": text}, {"role": "assistant", "content": summary}]
-    )
+    st.session_state.messages.append({"role": "assistant", "content": summary})
     st.session_state.result = result
+
+
+def understood(intent) -> str:
+    """Read the confirmed Intent back in business words before anything is decided (no ids)."""
+    names = [steward.catalog.metrics[m].name for m in intent.metric_ids if m in steward.catalog.metrics]
+    if intent.sites:
+        scope = ", ".join(intent.sites) + " (everything it supplies)"
+    else:
+        where = ", ".join(intent.regions or intent.markets) or "all markets"
+        scope = f"{', '.join(intent.products) or 'All Pharma'} in {where}"
+    line = f"Got it. Scope: {scope}. Numbers: {', '.join(names) or 'none yet'}."
+    if intent.decision_supported:
+        line += f" For: {intent.decision_supported}."
+    return line
 
 
 def render_evidence(decision) -> None:
@@ -171,6 +207,8 @@ def render_dashboard(result: StewardResult) -> None:
     key = spec.provenance.get("spec_hash", "spec")
     st.divider()
     st.markdown(f"#### Dashboard: {spec.name}")
+    if spec.filters.get("site"):
+        st.caption(f"Site: {spec.filters['site']} (the products and markets it supplies)")
     st.caption(
         f"{spec.change_type.upper()} · version {spec.version} · "
         f"layout from {spec.provenance.get('layout_source', '?')} · spec {key}"
@@ -468,7 +506,7 @@ tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog = st.tabs(
 )
 
 with tab_ask:
-    typed = st.chat_input("Ask a business question, e.g. " + EXAMPLES[0])
+    typed = st.chat_input("Ask a business question, e.g. " + (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES)[0])
     question = typed or st.session_state.pop("pending_question", None)
     if question and question.strip():
         ask(question.strip())

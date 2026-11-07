@@ -31,7 +31,8 @@ def app(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_CATALOG", "datapack")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
-    return AppTest.from_file(APP, default_timeout=120).run()
+    app = AppTest.from_file(APP, default_timeout=120).run()
+    return app.toggle(key="expert_mode").set_value(True).run()  # one-shot REQ-0001; novice mode interviews first
 
 
 def test_req0001_shows_the_dashboard_then_approve_writes_the_spec_hash(app, tmp_path):
