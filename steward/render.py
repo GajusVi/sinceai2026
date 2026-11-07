@@ -17,7 +17,13 @@ import plotly.graph_objects as go
 from . import semantic
 from .spec import DashboardSpec, Measure, Visual
 
-BLUE, GREY, GOOD, BAD = "#2a6ebb", "#9aa3ad", "#1f7a4d", "#b3382c"
+# Dark chart tokens (docs/steward/DESIGN.md, mirrored in frontend/ui.py): actual in the focus blue (#3b6bff, 4.5:1 on the
+# ground, a graphic so 3:1 suffices), forecast dashed grey, #27272a gridlines, #a1a1aa axis text, transparent ground so
+# the chart sits on its panel. Fixed values only: the same spec gives the same figure.
+BLUE, GREY, GOOD, BAD = "#3b6bff", "#a1a1aa", "#4ade80", "#f87171"
+GRID, AXIS, TITLE = "#27272a", "#a1a1aa", "#fafafa"
+MONO = "Geist Mono, ui-monospace, SF Mono, Menlo, Consolas, monospace"
+SANS = "Instrument Sans, -apple-system, Segoe UI, sans-serif"
 DIM_LABEL_COLUMN = {"market": "market_id", "product": "product_name", "region": "region"}
 
 
@@ -212,13 +218,19 @@ def _dim_title(dim: str) -> str:
 
 
 def _layout(title: str, m: Measure, **extra) -> dict:
+    axis = dict(gridcolor=GRID, zerolinecolor=GRID, linecolor=GRID, tickfont=dict(family=MONO, size=11, color=AXIS),
+                title=dict(font=dict(family=MONO, size=11, color=AXIS)))
     return dict(
-        title=dict(text=title, x=0, font=dict(size=15)),
-        template="plotly_white",
-        height=320,
-        margin=dict(l=10, r=10, t=50, b=10),
-        legend=dict(orientation="h", y=-0.15),
-        yaxis_title=extra.pop("yaxis_title", m.unit),
+        title=dict(text=title, x=0, font=dict(family=SANS, size=14, color=TITLE)),
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family=SANS, size=12, color=AXIS),
+        height=300,
+        margin=dict(l=10, r=10, t=44, b=22),
+        legend=dict(orientation="h", y=-0.15, font=dict(family=MONO, size=11, color=AXIS)),
+        xaxis=axis,
+        yaxis={**axis, "title": dict(text=extra.pop("yaxis_title", m.unit), font=dict(family=MONO, size=11, color=AXIS))},
         **extra,
     )
 
