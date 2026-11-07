@@ -209,3 +209,62 @@ def evidence_line(claim: str, severity: str, rule_id: str | None, ids: list[str]
         f'<div style="font-size:0.92rem">{escape(claim)}</div>'
         f'<div class="bs-muted">{escape(meta)} {chips(ids)}</div></div></div>'
     )
+
+
+# -- OVERVIEW dashboards (render.RenderedDashboard.archetype == "OVERVIEW"): header band, status tiles, 12-column grid ----
+STATUS = {"ok": ("var(--reuse)", "OK"), "warn": ("var(--amber)", "WATCH"), "breach": ("var(--rescue)", "BREACH"),
+          "neutral": ("var(--line)", ""), "gap": ("var(--grey)", "NO DATA")}
+
+
+def header_band(title: str, scope: str, as_of: str, verdict: str) -> None:
+    colour = VERDICT_COLOUR.get(verdict, INK)
+    word = f'<span class="w" style="color:{colour}">{escape(verdict.replace("_", " "))}</span>' if verdict else ""
+    html(
+        f'<div class="bs-band"><div><div class="bs-band-title">{escape(title)}</div>'
+        f'<div class="bs-band-meta">{escape(scope)} · data as of {escape(as_of)}</div></div>{word}</div>'
+    )
+
+
+def tiles(items) -> str:
+    """The KPI strip: one tile per measure, a 3 px status edge and a mono status word (only where a governed threshold
+    exists); neutral tiles get no colour; a gap tile says 'Not measured yet' and why."""
+    out = []
+    for t in items:
+        colour, word = STATUS.get(t.status, STATUS["neutral"])
+        arrow = {"+": "\u25b2 ", "-": "\u25bc "}.get((t.delta or " ").strip()[:1], "") if t.delta else ""
+        delta = (f'<div class="bs-kpi-delta" style="color:{TONE.get(t.tone, MUTED)}">{arrow}{escape(t.delta)}</div>'
+                 if t.delta else "")
+        status = f'<span class="bs-tile-status" style="color:{colour}">{word}</span>' if word else ""
+        note = f'<div class="bs-muted" style="margin-top:0.25rem">{escape(t.note)}</div>' if t.note else ""
+        out.append(
+            f'<div class="bs-tile bs-{escape(t.status)}" style="border-left-color:{colour}">'
+            f'<div class="bs-kpi-label">{escape(t.title)}{status}</div>'
+            f'<div class="bs-kpi-value">{escape(t.value)}</div>{delta}{note}</div>'
+        )
+    return '<div class="bs-tiles">' + "".join(out) + "</div>"
+
+
+def overview(dash, key: str, scope: str = "", as_of: str = "", verdict: str = "") -> None:
+    """Draw an OVERVIEW dashboard: header band, then the grid rows in order (strip, charts, table), each cell its span
+    of 12 columns. Charts keep render.py's own day/night template (theme=None)."""
+    header_band(dash.title, scope, as_of, verdict)
+    rows: dict[int, list] = {}
+    for cell in dash.grid:
+        rows.setdefault(cell.row, []).append(cell)
+    for r in sorted(rows):
+        cells = rows[r]
+        cols = st.columns([c.span for c in cells]) if len(cells) > 1 else [st.container()]
+        for col, cell in zip(cols, cells, strict=True):
+            with col:
+                if cell.kind == "strip":
+                    html(tiles(dash.tiles))
+                elif cell.kind == "figure":
+                    st.plotly_chart(dash.figures[cell.index][1], use_container_width=True, theme=None,
+                                    key=f"ov_{key}_{r}_{cell.index}")
+                elif cell.kind == "table":
+                    title, frame = dash.tables[cell.index]
+                    section(title)
+                    if frame.empty:
+                        st.caption("No rows past the threshold for this selection.")
+                    else:
+                        table(frame, hide_index=True, width="stretch")

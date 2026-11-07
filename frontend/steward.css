@@ -359,3 +359,19 @@ div[data-testid="stButton"] button[kind="secondary"], button[kind="secondaryForm
 div[data-testid="stButton"] button[kind="secondary"]:hover, button[kind="secondaryFormSubmit"]:hover {
   background: var(--btn2-hover) !important; border-color: var(--btn2-line) !important; }
 div[data-testid="stButton"] button[kind="secondary"] p, button[kind="secondaryFormSubmit"] p { color: var(--btn2-text) !important; }
+
+/* ===== OVERVIEW dashboards: header band, KPI strip of status tiles (frontend/ui.overview) ========================== */
+.bs-band { display: flex; justify-content: space-between; align-items: center; gap: 1rem; background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 0.7rem 0.95rem; margin: 0.4rem 0 0.2rem 0; }
+.bs-band-title { font-size: 1.2rem; font-weight: 600; color: var(--ink); line-height: 1.2; }
+.bs-band-meta { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  margin-top: 0.2rem; }
+.bs-band .w { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; border: 1px solid currentColor;
+  border-radius: 4px; padding: 0.1rem 0.45rem; }
+.bs-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.5rem; }
+.bs-tile { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line);
+  border-radius: var(--radius); padding: 0.6rem 0.75rem; min-height: 5.6rem; }
+.bs-tile .bs-kpi-label { display: flex; justify-content: space-between; gap: 0.4rem; }
+.bs-tile .bs-kpi-value { font-size: 1.45rem; margin-top: 0.3rem; }
+.bs-tile-status { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em; font-weight: 500; }
+.bs-tile.bs-gap .bs-kpi-value { font-family: inherit; font-size: 0.95rem; color: var(--muted); }

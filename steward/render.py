@@ -21,8 +21,12 @@ from .spec import DashboardSpec, Measure, Visual
 # blue on the dark panel; day: the accent blue on white. Transparent ground so a chart sits on its panel. Fixed values
 # only: the same spec + the same theme gives the same figure.
 TEMPLATES = {
-    "night": dict(actual="#3b6bff", forecast="#a1a1aa", grid="#27272a", axis="#a1a1aa", title="#fafafa"),
-    "day": dict(actual="#1a4be0", forecast="#71717a", grid="#e4e4e7", axis="#52525b", title="#09090b"),
+    "night": dict(actual="#3b6bff", forecast="#a1a1aa", grid="#27272a", axis="#a1a1aa", title="#fafafa",
+                  good="#4ade80", bad="#f87171", warn="#fbbf24",
+                  parts=["#3b6bff", "#6b8cff", "#9db4ff", "#c7d2fe", "#52525b"]),
+    "day": dict(actual="#1a4be0", forecast="#71717a", grid="#e4e4e7", axis="#52525b", title="#09090b",
+                good="#15803d", bad="#b91c1c", warn="#b45309",
+                parts=["#1a4be0", "#4f73e8", "#8aa2f0", "#c7d2fe", "#a1a1aa"]),
 }
 BLUE, GREY = TEMPLATES["night"]["actual"], TEMPLATES["night"]["forecast"]
 GOOD, BAD = "#4ade80", "#f87171"
@@ -50,6 +54,32 @@ class GapView:
 
 
 @dataclass
+class TileView:
+    """One status tile of an OVERVIEW KPI strip. status: ok | warn | breach (only where a governed threshold exists)
+    | neutral (no governed threshold: no colour is invented) | gap (governed KPI without source data)."""
+
+    title: str
+    kpi_id: str
+    value: str
+    delta: str = ""
+    tone: str = "neutral"
+    status: str = "neutral"
+    note: str = ""
+
+
+@dataclass
+class GridCell:
+    """Where one rendered visual sits on the 12-column OVERVIEW grid. kind: strip | figure | table; index points into
+    RenderedDashboard.figures / .tables (the strip is RenderedDashboard.tiles)."""
+
+    row: int
+    span: int
+    kind: str
+    index: int = 0
+    title: str = ""
+
+
+@dataclass
 class RenderedDashboard:
     title: str
     cards: list[CardView] = field(default_factory=list)
@@ -59,6 +89,9 @@ class RenderedDashboard:
     footer: list[tuple[str, str]] = field(default_factory=list)
     dq: list[str] = field(default_factory=list)
     filters: dict[str, str] = field(default_factory=dict)
+    archetype: str = ""  # "" = today's template (cards row + charts); "OVERVIEW" = the grid below
+    tiles: list[TileView] = field(default_factory=list)
+    grid: list[GridCell] = field(default_factory=list)
 
 
 def render(
@@ -68,7 +101,7 @@ def render(
     `theme` ('night' default, or 'day') picks the chart template; the numbers never depend on it."""
     pal = TEMPLATES.get(theme, TEMPLATES["night"])
     effective = {**spec.filters, **(filters or {})}
-    out = RenderedDashboard(title=spec.name, filters=effective)
+    out = RenderedDashboard(title=spec.name, filters=effective, archetype=getattr(spec, "archetype", "") or "")
     measures = {m.name: m for m in spec.measures}
     dq: list[str] = []
     for page in spec.pages:
@@ -76,7 +109,16 @@ def render(
             ms = [measures[n] for n in v.measures if n in measures]
             if not ms:
                 continue
-            if v.type == "card":
+            before = (len(out.figures), len(out.tables), len(out.tiles))
+            if v.type == "kpi_strip":
+                _strip(out, ms, frames, effective, dq)
+            elif v.type == "bullet" and ms[0].feasible:
+                _bullet(out, v, ms[0], frames, effective, dq, pal)
+            elif v.type == "diverging_bar" and ms[0].feasible:
+                _diverging(out, v, ms[0], frames, effective, dq, pal)
+            elif v.type == "stacked_100" and ms[0].feasible:
+                _stacked(out, v, ms[0], frames, effective, dq, pal)
+            elif v.type == "card":
                 _card(out, v, ms[0], frames, effective, dq)
             elif v.type == "line" and ms[0].feasible:
                 _line(out, v, ms[0], frames, effective, dq, pal)
@@ -84,9 +126,138 @@ def render(
                 _bar(out, v, ms[0], frames, effective, dq, pal)
             elif v.type == "table" and ms[0].feasible:
                 _table(out, v, ms[0], frames, effective, dq)
+            _place(out, v, before, dq)
     out.dq = list(dict.fromkeys(dq))
     out.footer = _footer(spec)
     return out
+
+
+# -- OVERVIEW: grid placement, status tiles, bullet / diverging / 100% charts --------------------------------------
+
+
+def _place(out: RenderedDashboard, v: Visual, before: tuple[int, int, int], dq: list[str]) -> None:
+    """Record grid position for visuals that carry one (OVERVIEW). A visual that drew nothing gets no cell, and says so."""
+    span, row = getattr(v, "span", None), getattr(v, "row", None)
+    if not span:
+        return
+    figures, tables, tiles = before
+    if len(out.tiles) > tiles:
+        out.grid.append(GridCell(row or 1, span, "strip", tiles, v.title))
+    elif len(out.figures) > figures:
+        out.grid.append(GridCell(row or 1, span, "figure", figures, v.title))
+    elif len(out.tables) > tables:
+        out.grid.append(GridCell(row or 1, span, "table", tables, v.title))
+    else:
+        dq.append(f'"{v.title}" was not drawn: no data for this selection')
+
+
+def _thresholds() -> tuple[dict[str, float], float]:
+    """Governed thresholds, one source: specbuild.EXCEPTIONS. Floors (below = breach) and the forecast band (+/- %)."""
+    from .specbuild import EXCEPTIONS
+
+    floors = {k: EXCEPTIONS[k][0] for k in ("KPI-020", "KPI-016") if k in EXCEPTIONS}
+    return floors, EXCEPTIONS.get("KPI-042", (10.0, ""))[0]
+
+
+def _status(kpi_id: str, value: float | None, pct_off: float | None) -> str:
+    floors, band = _thresholds()
+    if kpi_id in floors and value is not None:
+        floor = floors[kpi_id]
+        return "breach" if value < floor else "warn" if value < floor * 1.05 else "ok"
+    if kpi_id == "KPI-042" and pct_off is not None:
+        return "breach" if abs(pct_off) > band else "warn" if abs(pct_off) > band * 0.75 else "ok"
+    return "neutral"
+
+
+def _strip(out: RenderedDashboard, ms: list[Measure], frames, filters, dq) -> None:
+    from .specbuild import COMPARED_TO_FORECAST
+
+    for m in ms[:8]:
+        title = m.name
+        if not m.feasible:  # a gap is a labelled tile, never a number
+            out.tiles.append(TileView(title, m.kpi_id, "Not measured yet", status="gap", note=m.gap_reason))
+            continue
+        monthly = semantic.grain_of(m.kpi_id) == "month"
+        comparison = "forecast" if m.kpi_id in COMPARED_TO_FORECAST else ("prior_month" if monthly else None)
+        probe = Visual(type="card", title=title, measures=[m.name], comparison=comparison)
+        try:
+            value, delta, tone = _card_numbers(probe, m, frames, filters, dq)
+            raw, pct = _raw(m, comparison, frames, filters, dq)
+        except ValueError as e:
+            out.tiles.append(TileView(title, m.kpi_id, "n/a", note=str(e)))
+            continue
+        out.tiles.append(TileView(title, m.kpi_id, value, delta, tone, _status(m.kpi_id, raw, pct)))
+
+
+def _raw(m: Measure, comparison: str | None, frames, filters, dq) -> tuple[float | None, float | None]:
+    """The number the status is judged on: the latest month for monthly KPIs, else the period value; % off forecast."""
+    if comparison == "prior_month":
+        series = _series(m, frames, filters, dq)
+        return (float(series.iloc[-1]) if len(series) else None), None
+    total = _one(m, frames, filters, dq)
+    if m.kpi_id == "KPI-042":
+        fc = float(semantic.forecast(frames, filters, exclude_zero=True)["value"].iloc[0])
+        return total, (total / fc * 100 if fc else None)
+    return total, None
+
+
+def _by(m: Measure, dim: str, frames, filters, dq) -> pd.DataFrame:
+    frame = semantic.compute(m, frames, filters, by=dim)
+    dq += frame.attrs.get("dq", [])
+    return _labelled(frame, dim, frames)
+
+
+def _bullet(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLATES["night"]) -> None:
+    """A rate against its governed target, per member: a bar to the value, coloured by status, and the target line."""
+    dim, target = v.dimension or "product", v.threshold
+    try:
+        frame = _by(m, dim, frames, filters, dq).sort_values("value", ascending=True).tail(12)
+    except ValueError:
+        return
+    colours = [pal[{"breach": "bad", "warn": "warn"}.get(_status(m.kpi_id, x, None), "actual")] for x in frame["value"]]
+    fig = go.Figure(go.Bar(x=frame["value"], y=frame["label"], orientation="h", marker_color=colours, name=m.name))
+    if target is not None:
+        fig.add_vline(x=target, line=dict(color=pal["title"], width=1.5, dash="dot"),
+                      annotation=dict(text=f"target {target:g}", font=dict(family=MONO, size=10, color=pal["axis"])))
+    fig.update_layout(**_layout(v.title, m, pal, xaxis_title=m.unit), showlegend=False)
+    out.figures.append((v.title, fig))
+
+
+def _diverging(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLATES["night"]) -> None:
+    """A variance per member around zero: above in the good colour, below in the bad one, worst first."""
+    dim = v.dimension or "market"
+    try:
+        frame = _by(m, dim, frames, filters, dq)
+    except ValueError:
+        return
+    frame = frame.reindex(frame["value"].abs().sort_values().index).tail(12)
+    colours = [pal["good"] if x >= 0 else pal["bad"] for x in frame["value"]]
+    fig = go.Figure(go.Bar(x=frame["value"], y=frame["label"], orientation="h", marker_color=colours, name=m.name))
+    fig.add_vline(x=0, line=dict(color=pal["axis"], width=1))
+    fig.update_layout(**_layout(v.title, m, pal, xaxis_title=m.unit), showlegend=False)
+    out.figures.append((v.title, fig))
+
+
+def _stacked(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLATES["night"]) -> None:
+    """Share of the total in one 100% bar, only for 5 parts or fewer (never a pie); more parts become a ranked bar."""
+    dim = v.dimension or "region"
+    try:
+        frame = _by(m, dim, frames, filters, dq).sort_values("value", ascending=False)
+    except ValueError:
+        return
+    total = float(frame["value"].sum())
+    if len(frame) > 5 or total <= 0 or (frame["value"] < 0).any():
+        _bar(out, v.model_copy(update={"dimension": dim}), m, frames, filters, dq, pal)
+        return
+    fig = go.Figure()
+    for i, (label, value) in enumerate(zip(frame["label"], frame["value"], strict=True)):
+        share = value / total * 100
+        fig.add_trace(go.Bar(x=[share], y=[""], orientation="h", name=str(label), marker_color=pal["parts"][i],
+                             text=[f"{label} {share:.0f}%"], textposition="inside", insidetextanchor="middle",
+                             textfont=dict(family=MONO, size=11, color="#ffffff" if i < 2 else pal["title"])))
+    fig.update_layout(**{**_layout(v.title, m, pal, xaxis_title="% of total"), "height": 180}, barmode="stack")
+    fig.update_xaxes(range=[0, 100])
+    out.figures.append((v.title, fig))
 
 
 # -- cards ---------------------------------------------------------------------------------------------------------
