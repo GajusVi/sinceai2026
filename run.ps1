@@ -19,6 +19,7 @@ try {
         "board"  { & $py tools\coord.py board }
         "ask"    { Live; & $py -m steward @rest }
         "eval"   { $env:STEWARD_CATALOG = "datapack"; & $py eval\eval_steward.py }
+        "backtest" { & $py tools\backtest_requests.py }
         "warm"   { Live; & $py tools\warm_layout.py }
         "ping"   { Live; & $py -m backend.llm }
         "models" { Live; & $py -m backend.llm models }

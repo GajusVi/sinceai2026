@@ -74,7 +74,7 @@ def test_a_picked_colleague_request_skips_the_interview_in_the_app(tmp_path, mon
     iv = Steward(settings=settings).interviewer
     text = "How efficiently is this plant running?"
     state = iv.finish_with_defaults(iv.start(text, home_plant="Plant-B"))
-    s = Suggestions(tmp_path, seed=[])
+    s = Suggestions(seed=[])  # the memory dir (conftest points it at a tmp dir), as the app uses it
     for m in (COLLEAGUE, replace(MANAGER, username="Manager10")):
         s.record(m, state.intent.text, state.intent.model_dump(mode="json"))
 
@@ -92,4 +92,27 @@ def test_a_picked_colleague_request_skips_the_interview_in_the_app(tmp_path, mon
     said = [m["content"] for m in at.session_state["messages"] if m["role"] == "assistant"]
     assert "asked exactly this before" in said[0]  # no question: straight to the read-back
     assert at.session_state["interview"] is None and at.session_state["result"] is not None
-    assert len(Suggestions(tmp_path, seed=[]).for_user(MANAGER)[0].text) and s.for_user(MANAGER)[0].people == 3
+    assert s.for_user(MANAGER)[0].people == 3  # the pick counts as a third person
+    logged = s.history()[-1]
+    assert logged["path"] == "reused" and logged["user"] == "Manager07" and logged["llm_calls"] == 0
+
+
+def test_every_first_message_is_logged_for_backtests_and_kept(tmp_path):
+    s = Suggestions(tmp_path, seed=[])
+    s.log(MANAGER, "yo mom", "interview", "CLARIFY")
+    s.log(MANAGER, "Plant-C output", "interview", "REFUSED", other_plant="Plant-C")
+    s.record(MANAGER, INTENT["text"], INTENT)
+    s.log(MANAGER, INTENT["text"], "interview", "REUSE", INTENT, "AST-0001")
+    (tmp_path / "requests.jsonl").open("a").write("{half a line")  # a crash mid-write never loses the rest
+    rows = Suggestions(tmp_path, seed=[]).history()
+    assert [r["verdict"] for r in rows] == ["CLARIFY", "REFUSED", "REUSE"]
+    assert rows[1]["other_plant"] == "Plant-C" and rows[2]["plant"] == "Plant-B" and rows[2]["asset"] == "AST-0001"
+
+
+def test_memory_dir_outlives_the_data_dir(monkeypatch, tmp_path):
+    from steward.suggest import memory_dir
+
+    monkeypatch.setenv("STEWARD_MEMORY_DIR", str(tmp_path / "m"))
+    assert memory_dir() == tmp_path / "m"
+    monkeypatch.delenv("STEWARD_MEMORY_DIR")
+    assert memory_dir().parts[-2:] == ("BI Steward", "memory")

@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo bayer pack-large bayer-large board ask eval eval-steward warm warm-layout app app-setup app-build test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo bayer pack-large bayer-large board ask eval eval-steward backtest warm warm-layout app app-setup app-build test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -46,6 +46,9 @@ ask:        ## one question from the terminal: make ask Q="Net sales by market"
 
 eval:       ## BI Steward eval -> eval/results.json (same as eval-steward)
 	STEWARD_CATALOG=datapack $(PY) eval/eval_steward.py
+
+backtest:   ## replay every logged real request (autofill memory) through today's engine; lists changed verdicts
+	$(PY) tools/backtest_requests.py
 
 eval-steward: ## BI Steward eval: false-REUSE, accuracy, intent F1, lint pass rate, 150-request estate (~10 s)
 	STEWARD_CATALOG=datapack $(PY) eval/eval_steward.py

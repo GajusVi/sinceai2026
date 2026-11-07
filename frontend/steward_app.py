@@ -27,7 +27,6 @@ from steward.linking import kpi_index  # noqa: E402
 from steward.models import GapKind, StewardResult, Verdict  # noqa: E402
 from steward.receipts import Meter, receipts  # noqa: E402
 from steward.render import render as render_spec  # noqa: E402
-from steward.suggest import FILE as SUGGEST_FILE  # noqa: E402
 from steward.suggest import Suggestions  # noqa: E402
 from steward.worker import log_request, other_plant, own_plant_scope, read_log, refusal  # noqa: E402
 
@@ -150,7 +149,7 @@ def get_steward() -> Steward:
 
 steward = get_steward()
 inbox = Inbox(steward.data_dir)  # shared handoffs: approvals, floor requests, grants, notices (T2.3)
-suggestions = Suggestions(steward.data_dir)  # autofill: colleagues' first messages, same role and plant
+suggestions = Suggestions()  # autofill memory: user app-data folder, survives restarts and Reset demo
 if not st.session_state.get("inbox_id"):  # e.g. after the desktop app's Log out link: nothing stays stuck in review
     inbox.release_reviews_of(user.label)
 
@@ -209,7 +208,7 @@ with st.sidebar:
         st.session_state.expert_mode = False
     st.divider()
     if user.can("maintain") and st.button("Reset demo", width="stretch"):
-        for name in (CHANGES_FILE, JOURNAL_FILE, INBOX_FILE, SUGGEST_FILE):
+        for name in (CHANGES_FILE, JOURNAL_FILE, INBOX_FILE):  # not the autofill memory: it is kept on purpose
             (steward.data_dir / name).unlink(missing_ok=True)
         st.cache_resource.clear()
         st.session_state.clear()
@@ -235,6 +234,7 @@ def ask(text: str) -> None:
         with _phase("build"):
             built = steward.build(asked, None, user)
         _finish(built, novice=False)  # W3-W6: the dashboard this decision implies
+        remember(text, "expert", built)
         return
     state = st.session_state.get("interview")
     with _phase("understand"):
@@ -243,6 +243,7 @@ def ask(text: str) -> None:
         else:
             st.session_state.result = None
             state = reused(text)
+            st.session_state.request_path = "reused" if state is not None else "interview"
             if state is None:
                 # T3.1: a manager is never asked "which plant?" about their own plant
                 home = user.plant if user is not None and user.role == "management" else ""
@@ -251,6 +252,8 @@ def ask(text: str) -> None:
     if site:  # management: own plant (and granted ones) only; the rest goes through a builder
         st.session_state.interview = None
         messages.append({"role": "assistant", "content": refusal(user, site)})
+        suggestions.log(user, state.intent.text or text, "interview", "REFUSED", state.intent.model_dump(mode="json"),
+                        other_plant=site)
         return
     _continue(state)
 
@@ -298,9 +301,21 @@ def _continue(state) -> None:
         result = steward.investigate(result, state.intent)
     with _phase("build"):
         result = steward.build(result, state.intent, user)
-    if result.decision.verdict.value in ("REUSE", "EXTEND", "CREATE", "CONSOLIDATE") and state.intent.text:
-        suggestions.record(user, state.intent.text, state.intent.model_dump(mode="json"))  # autofill learns
     _finish(result, novice=True, intent=state.intent)
+    remember(state.intent.text, st.session_state.pop("request_path", "interview"), result, state.intent)
+
+
+def remember(text: str, path: str, result: StewardResult, intent=None) -> None:
+    """Autofill memory: every first message goes to the backtest log, whatever came of it; a request that ended in
+    a build also becomes a suggestion for colleagues (same role and plant)."""
+    verdict = result.decision.verdict.value
+    dumped = intent.model_dump(mode="json") if intent is not None else None
+    best = result.decision.best.artifact.id if result.decision.best else None
+    phases = st.session_state.get("phases") or {}
+    llm = sum(p.get("llm", 0) for p in phases.values())
+    suggestions.log(user, text, path, verdict, dumped, best, llm_calls=llm, spec=result.spec is not None)
+    if dumped and text and verdict in ("REUSE", "EXTEND", "CREATE", "CONSOLIDATE"):
+        suggestions.record(user, text, dumped)
 
 
 def _phase(name: str):

@@ -14,7 +14,11 @@ request appears only once MIN_PEOPLE different people asked it, so one person's 
 The seed (Business_Requests of the data pack: real requests with their repeat counts, no role or plant) is visible to
 managers and builders at every plant and carries no Intent: picking it starts the normal interview.
 
-One JSON file (`suggestions.json`) in the data dir, written atomically under a process lock (as steward/inbox.py).
+Memory, not demo state: both files live in `memory_dir()` (the user's app-data folder, or STEWARD_MEMORY_DIR), so they
+survive app restarts and "Reset demo". Nothing is ever deleted (pruning junk is a later job):
+- `suggestions.json`: the aggregated index the chips read (written atomically under a process lock, as inbox.py);
+- `requests.jsonl`: EVERY first message with who asked, the path (interview, reused, expert) and the outcome (verdict,
+  report, Intent), refused and off-topic ones included: the raw log for backtests (tools/backtest_requests.py).
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ import json
 import math
 import os
 import re
+import sys
 import threading
 from collections import Counter
 from dataclasses import dataclass
@@ -31,6 +36,8 @@ from functools import lru_cache
 from pathlib import Path
 
 FILE = "suggestions.json"
+LOG = "requests.jsonl"
+ENV_DIR = "STEWARD_MEMORY_DIR"
 MIN_PEOPLE = 2  # privacy: a request shows to colleagues only after this many different people asked it
 RECENT_DAYS = 7
 _LOCK = threading.Lock()
@@ -44,6 +51,20 @@ class Suggestion:
     intent: dict | None = None  # the confirmed Intent (learned entries only)
     source: str = "colleagues"  # colleagues | requests (the data pack's Business_Requests)
     score: float = 0.0
+
+
+def memory_dir() -> Path:
+    """Where the autofill memory lives: STEWARD_MEMORY_DIR, else the per-user app-data folder (outlives the app's
+    per-launch data copy). macOS ~/Library/Application Support/BI Steward/memory, Windows %APPDATA%/BI Steward/memory."""
+    if os.environ.get(ENV_DIR):
+        return Path(os.environ[ENV_DIR])
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    elif os.name == "nt":
+        base = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return base / "BI Steward" / "memory"
 
 
 def norm(text: str) -> str:
@@ -95,8 +116,9 @@ def _pack_seed() -> list[tuple[str, int]]:
 
 
 class Suggestions:
-    def __init__(self, data_dir: Path, seed: list[tuple[str, int]] | None = None):
-        self.path = Path(data_dir) / FILE
+    def __init__(self, data_dir: Path | None = None, seed: list[tuple[str, int]] | None = None):
+        base = Path(data_dir) if data_dir is not None else memory_dir()
+        self.path, self.log_path = base / FILE, base / LOG
         self._seed = seed  # None = read the data pack's Business_Requests on first use
 
     # -- storage -------------------------------------------------------------------------------------------------
@@ -119,6 +141,31 @@ class Suggestions:
         return self._seed
 
     # -- write -----------------------------------------------------------------------------------------------------
+    def log(self, user, text: str, path: str, verdict: str, intent: dict | None = None, asset: str | None = None,
+            **extra) -> None:
+        """Append one first message and what came of it (any outcome) to requests.jsonl, for backtests."""
+        if not text or not text.strip():
+            return
+        row = {"at": datetime.now().isoformat(timespec="seconds"), "user": user.username, **_audience(user),
+               "text": text.strip(), "path": path, "verdict": verdict, "asset": asset, "intent": intent, **extra}
+        with _LOCK:
+            self.log_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.log_path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(row, default=str) + "\n")
+
+    def history(self) -> list[dict]:
+        try:
+            lines = self.log_path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            return []
+        out = []
+        for line in lines:
+            try:
+                out.append(json.loads(line))
+            except ValueError:  # a half-written line from a crash: skip it, keep the rest
+                continue
+        return out
+
     def record(self, user, text: str, intent: dict) -> None:
         key = norm(text)
         if not key:

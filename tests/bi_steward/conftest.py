@@ -21,3 +21,9 @@ def _layout_cache(tmp_path, monkeypatch):
     from steward import layout
 
     monkeypatch.setattr(layout, "CACHE_DIR", tmp_path / "layout_cache")
+
+
+@pytest.fixture(autouse=True)
+def _memory_dir(tmp_path, monkeypatch):
+    """The autofill memory (steward/suggest.py) lives in the user's app-data folder: tests use a tmp dir, never it."""
+    monkeypatch.setenv("STEWARD_MEMORY_DIR", str(tmp_path / "memory"))
