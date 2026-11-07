@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 08:55
-now: hand-off posted to all three; 269 tests green, no xfail
-done: F9-F12 402e2d3; OWNERS temp rights returned; G11 handed to Margiris
-next: 08:15 handover lines, 08:30 S2, 09:00 Panu Q&A; then G9 specbuild, G10, README G6/G7
+updated: 2026-11-07 09:08
+now: G9 pushed; next G10 to_spec prompt
+done: G9 8df1acb (CONSOLIDATE/MIGRATE/RESCUE specs, 275 tests green); Donatas owns the pitch
+next: G10 prompts/to_spec.yaml + validator, README G6, Panu notes into NOTES.md
 blocked: T6 conventions decision (mine, below)
