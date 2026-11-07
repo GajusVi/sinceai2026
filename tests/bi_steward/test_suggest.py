@@ -116,3 +116,12 @@ def test_memory_dir_outlives_the_data_dir(monkeypatch, tmp_path):
     assert memory_dir() == tmp_path / "m"
     monkeypatch.delenv("STEWARD_MEMORY_DIR")
     assert memory_dir().parts[-2:] == ("BI Steward", "memory")
+
+
+def test_typeahead_lists_team_requests_then_the_typed_words(tmp_path, monkeypatch):
+    s = Suggestions(seed=[("Xarelto commercial workbook", 22)])
+    for m in (MANAGER, COLLEAGUE):
+        s.record(m, INTENT["text"], INTENT)
+    hits = s.for_user(MANAGER, typed="effic plant")
+    assert [h.text for h in hits] == [INTENT["text"]]
+    assert [h.text for h in s.for_user(MANAGER, typed="xar work")] == ["Xarelto commercial workbook"]

@@ -30,6 +30,11 @@ from steward.render import render as render_spec  # noqa: E402
 from steward.suggest import Suggestions  # noqa: E402
 from steward.worker import log_request, other_plant, own_plant_scope, read_log, refusal  # noqa: E402
 
+try:  # autofill while typing (requirements.in); without it the chips still work
+    from streamlit_searchbox import st_searchbox
+except ImportError:  # pragma: no cover - a venv set up before the dependency was added
+    st_searchbox = None
+
 EXAMPLES = [
     "What is herbicide revenue in LATAM vs plan for Q3?",
     "Net revenue by region for Q3",
@@ -256,6 +261,35 @@ def ask(text: str) -> None:
                         other_plant=site)
         return
     _continue(state)
+
+
+def typeahead_options(term: str) -> list[tuple[str, str]]:
+    """While typing the first message: the typed words first (Enter asks them), then matching requests this person's
+    team asked (then the data pack's), most asked first."""
+    term = term.strip()
+    if not term:
+        return []
+    hits = suggestions.for_user(user, typed=term, k=6) if len(term) >= 2 else []
+    options = [(f"Ask: {term}", term)] if term.lower() not in {s.text.lower() for s in hits} else []
+    return options + [(f"{s.text}  ·  asked by {s.people}", s.text) for s in hits]
+
+
+def render_typeahead() -> None:
+    if st_searchbox is None:
+        return
+    _, mid, _ = st.columns([1, 2.2, 1])  # the chat box's width
+    with mid, st.container(key="bs-typeahead"):
+        picked = st_searchbox(
+            typeahead_options,
+            placeholder="Ask in your own words: your team's requests appear as you type",
+            key="typeahead",
+            clear_on_submit=True,
+            debounce=200,
+        )
+    if picked:
+        st.session_state.pending_question = picked
+        st.session_state.pop("typeahead", None)
+        st.rerun()
 
 
 def reused(text: str):
@@ -1141,6 +1175,9 @@ with tab_ask:
     else:
         top = st.container()
         typed = st.chat_input("Ask in your own words")
+        if not st.session_state.get("messages") and st_searchbox is not None:
+            # the first message is typed in the autofill box (render_typeahead): one visible input, not two
+            st.html('<style>[data-testid="stChatInput"]{display:none}</style>')
         below = st.container()
         question = (
             typed or st.session_state.pop("pending_answer", None) or st.session_state.pop("pending_question", None)
@@ -1163,6 +1200,7 @@ with tab_ask:
             render_queue()
             if not st.session_state.get("messages"):
                 ui.ask_hero("What do you need to know?")
+                render_typeahead()
             else:
                 render_messages()
                 render_options()

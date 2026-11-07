@@ -17,6 +17,7 @@ scikit-learn
 statsmodels
 plotly
 streamlit>=1.40
+streamlit-searchbox==0.1.24  # autofill: suggestions while typing the first message
 openpyxl
 python-multipart
 pypdf

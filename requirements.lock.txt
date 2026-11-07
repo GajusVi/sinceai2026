@@ -102,6 +102,7 @@ stack-data==0.6.3
 starlette==1.10.0
 statsmodels==0.15.0
 streamlit==1.66.1
+streamlit-searchbox==0.1.24
 sympy==1.14.0
 tenacity==9.2.1
 threadpoolctl==3.7.0

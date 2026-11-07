@@ -46,7 +46,7 @@ def _modules(package: str) -> list[str]:
     )
 
 
-COLLECT = ["streamlit", "plotly", "pydantic", "pandas", "openpyxl"]  # not our packages: their data would shadow them
+COLLECT = ["streamlit", "plotly", "pydantic", "pandas", "openpyxl", "streamlit_searchbox"]  # not our packages: their data would shadow them
 METADATA = ["streamlit", "plotly", "pandas", "pydantic", "openpyxl", "numpy"]
 
 
