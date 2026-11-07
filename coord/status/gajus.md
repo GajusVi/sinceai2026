@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 03:16
-now: Night shift Track A starting: N1 spec contract v2 + fixture (push 04:00)
-done: ff96359 plan v2 Dashboard Factory + night/morning task files
-next: N2 semantic layer 05:00, N3 specbuild 06:15, N4 render + dashboard panel 08:00, Panu Q&A 09:00 with the draft
+updated: 2026-11-07 03:29
+now: N4 render.py + dashboard panel in the Ask flow (frontend/steward_app.py)
+done: N1 28df501, N2 1d22199, N3 531658c pushed
+next: N4 by 08:00, handover 08:15, Panu 09:00
 blocked: T6 conventions decision (mine, below)
