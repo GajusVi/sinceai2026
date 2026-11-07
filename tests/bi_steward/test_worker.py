@@ -10,7 +10,18 @@ from steward import Steward, semantic
 from steward.auth import login
 from steward.linking import artifact_covered_metrics
 from steward.models import Verdict
-from steward.worker import menu, open_item, other_plant, refusal, reuse_only, sites_named, suggest, words_to_metrics
+from steward.worker import (
+    menu,
+    open_item,
+    other_plant,
+    refusal,
+    request_entry,
+    reuse_only,
+    same_request,
+    sites_named,
+    suggest,
+    words_to_metrics,
+)
 
 APP = str(Path(__file__).resolve().parents[2] / "frontend" / "steward_app.py")
 
@@ -143,3 +154,16 @@ def test_sales_and_schedule_questions_get_honest_answers(env):
     assert [i.id for i in schedule.items] == ["kpi:on_time_in_full"] and "plan" in schedule.reply
     day = suggest(steward, worker, "how do I plan my day", supply)
     assert "shipping plan" not in day.reply  # "plan my day" is not a plan-attainment question
+
+
+def test_gaps_are_flagged_by_code_and_duplicate_requests_join(env):
+    steward, supply = env
+    worker = login("Worker21", "Worker123")
+    assert suggest(steward, worker, "how do I plan my day", supply).lacks == ["supplier lead times",
+                                                                               "inbound deliveries by day"]
+    assert suggest(steward, worker, "which product is running low on stock?", supply).lacks == []  # fully covered
+    assert suggest(steward, worker, "are we ahead of schedule", supply).lacks == ["a shipping plan to compare against"]
+    first = request_entry(worker, "report", "Supplier lead times")
+    second = request_entry(login("Worker22", "Worker123"), "report", "supplier lead times ")
+    assert same_request([first], second) is first  # one card per need per plant
+    assert same_request([first], request_entry(worker, "access", "Supplier lead times", "Quality Ops")) is None

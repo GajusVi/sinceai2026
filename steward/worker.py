@@ -216,6 +216,16 @@ class Suggestions:
     reply: str
     items: list[Suggestion] = field(default_factory=list)
     by_ai: bool = False
+    lacks: list[str] = field(default_factory=list)  # data the full picture needs that governed data does not have
+
+
+# What each department would need for the full picture but the data pack does not govern (said once, never a number).
+LACKS: dict[str, list[str]] = {
+    "Warehouse Ops": ["supplier lead times", "inbound deliveries by day"],
+    "Equipment Ops": ["line downtime", "equipment effectiveness (OEE)"],
+    "Quality Ops": ["batch yield", "batch release status"],
+    "Supply Planning": ["a shipping plan to compare against", "supplier lead times"],
+}
 
 
 # The floor works with operations numbers only: commercial KPIs (net sales, gross-to-net, market access...) are for
@@ -287,8 +297,25 @@ def suggest(steward, user: User, text: str, supply) -> Suggestions:
         if best:
             items.insert(0, Suggestion(best, _label(best, options[best]), "existing dashboard with these numbers"))
             if not by_ai:
-                reply = f"The existing dashboard {options[best].split(' (')[0]} already shows some of these. " + reply
-    return Suggestions(reply, _unique(items)[:MAX_PICKS], by_ai)
+                title, _, kpis = options[best].partition(" (")
+                reply = f"The existing dashboard {title} already shows {kpis.rstrip(')').lower()}. " + reply
+    return Suggestions(reply, _unique(items)[:MAX_PICKS], by_ai, lacks=_lacks(user, metrics, need))
+
+
+def _lacks(user: User, metrics: list[str], need: str) -> list[str]:
+    """Code, not the model, says what is missing: the named need that has no governed KPI, or, for a broad question,
+    what the department usually lacks. A specific question that is fully covered lacks nothing."""
+    if need:
+        return [need]
+    return [] if metrics else list(LACKS.get(user.department or "", []))
+
+
+def same_request(open_requests: list[dict], entry: dict) -> dict | None:
+    """An open request for the same thing at the same plant (case-insensitive need, same kind and department), so a
+    second worker joins it instead of adding a card to the builders' board."""
+    key = (entry["kind"], entry["plant"], entry["department"], entry["need"].strip().lower())
+    return next((r for r in open_requests if r["status"] == "open"
+                 and (r["kind"], r["plant"], r["department"], r["need"].strip().lower()) == key), None)
 
 
 def _best_report(steward, options: dict[str, str], wanted: list[str]) -> str:

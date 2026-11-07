@@ -702,6 +702,7 @@ def render_floor_requests() -> None:
         text, ok, no = st.columns([4, 1, 1])
         if req["kind"] == "access":
             who = f"{req['username']} ({req['from_department']}, {req['plant']})"
+            who += f" +{len(req['also'])} more" if req.get("also") else ""
             text.markdown(f"**{req['department']} data for {who}**  \nNeeds: {req['need']}, {req['cadence'].lower()}")
             if ok.button("Grant", key=f"grant_{i}", width="stretch"):
                 grants = st.session_state.setdefault("grants", {}).setdefault(req["username"], [])
@@ -709,7 +710,9 @@ def render_floor_requests() -> None:
                     grants.append(req["department"])
                 _decide_request(req, "granted")
         else:
-            text.markdown(f"**{req['need']}** for {req['username']} ({req['from_department']}, {req['plant']})  \n"
+            also = f" +{len(req['also'])} more" if req.get("also") else ""
+            who = f"{req['username']}{also} ({req['from_department']}, {req['plant']})"
+            text.markdown(f"**{req['need']}** for {who}  \n"
                           "No report they can open has it yet")
             if ok.button("Start it", key=f"start_{i}", width="stretch"):
                 st.session_state.update(pending_question=f"{req['need']} for {req['plant']}",

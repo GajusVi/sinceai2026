@@ -24,6 +24,7 @@ from steward.worker import (
     refusal,
     request_entry,
     reuse_only,
+    same_request,
     sites_named,
     suggest,
 )
@@ -89,8 +90,8 @@ def _chat(steward, user: User, supply) -> None:
         last = n == len(log) - 1
         ui.html(ui.message(m["role"], m["text"], new=last))
         if not m.get("items"):
-            continue
-        if m.get("chosen"):  # a pick is history, not a button any more
+            pass
+        elif m.get("chosen"):  # a pick is history, not a button any more
             st.caption(f"You chose {m['chosen']}")
         elif not last:  # an older answer the user moved on from: its options, as text
             st.caption("Suggested: " + ", ".join(i.label for i in m["items"]))
@@ -102,6 +103,13 @@ def _chat(steward, user: User, supply) -> None:
                         picked = open_item(steward, user, item.id, supply)
                         st.session_state.update(w_answer=(item.label, picked), w_chat=False)
                         st.rerun()
+        if m.get("lacks"):  # the full picture needs data we do not govern: said plainly, a request is possible
+            st.caption(f"Not in governed data yet, so not shown: {', '.join(m['lacks'])}. You can always ask the BI "
+                       "team for it.")
+            if last and not m.get("asked") and st.button("Ask the BI team for it", key=f"w-lack-{n}",
+                                                         type="tertiary"):
+                m["asked"] = True
+                _send(steward, request_entry(user, "report", ", ".join(m["lacks"])))
     pending = st.session_state.pop("w_pending", None)
     if pending:
         slot = st.empty()
@@ -109,7 +117,7 @@ def _chat(steward, user: User, supply) -> None:
         site = other_plant(user, sites_named(pending))
         answer = Suggestions(refusal(user, site)) if site else suggest(steward, user, pending, supply)
         slot.empty()
-        log.append({"role": "assistant", "text": answer.reply, "items": answer.items})
+        log.append({"role": "assistant", "text": answer.reply, "items": answer.items, "lacks": answer.lacks})
         st.rerun(scope="fragment")
     with st.form("w-chat-form", clear_on_submit=True, border=False):
         text = st.text_input("Your question", placeholder="e.g. how do I plan my day?", label_visibility="collapsed")
@@ -143,7 +151,7 @@ def _render_answer(steward, user: User, label: str, answer: WorkerAnswer, render
         st.info("I could not match that to a number we report. Try one of the buttons, or ask the BI team.")
         need = label
     if answer.not_governed or answer.missing or answer.result is None:
-        if st.button("Request it from the BI team", key=f"w-req-{label}"):
+        if st.button("Ask the BI team for it", key=f"w-req-{label}", type="tertiary"):
             _send(steward, request_entry(user, "report", need))
 
 
@@ -188,6 +196,16 @@ def _choices(options: list[str], field: str, next_step: int) -> None:
 
 
 def _send(steward, entry: dict) -> None:
-    st.session_state.setdefault("floor_requests", []).append(entry)
+    """One card per need per plant: a second worker asking for the same thing joins the open request (+1)."""
+    requests = st.session_state.setdefault("floor_requests", [])
+    existing = same_request(requests, entry)
+    if existing:
+        if entry["username"] != existing["username"] and entry["username"] not in existing.setdefault("also", []):
+            existing["also"].append(entry["username"])
+            log_request(steward.data_dir, existing, "open", entry["who"])
+        st.info(f"Already asked for by {existing['username']}. You were added to that request, so the BI team "
+                f"sees {1 + len(existing.get('also', []))} people need it.")
+        return
+    requests.append(entry)
     log_request(steward.data_dir, entry, "open", entry["who"])
     st.success("Sent to the BI team. A builder picks it up and you see the result here.")
