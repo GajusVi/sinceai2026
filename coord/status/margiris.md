@@ -1,6 +1,6 @@
 # margiris
-updated: 2026-11-07 21:49
-now: T1.5 LLM half pushed
-done: T1.5: DEMO_MODE replays text calls, temperature 0, demo routes steward calls via cache (cdb290d)
-next: Donatas re-runs make warm-layout for the explain texts; Margiris runs live LLM tests
-blocked: hold-out relabels (ask to Martynas)
+updated: 2026-11-07 22:22
+now: Waiting for Martynas's Windows .exe PASS, then verify it on a second machine (T2.6)
+done: T1.3 eval d40dd41; T1.5 DEMO_MODE text replay cdb290d (Donatas re-warmed 4ef6149)
+next: T2.6 Windows check: Worker21/Manager07/Builder12 click-through + shared inbox; live LLM tests
+blocked: none
