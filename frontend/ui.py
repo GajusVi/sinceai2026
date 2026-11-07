@@ -63,7 +63,7 @@ TABLE = {
 def table(data, **kwargs):
     """st.dataframe in the current theme. Cells take our tokens through a pandas Styler; sorting, search and download
     still work (they act on the underlying data). Header row and toolbar keep Streamlit's own (config.toml) theme:
-    a Styler cannot reach them. Floats are shown as plain numbers (Styler would print 6 decimals); column_config
+    a Styler cannot reach them (checked 8 Nov: Styler table_styles for th are sent but the grid ignores them). Floats are shown as plain numbers (Styler would print 6 decimals); column_config
     formatting still wins. Every other st.dataframe argument passes through."""
     import pandas as pd
 
