@@ -1,6 +1,6 @@
 """Spec builder (W5): a verdict becomes a DashboardSpec with the template layout of BUILD_PLAN 5.1.
 
-REUSE / EXTEND / CREATE tonight; CONSOLIDATE falls back to EXTEND on the keeper until Saturday (G9); CLARIFY and
+REUSE / RESCUE / EXTEND / MIGRATE / CONSOLIDATE / CREATE (G9); CLARIFY and
 NOT_FEASIBLE build nothing (None). Plain code, same input -> same output. The LLM layout proposal (G10) comes later and
 must stay inside the menus defined here.
 """
@@ -17,7 +17,7 @@ from . import semantic
 from .catalog import Catalog
 from .datapack import ALL_PHARMA, DEFAULT_XLSX, GLOBAL
 from .intent import Intent
-from .linking import artifact_variants
+from .linking import artifact_variants, asset_metric_ids
 from .models import Artifact, Decision, Verdict
 from .semantic import ASSET_LEVEL_KPIS as ASSET_LEVEL
 from .semantic import Feasibility, grain_of, measure, star_schema
@@ -51,60 +51,142 @@ def build_spec(decision: Decision, intent: Intent, catalog: Catalog, feasibility
     if "KPI-042" in wanted and "KPI-001" not in wanted:
         measures = [measure("KPI-001")] + measures  # a forecast variance is read against net sales: context measure
     best = decision.best.artifact if decision.best else None
-    if verdict in (Verdict.REUSE, Verdict.EXTEND, Verdict.CONSOLIDATE) and best:
+    if verdict == Verdict.CONSOLIDATE and best:
+        return _consolidate(best, decision, intent, catalog, measures)
+    if verdict in (Verdict.REUSE, Verdict.EXTEND) and best:
         return spec_from_asset(best, decision, intent, catalog, measures)
     return _create(decision, intent, catalog, measures)
+
+
+def _change_type(asset: Artifact, decision: Decision) -> str:
+    """reuse | rescue (reuse, owner gone) | migrate (Tableau base: rebuilt in Power BI) | extend."""
+    if asset.platform == "Tableau":
+        return "migrate"  # Tableau is never reused as is (decision B); the engine flags MIGRATE
+    if decision.verdict == Verdict.REUSE:
+        return "rescue" if asset.owner_status != "active" else "reuse"
+    return "extend"
+
+
+def _owner_change(asset: Artifact) -> tuple[str, SpecChange]:
+    """RESCUE: the first same-role successor (data pack Owners sheet) becomes the proposed owner; a human confirms."""
+    successors = asset.successor_candidates
+    owner = successors[0] if successors else ""
+    detail = (
+        f"Owner {asset.owner_id or '(none)'} is not active; first same-role successor {owner} (must accept)"
+        if owner
+        else "No active owner and no same-role successor: a human must assign one"
+    )
+    return owner, SpecChange(
+        kind="assign_owner", detail=detail, record_ids=[r for r in (asset.id, asset.owner_id, owner) if r]
+    )
 
 
 def spec_from_asset(
     asset: Artifact, decision: Decision, intent: Intent, catalog: Catalog, measures: list[Measure]
 ) -> DashboardSpec:
-    """REUSE: the asset as it is, shown on governed data. EXTEND (and CONSOLIDATE for now): its next version."""
-    reuse = decision.verdict == Verdict.REUSE
+    """REUSE: the asset as it is. RESCUE: the same, with a successor owner. EXTEND: its next version. MIGRATE: a
+    rationalised Power BI rebuild of a Tableau asset (canonical KPIs only, RULE-006), never a 1:1 copy."""
+    change_type = _change_type(asset, decision)
+    reuse = change_type == "reuse"
     dimension = _dimension(intent)
     page = _page(measures, intent, catalog, dimension)
     changes: list[SpecChange] = []
     owner = asset.owner_id
-    if not reuse:
+    model_id = asset.model_id
+    if change_type in ("extend", "migrate"):
         changes = _changes(asset, measures, page, dimension, catalog)
-        if asset.owner_status != "active":
-            successors = asset.successor_candidates
-            owner = successors[0] if successors else ""
-            detail = (
-                f"Owner {asset.owner_id or '(none)'} is not active; first same-role successor {owner} (must accept)"
-                if owner
-                else "No active owner and no same-role successor: a human must assign one"
+    if asset.owner_status != "active" and not reuse:
+        owner, change = _owner_change(asset)
+        changes.append(change)
+    if change_type == "migrate":
+        model = best_model(intent)
+        model_id = model["model_id"]
+        changes.append(
+            SpecChange(
+                kind="migrate_platform",
+                detail=f"Rebuild {asset.id} in Power BI on {model_id} with canonical KPIs only; the Tableau workbook "
+                "is retired after sign-off, not copied 1:1 (RULE-006)",
+                record_ids=[asset.id, model_id, *[m.kpi_id for m in measures]],
             )
-            changes.append(
-                SpecChange(
-                    kind="assign_owner", detail=detail, record_ids=[r for r in (asset.id, asset.owner_id, owner) if r]
-                )
-            )
+        )
     missing = [m.name for m in measures if m.kpi_id not in asset.kpi_ids]
+    rationale = {
+        "reuse": f'"{asset.title}" ({asset.id}) already answers the question; shown on governed data.',
+        "rescue": f'"{asset.title}" ({asset.id}) already answers the question, but its owner is not active: '
+        "reuse it once a successor accepts.",
+        "migrate": f'"{asset.title}" ({asset.id}) is a Tableau asset: rebuilt in Power BI on canonical KPIs, '
+        f"adding {', '.join(missing) or 'nothing'}.",
+        "extend": f'"{asset.title}" ({asset.id}) is the closest asset; it lacks {", ".join(missing) or "nothing"}.',
+    }[change_type]
     spec = _spec(
         intent,
         catalog,
         measures,
         page,
         owner=owner,
-        model_id=asset.model_id,
+        model_id=model_id,
         base=[asset.id],
         version=asset.version if reuse else asset.version + 1,
         changes=changes,
         verdict=decision.verdict.value,
-        change_type="reuse" if reuse else "extend",
-        rationale=(
-            f'"{asset.title}" ({asset.id}) already answers the question; shown on governed data.'
-            if reuse
-            else f'"{asset.title}" ({asset.id}) is the closest asset; it lacks {", ".join(missing) or "nothing"}.'
-            + (
-                " CONSOLIDATE is drafted as an extension of the keeper for now."
-                if decision.verdict == Verdict.CONSOLIDATE
-                else ""
-            )
-        ),
+        change_type=change_type,
+        rationale=rationale,
     )
     return spec
+
+
+def _consolidate(
+    keeper: Artifact, decision: Decision, intent: Intent, catalog: Catalog, measures: list[Measure]
+) -> DashboardSpec:
+    """CONSOLIDATE: the keeper's next version carries the union of the cluster's canonical KPIs (up to MAX_CARDS,
+    requested ones first); every other member is merged in and retired, with its downstream impact (RULE-001, -004)."""
+    in_cluster = {i for e in decision.evidence if e.rule_id == "RULE-001" for i in e.record_ids}
+    others = [c.artifact for c in decision.alternatives if c.artifact.id in in_cluster and c.artifact.id != keeper.id]
+    members = [keeper, *others]
+    measures = _union(measures, members, catalog)
+    spec = spec_from_asset(keeper, decision, intent, catalog, measures)
+    merges = [
+        SpecChange(
+            kind="merge_from",
+            detail=f"Merge {a.id} into {keeper.id}, then retire {a.id}"
+            + (
+                f"; downstream impact: {', '.join(a.downstream_ids)} repoint to {keeper.id}" if a.downstream_ids else ""
+            ),
+            record_ids=[a.id, keeper.id, *a.downstream_ids],
+        )
+        for a in others
+    ]
+    names = ", ".join(a.id for a in others) or "no other member"
+    spec = spec.model_copy(
+        update={
+            "change_type": "consolidate",
+            "base_asset_ids": [keeper.id, *[a.id for a in others]],
+            "changes": spec.changes + merges,
+            "rationale": f'Duplicates of "{keeper.title}" ({keeper.id}, the most trusted) exist: {names}. '
+            "One dashboard carries their canonical KPIs; the others are retired after sign-off."
+            + (
+                " The keeper is Tableau: the merged version is a Power BI rebuild."
+                if keeper.platform == "Tableau"
+                else ""
+            ),
+        }
+    )
+    spec.provenance["spec_hash"] = spec_hash(spec)
+    return spec
+
+
+def _union(measures: list[Measure], members: list[Artifact], catalog: Catalog) -> list[Measure]:
+    """Requested measures first, then canonical KPIs the members carry and the semantic layer binds, up to MAX_CARDS."""
+    have = {m.kpi_id for m in measures}
+    bindable = {m.kpi_id: m for m in semantic.all_measures() if m.feasible}
+    out = list(measures)
+    for asset in members:
+        for metric_id in sorted(asset_metric_ids(asset, catalog)):
+            kpi = catalog.metrics[metric_id].kpi_id if metric_id in catalog.metrics else ""
+            if kpi in bindable and kpi not in have and len(out) < MAX_CARDS:
+                out.append(bindable[kpi])
+                have.add(kpi)
+    return out
 
 
 def _create(decision: Decision, intent: Intent, catalog: Catalog, measures: list[Measure]) -> DashboardSpec:
