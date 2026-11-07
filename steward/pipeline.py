@@ -98,6 +98,10 @@ class Steward:
         intent = state.intent
         if not (intent.metric_ids or intent.products or intent.sites or intent.theme):
             return None
+        if intent.ignored_terms and not (intent.products or intent.sites):
+            # "Roundup sales in Brazil": the unknown product was set aside and the scope widened to All Pharma, so a
+            # foreign product would build. The rules parser keeps the word unmapped and answers CLARIFY naming it.
+            return None
         result = self.ask_intent(intent, explain=False)
         for c in confirm:
             result.decision.evidence.append(Evidence(claim=f"Confirm with the requester: {c}", severity="warning"))
