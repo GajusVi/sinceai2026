@@ -1,6 +1,6 @@
 # martynas
-updated: 2026-11-07 17:17
-now: layout data side: profile + pbip step order pushed
-done: spec step/question d1b4ee6, profile + pbip step order c28331a
-next: PBIP titles from question once a Desktop-saved title exists; review layout.py when Margiris pushes
+updated: 2026-11-07 18:59
+now: AUDIT DONE: docs/audit/martynas.md
+done: audit phase 1 (0e20c10); template title ground truth e28b4c2
+next: phase 2: attack the other audits (docs/audit/martynas-attack.md) once margiris.md is pushed
 blocked: -
