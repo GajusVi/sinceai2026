@@ -4,7 +4,13 @@ Sections
   verdict   labelled cases -> verdict accuracy, best-asset accuracy, confusion matrix, FALSE-REUSE (the headline)
   intent    data/holdout/requests_intent.jsonl (40 hand-checked rows) -> precision/recall/F1 of metrics, products, places
   estate    all 150 Business_Requests through ask + build (rules mode) -> % resolved without a new dashboard,
-            spec lint pass rate, lifecycle flag counts
+            spec lint pass rate and blocks by rule, lifecycle flag counts. The 150 rows are only a few distinct
+            texts: the count of distinct texts is reported next to every share.
+  audit     eval/audit_cases.jsonl: one row per reproduction from the audit (docs/audit/), on both paths
+  probes    Martynas's 980 frozen probes (data/holdout/probes.jsonl, data/build_probes.run_engine), both paths
+
+Every verdict number is reported on BOTH paths (DECISION T1.3): "rules" = Steward.ask, "intent" = the interview path
+(ask_intent on the Intent the rules parse becomes). The audit found the two disagreeing on the same request.
 
 Labelled verdict cases come from four sources, all independent of the engine's output:
   golden     tests/bi_steward/golden_datapack.json  (the verdict contract; written while tuning, so NOT a hold-out)
@@ -16,6 +22,7 @@ Labelled verdict cases come from four sources, all independent of the engine's o
 FALSE-REUSE = the code said REUSE (or REUSE on the wrong asset) where the label says otherwise. Rate = false REUSE answers
 divided by the labelled cases whose verdict is not REUSE. The business risk it measures: telling someone to use a report
 that does not answer their question.
+FALSE-CREATE = the code said CREATE where the label says REUSE or EXTEND: a duplicate dashboard the estate did not need.
 
 Usage: STEWARD_CATALOG=datapack python eval/eval_steward.py [--no-estate] [--out eval/results.json]
 Only Margiris commits eval/results.json (it is also the file the legacy Proof tab reads).
@@ -118,15 +125,30 @@ def labelled_cases() -> tuple[list[dict], dict]:
                     "context": r.get("context"),
                     "gold": r["verdict"],
                     "gold_asset": r.get("artifact_id"),
+                    "label_v1": r.get("label_v1"),
                 }
             )
         pending = {"holdout_verdicts": f"{len(rows)} rows"}
     return cases, pending
 
 
-def predict(s: Steward, case: dict) -> dict:
+PATHS = ("rules", "intent")
+
+
+def answer(s: Steward, text: str, context: dict | None, path: str):
+    """One request on one path. The intent path starts from the same parse (a CLARIFY stays a CLARIFY: the interview
+    would ask the user) and decides on the Intent, as the interview's end does."""
+    from steward.intent import intent_from_parsed
+
+    r = s.ask(text, context)
+    if path == "intent" and r.decision.verdict != Verdict.CLARIFY:
+        r = s.ask_intent(intent_from_parsed(r.question, s.catalog))
+    return r
+
+
+def predict(s: Steward, case: dict, path: str = "rules") -> dict:
     try:
-        r = s.ask(case["text"], case["context"])
+        r = answer(s, case["text"], case["context"], path)
         return {"verdict": r.decision.verdict.value, "asset": r.decision.best.artifact.id if r.decision.best else None}
     except Exception as e:  # a crash is a miss, not an abort
         return {"verdict": "ERROR", "asset": None, "error": str(e)[:120]}
@@ -146,6 +168,10 @@ def is_false_reuse(case: dict, pred: dict) -> bool:
     return case["gold"] != "REUSE" or bool(case["gold_asset"] and pred["asset"] != case["gold_asset"])
 
 
+def is_false_create(case: dict, pred: dict) -> bool:
+    return pred["verdict"] == "CREATE" and case["gold"] in ("REUSE", "EXTEND")
+
+
 def caveats(rows: list[dict], reuse_said: list[dict]) -> list[str]:
     """What the numbers cannot say yet. Printed next to them, so a 0% is never read as proof."""
     out = []
@@ -153,31 +179,53 @@ def caveats(rows: list[dict], reuse_said: list[dict]) -> list[str]:
         out.append("no labelled case expects REUSE: false-REUSE 0% only shows the code never says REUSE on these cases")
     if not reuse_said:
         out.append("the code answered REUSE on none of the cases: REUSE precision is undefined")
+    if sum(r["gold"] in ("REUSE", "EXTEND") for r in rows) < 10:
+        out.append("fewer than 10 labelled REUSE/EXTEND cases: FALSE-CREATE here is thin; the probes section is the real test")
     if not any(r["source"] == "holdout" for r in rows):
         out.append("no hand-labelled hold-out verdicts yet (M5); golden cases were written while tuning")
     return out
 
 
-def verdict_section(s: Steward) -> dict:
+def verdict_section(s: Steward, path: str = "rules") -> dict:
     cases, pending = labelled_cases()
-    rows = [{**c, **predict(s, c)} for c in cases]
+    rows = [{**c, **predict(s, c, path)} for c in cases]
     for r in rows:
         r["correct"] = is_correct(r, r)
         r["false_reuse"] = is_false_reuse(r, r)
+        r["false_create"] = is_false_create(r, r)
     matrix: dict[str, Counter] = {}
     for r in rows:
         matrix.setdefault(r["gold"], Counter())[r["verdict"]] += 1
     not_reuse = [r for r in rows if r["gold"] != "REUSE"]
     false_reuse = [r for r in rows if r["false_reuse"]]
     reuse_said = [r for r in rows if r["verdict"] == "REUSE"]
+    should_reuse = [r for r in rows if r["gold"] in ("REUSE", "EXTEND")]
+    false_create = [r for r in rows if r["false_create"]]
     by_source = {}
     for src in sorted({r["source"] for r in rows}):
         part = [r for r in rows if r["source"] == src]
         by_source[src] = {"n": len(part), "accuracy": round(sum(r["correct"] for r in part) / len(part), 3)}
+    holdout = [r for r in rows if r["source"] == "holdout"]
+    if holdout:  # A7: rows relabelled after C1/C2 keep label_v1; both scores are reported, never only the v2 one
+        v1 = [
+            {**r, "gold": r["label_v1"]["verdict"], "gold_asset": r["label_v1"].get("artifact_id")}
+            if r.get("label_v1")
+            else r
+            for r in holdout
+        ]
+        by_source["holdout"]["accuracy_on_label_v1"] = round(sum(is_correct(r, r) for r in v1) / len(v1), 3)
+        by_source["holdout"]["relabelled"] = sorted(r["id"] for r in holdout if r.get("label_v1"))
     return {
+        "path": path,
         "n": len(rows),
         "accuracy": round(sum(r["correct"] for r in rows) / len(rows), 3),
         "by_source": by_source,
+        "false_create": {
+            "count": len(false_create),
+            "of_labelled_reuse_or_extend": len(should_reuse),
+            "rate": round(len(false_create) / len(should_reuse), 3) if should_reuse else 0.0,
+            "cases": [r["id"] for r in false_create],
+        },
         "false_reuse": {
             "count": len(false_reuse),
             "of_labelled_non_reuse": len(not_reuse),
@@ -261,6 +309,7 @@ def estate_section() -> dict:
     flags: Counter = Counter()
     gaps: Counter = Counter()  # governed KPIs with no source data, rendered as labelled gaps (never as a number)
     verdicts: Counter = Counter()
+    blocks: Counter = Counter()
     specs = blocked = errors = 0
     for req in reqs:
         try:
@@ -276,23 +325,89 @@ def estate_section() -> dict:
         if r.spec:
             specs += 1
             blocked += any(x.status == "block" for x in r.spec.lint)
+            blocks.update({x.rule_id for x in r.spec.lint if x.status == "block"})
     n = len(reqs)
     avoided = sum(verdicts[v] for v in ("REUSE", "EXTEND", "CONSOLIDATE"))
     return {
         "requests": n,
+        "distinct_texts": len({req.text for req in reqs}),
         "errors": errors,
         "verdicts": dict(verdicts),
         "resolved_without_new_dashboard": {"count": avoided, "share": round(avoided / n, 3)},
         "specs_built": specs,
         "spec_lint_pass_rate": round((specs - blocked) / specs, 3) if specs else None,
+        "spec_lint_blocks_by_rule": dict(blocks.most_common()),
         "flags": dict(flags),
         "gaps_by_kpi": dict(gaps.most_common()),
     }
 
 
+# -- audit reproductions and frozen probes ----------------------------------------------------------------------
+
+
+def audit_section(s: Steward) -> dict:
+    """Each row of eval/audit_cases.jsonl, on both paths, built and linted. A row marked "pending" names the task that
+    fixes it: it is reported, not counted as a pass or a fail."""
+    rows = _jsonl(ROOT / "eval" / "audit_cases.jsonl")
+    out = []
+    for case in rows:
+        for path in PATHS:
+            try:
+                r = s.build(answer(s, case["text"], None, path))
+            except Exception as e:
+                out.append(
+                    {"id": case["id"], "path": path, "ok": False, "pending": case.get("pending"), "error": str(e)[:120]}
+                )
+                continue
+            d = r.decision
+            asset = d.best.artifact.id if d.best else None
+            checks = []
+            if "verdict" in case:
+                checks.append(d.verdict.value == case["verdict"])
+            if "asset" in case:
+                checks.append(asset == case["asset"])
+            if "not_asset" in case:
+                checks.append(asset != case["not_asset"])
+            if case.get("no_build"):
+                checks.append(r.spec is None)
+            if case.get("period_applied"):
+                checks.append(bool(r.question.period))
+            out.append(
+                {
+                    "id": case["id"],
+                    "path": path,
+                    "verdict": d.verdict.value,
+                    "asset": asset,
+                    "built": r.spec is not None,
+                    "ok": all(checks),
+                    "pending": case.get("pending"),
+                }
+            )
+    counted = [x for x in out if not x.get("pending")]
+    return {
+        "cases": len(rows),
+        "passed": sum(x["ok"] for x in counted),
+        "of": len(counted),
+        "pending_open": sorted({x["id"] for x in out if x.get("pending") and not x["ok"]}),
+        "rows": out,
+    }
+
+
+def probes_section() -> dict:
+    """Martynas's frozen probes through the same runner he baselined with (data/build_probes.run_engine). The baseline
+    file is never written here. Labels: "today" (the data pack as it is) and "c2a" (DECISION C2)."""
+    spec = importlib.util.spec_from_file_location("build_probes", ROOT / "data" / "build_probes.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    rows = _jsonl(ROOT / "data" / "holdout" / "probes.jsonl")
+    run = module.run_engine(rows)
+    return {"probes": len(rows), "engine_commit": run["engine_commit"], "summary": run["summary"]}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-estate", action="store_true", help="skip the 150-request run (faster)")
+    ap.add_argument("--no-probes", action="store_true", help="skip the 980 frozen probes (faster)")
     ap.add_argument("--out", default=str(ROOT / "eval" / "results.json"))
     args = ap.parse_args()
 
@@ -300,9 +415,13 @@ def main() -> None:
     result = {
         "as_of": "2026-11-06",
         "mode": "rules (LLM off)",
-        "verdict": verdict_section(s),
+        "verdict": verdict_section(s, "rules"),
+        "verdict_intent_path": verdict_section(s, "intent"),
         "intent": intent_section(s),
+        "audit": audit_section(s),
     }
+    if not args.no_probes:
+        result["probes"] = probes_section()
     if not args.no_estate:
         result["estate"] = estate_section()
     # Top-level keys the legacy Proof tab (frontend/app.py, make ui-old) reads: n, accuracy, macro_f1, misses.
@@ -313,12 +432,14 @@ def main() -> None:
     result["misses"] = result["verdict"]["misses"]
     Path(args.out).write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    for key in ("verdict", "verdict_intent_path"):
+        x = result[key]
+        fr, fc = x["false_reuse"], x["false_create"]
+        print(
+            f"[{x['path']:>6}] accuracy {x['accuracy']:.1%}  FALSE-REUSE {fr['count']}/{fr['of_labelled_non_reuse']}"
+            f" = {fr['rate']:.1%}  FALSE-CREATE {fc['count']}/{fc['of_labelled_reuse_or_extend']} = {fc['rate']:.1%}"
+        )
     v = result["verdict"]
-    fr = v["false_reuse"]
-    print(
-        f"FALSE-REUSE {fr['count']} of {fr['of_labelled_non_reuse']} labelled non-REUSE cases = {fr['rate']:.1%}"
-        f"  (REUSE precision {fr['reuse_precision']})"
-    )
     print(f"verdict accuracy {v['accuracy']:.1%} on {v['n']} cases {v['by_source']}  holdout: {v['pending']}")
     for gold, row in v["confusion_matrix"].items():
         print(f"  gold {gold:<12} -> {row}")
@@ -331,12 +452,25 @@ def main() -> None:
         f"intent exact {i['exact_match']:.1%} on {i['n']}: "
         + "  ".join(f"{k} F1={x['f1']}" for k, x in i["fields"].items())
     )
+    a = result["audit"]
+    print(f"audit {a['passed']}/{a['of']} checks pass (both paths); pending: {a['pending_open']}")
+    for x in a["rows"]:
+        if not x["ok"]:
+            tag = "PENDING" if x.get("pending") else "FAIL"
+            print(f"  AUDIT {tag} {x['id']} [{x['path']}] {x.get('verdict')} {x.get('asset')} {x.get('error', '')}")
+    if "probes" in result:
+        for k, c in result["probes"]["summary"].items():
+            print(
+                f"probes {k}: false_reuse {c.get('false_reuse', 0)}  false_create {c.get('false_create', 0)}"
+                f"  reuse_found {c.get('reuse_found', 0)}/{c.get('expected_reuse', 0)}"
+            )
     if "estate" in result:
         e = result["estate"]
         print(
-            f"estate {e['requests']} requests: without a new dashboard {e['resolved_without_new_dashboard']['share']:.1%}"
+            f"estate {e['requests']} requests ({e['distinct_texts']} distinct texts): without a new dashboard {e['resolved_without_new_dashboard']['share']:.1%}"
             f"  lint pass {e['spec_lint_pass_rate']}  verdicts {e['verdicts']}  flags {e['flags']}"
         )
+        print(f"  lint blocks by rule {e['spec_lint_blocks_by_rule']}")
         print(f"  gaps by KPI {e['gaps_by_kpi']}")
 
 

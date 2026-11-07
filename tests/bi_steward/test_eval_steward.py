@@ -45,3 +45,17 @@ def test_labelled_cases_come_from_independent_sources():
     assert {"golden", "blocker", "negative"} <= sources
     assert all(c["gold"] == "CLARIFY" for c in cases if c["source"] == "blocker")
     assert "holdout_verdicts" in pending
+
+
+def test_create_where_label_says_reuse_or_extend_is_false_create():
+    assert ev.is_false_create(case("REUSE", "AST-1"), pred("CREATE"))
+    assert ev.is_false_create(case("EXTEND"), pred("CREATE"))
+    assert not ev.is_false_create(case("CREATE"), pred("CREATE"))
+    assert not ev.is_false_create(case(ev.NO_BUILD), pred("CREATE"))  # a wrong build, but not a duplicate
+
+
+def test_audit_cases_are_well_formed():
+    rows = ev._jsonl(ev.ROOT / "eval" / "audit_cases.jsonl")
+    checks = {"verdict", "asset", "not_asset", "no_build", "period_applied"}
+    assert len({r["id"] for r in rows}) == len(rows)
+    assert all(r["text"] and r["why"] and checks & r.keys() for r in rows)

@@ -2,8 +2,9 @@
   "as_of": "2026-11-06",
   "mode": "rules (LLM off)",
   "verdict": {
+    "path": "rules",
     "n": 73,
-    "accuracy": 0.959,
+    "accuracy": 1.0,
     "by_source": {
       "blocker": {
         "n": 14,
@@ -15,12 +16,27 @@
       },
       "holdout": {
         "n": 25,
-        "accuracy": 0.88
+        "accuracy": 1.0,
+        "accuracy_on_label_v1": 0.76,
+        "relabelled": [
+          "H-05",
+          "H-06",
+          "H-09",
+          "H-10",
+          "H-15",
+          "H-16"
+        ]
       },
       "negative": {
         "n": 29,
         "accuracy": 1.0
       }
+    },
+    "false_create": {
+      "count": 0,
+      "of_labelled_reuse_or_extend": 5,
+      "rate": 0.0,
+      "cases": []
     },
     "false_reuse": {
       "count": 0,
@@ -34,14 +50,13 @@
         "CLARIFY": 30
       },
       "CREATE": {
-        "EXTEND": 1
+        "CREATE": 8
       },
       "EXTEND": {
-        "EXTEND": 6
+        "EXTEND": 1
       },
       "NOT_FEASIBLE": {
-        "NOT_FEASIBLE": 1,
-        "EXTEND": 2
+        "NOT_FEASIBLE": 1
       },
       "NO_BUILD": {
         "CLARIFY": 29
@@ -53,39 +68,82 @@
     "pending": {
       "holdout_verdicts": "25 rows"
     },
-    "caveats": [],
-    "misses": [
-      {
-        "source": "holdout",
-        "id": "H-01",
-        "text": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
-        "gold": "CREATE",
-        "gold_asset": null,
-        "verdict": "EXTEND",
-        "asset": "AST-0335",
-        "error": null
+    "caveats": [
+      "fewer than 10 labelled REUSE/EXTEND cases: FALSE-CREATE here is thin; the probes section is the real test"
+    ],
+    "misses": []
+  },
+  "verdict_intent_path": {
+    "path": "intent",
+    "n": 73,
+    "accuracy": 1.0,
+    "by_source": {
+      "blocker": {
+        "n": 14,
+        "accuracy": 1.0
       },
-      {
-        "source": "holdout",
-        "id": "H-05",
-        "text": "Can we have a new finance dashboard for net sales, gross-to-net and budget variance by product?",
-        "gold": "NOT_FEASIBLE",
-        "gold_asset": null,
-        "verdict": "EXTEND",
-        "asset": "AST-0015",
-        "error": null
+      "golden": {
+        "n": 5,
+        "accuracy": 1.0
       },
-      {
-        "source": "holdout",
-        "id": "H-06",
-        "text": "Can we have a new finance dashboard for net sales, gross-to-net and budget variance by product?",
-        "gold": "NOT_FEASIBLE",
-        "gold_asset": null,
-        "verdict": "EXTEND",
-        "asset": "AST-0015",
-        "error": null
+      "holdout": {
+        "n": 25,
+        "accuracy": 1.0,
+        "accuracy_on_label_v1": 0.76,
+        "relabelled": [
+          "H-05",
+          "H-06",
+          "H-09",
+          "H-10",
+          "H-15",
+          "H-16"
+        ]
+      },
+      "negative": {
+        "n": 29,
+        "accuracy": 1.0
       }
-    ]
+    },
+    "false_create": {
+      "count": 0,
+      "of_labelled_reuse_or_extend": 5,
+      "rate": 0.0,
+      "cases": []
+    },
+    "false_reuse": {
+      "count": 0,
+      "of_labelled_non_reuse": 69,
+      "rate": 0.0,
+      "reuse_precision": 1.0,
+      "cases": []
+    },
+    "confusion_matrix": {
+      "CLARIFY": {
+        "CLARIFY": 30
+      },
+      "CREATE": {
+        "CREATE": 8
+      },
+      "EXTEND": {
+        "EXTEND": 1
+      },
+      "NOT_FEASIBLE": {
+        "NOT_FEASIBLE": 1
+      },
+      "NO_BUILD": {
+        "CLARIFY": 29
+      },
+      "REUSE": {
+        "REUSE": 4
+      }
+    },
+    "pending": {
+      "holdout_verdicts": "25 rows"
+    },
+    "caveats": [
+      "fewer than 10 labelled REUSE/EXTEND cases: FALSE-CREATE here is thin; the probes section is the real test"
+    ],
+    "misses": []
   },
   "intent": {
     "n": 40,
@@ -126,61 +184,265 @@
     },
     "misses": []
   },
+  "audit": {
+    "cases": 10,
+    "passed": 16,
+    "of": 16,
+    "pending_open": [
+      "AUD-10"
+    ],
+    "rows": [
+      {
+        "id": "AUD-01",
+        "path": "rules",
+        "verdict": "REUSE",
+        "asset": "AST-0191",
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-01",
+        "path": "intent",
+        "verdict": "REUSE",
+        "asset": "AST-0191",
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-02",
+        "path": "rules",
+        "verdict": "CREATE",
+        "asset": null,
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-02",
+        "path": "intent",
+        "verdict": "CREATE",
+        "asset": null,
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-03",
+        "path": "rules",
+        "verdict": "CREATE",
+        "asset": null,
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-03",
+        "path": "intent",
+        "verdict": "CREATE",
+        "asset": null,
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-04",
+        "path": "rules",
+        "verdict": "CREATE",
+        "asset": "AST-0015",
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-04",
+        "path": "intent",
+        "verdict": "CREATE",
+        "asset": "AST-0015",
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-05",
+        "path": "rules",
+        "verdict": "CLARIFY",
+        "asset": null,
+        "built": false,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-05",
+        "path": "intent",
+        "verdict": "CLARIFY",
+        "asset": null,
+        "built": false,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-06",
+        "path": "rules",
+        "verdict": "CREATE",
+        "asset": null,
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-06",
+        "path": "intent",
+        "verdict": "CREATE",
+        "asset": null,
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-07",
+        "path": "rules",
+        "verdict": "CREATE",
+        "asset": null,
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-07",
+        "path": "intent",
+        "verdict": "CREATE",
+        "asset": null,
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-08",
+        "path": "rules",
+        "verdict": "REUSE",
+        "asset": "AST-0079",
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-08",
+        "path": "intent",
+        "verdict": "REUSE",
+        "asset": "AST-0079",
+        "built": true,
+        "ok": true,
+        "pending": null
+      },
+      {
+        "id": "AUD-09",
+        "path": "rules",
+        "verdict": "CLARIFY",
+        "asset": null,
+        "built": false,
+        "ok": true,
+        "pending": "contradiction handling (not in Tier 1)"
+      },
+      {
+        "id": "AUD-09",
+        "path": "intent",
+        "verdict": "CLARIFY",
+        "asset": null,
+        "built": false,
+        "ok": true,
+        "pending": "contradiction handling (not in Tier 1)"
+      },
+      {
+        "id": "AUD-10",
+        "path": "rules",
+        "verdict": "CLARIFY",
+        "asset": null,
+        "built": false,
+        "ok": false,
+        "pending": "T2.1 period honesty"
+      },
+      {
+        "id": "AUD-10",
+        "path": "intent",
+        "verdict": "CLARIFY",
+        "asset": null,
+        "built": false,
+        "ok": false,
+        "pending": "T2.1 period honesty"
+      }
+    ]
+  },
+  "probes": {
+    "probes": 980,
+    "engine_commit": "e5ec699",
+    "summary": {
+      "today/expert": {
+        "create_on_variant_only": 227,
+        "engine_CREATE": 454,
+        "engine_EXTEND": 343,
+        "engine_REUSE": 183,
+        "expected_reuse": 434,
+        "false_create": 184,
+        "probes": 980,
+        "reuse_found": 183
+      },
+      "today/intent": {
+        "create_on_variant_only": 227,
+        "engine_CREATE": 454,
+        "engine_EXTEND": 343,
+        "engine_REUSE": 183,
+        "expected_reuse": 434,
+        "false_create": 184,
+        "probes": 980,
+        "reuse_found": 183
+      },
+      "c2a/expert": {
+        "create_on_variant_only": 227,
+        "engine_CREATE": 454,
+        "engine_EXTEND": 343,
+        "engine_REUSE": 183,
+        "expected_reuse": 183,
+        "false_create": 2,
+        "probes": 980,
+        "reuse_found": 183
+      },
+      "c2a/intent": {
+        "create_on_variant_only": 227,
+        "engine_CREATE": 454,
+        "engine_EXTEND": 343,
+        "engine_REUSE": 183,
+        "expected_reuse": 183,
+        "false_create": 2,
+        "probes": 980,
+        "reuse_found": 183
+      }
+    }
+  },
   "estate": {
     "requests": 150,
+    "distinct_texts": 10,
     "errors": 0,
     "verdicts": {
       "CLARIFY": 100,
-      "EXTEND": 50
+      "CREATE": 50
     },
     "resolved_without_new_dashboard": {
-      "count": 50,
-      "share": 0.333
+      "count": 0,
+      "share": 0.0
     },
     "specs_built": 50,
     "spec_lint_pass_rate": 1.0,
-    "flags": {
-      "REASSIGN_OWNER": 30,
-      "RETIRE": 30
-    },
+    "spec_lint_blocks_by_rule": {},
+    "flags": {},
     "gaps_by_kpi": {
       "KPI-034 Gross-to-Net Rate": 20,
       "KPI-039 Budget Variance": 20
     }
   },
   "n": 73,
-  "accuracy": 0.959,
+  "accuracy": 1.0,
   "macro_f1": 1.0,
-  "misses": [
-    {
-      "source": "holdout",
-      "id": "H-01",
-      "text": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
-      "gold": "CREATE",
-      "gold_asset": null,
-      "verdict": "EXTEND",
-      "asset": "AST-0335",
-      "error": null
-    },
-    {
-      "source": "holdout",
-      "id": "H-05",
-      "text": "Can we have a new finance dashboard for net sales, gross-to-net and budget variance by product?",
-      "gold": "NOT_FEASIBLE",
-      "gold_asset": null,
-      "verdict": "EXTEND",
-      "asset": "AST-0015",
-      "error": null
-    },
-    {
-      "source": "holdout",
-      "id": "H-06",
-      "text": "Can we have a new finance dashboard for net sales, gross-to-net and budget variance by product?",
-      "gold": "NOT_FEASIBLE",
-      "gold_asset": null,
-      "verdict": "EXTEND",
-      "asset": "AST-0015",
-      "error": null
-    }
-  ]
+  "misses": []
 }
