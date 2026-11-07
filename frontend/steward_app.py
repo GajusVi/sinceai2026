@@ -15,19 +15,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ui  # noqa: E402  (frontend/ui.py: design system)
 import worker_view  # noqa: E402  (frontend/worker_view.py: the production-floor Ask tab)
 
-from steward import Steward, semantic  # noqa: E402
-from steward import apptoken  # noqa: E402
+from steward import Steward, apptoken, semantic  # noqa: E402
 from steward.auth import COMPANY, DEMO_ACCOUNTS, account, can_see, login  # noqa: E402
 from steward.catalog import CHANGES_FILE  # noqa: E402
 from steward.explain import TemplateExplainer  # noqa: E402
 from steward.governance import JOURNAL_FILE  # noqa: E402
 from steward.inbox import FILE as INBOX_FILE  # noqa: E402
 from steward.inbox import Inbox  # noqa: E402
-from steward.receipts import Meter, receipts  # noqa: E402
 from steward.intent import Intent  # noqa: E402
 from steward.linking import kpi_index  # noqa: E402
 from steward.models import GapKind, StewardResult, Verdict  # noqa: E402
+from steward.receipts import Meter, receipts  # noqa: E402
 from steward.render import render as render_spec  # noqa: E402
+from steward.suggest import FILE as SUGGEST_FILE  # noqa: E402
+from steward.suggest import Suggestions  # noqa: E402
 from steward.worker import log_request, other_plant, own_plant_scope, read_log, refusal  # noqa: E402
 
 EXAMPLES = [
@@ -149,6 +150,7 @@ def get_steward() -> Steward:
 
 steward = get_steward()
 inbox = Inbox(steward.data_dir)  # shared handoffs: approvals, floor requests, grants, notices (T2.3)
+suggestions = Suggestions(steward.data_dir)  # autofill: colleagues' first messages, same role and plant
 if not st.session_state.get("inbox_id"):  # e.g. after the desktop app's Log out link: nothing stays stuck in review
     inbox.release_reviews_of(user.label)
 
@@ -207,7 +209,7 @@ with st.sidebar:
         st.session_state.expert_mode = False
     st.divider()
     if user.can("maintain") and st.button("Reset demo", width="stretch"):
-        for name in (CHANGES_FILE, JOURNAL_FILE, INBOX_FILE):
+        for name in (CHANGES_FILE, JOURNAL_FILE, INBOX_FILE, SUGGEST_FILE):
             (steward.data_dir / name).unlink(missing_ok=True)
         st.cache_resource.clear()
         st.session_state.clear()
@@ -240,15 +242,35 @@ def ask(text: str) -> None:
             state = steward.interviewer.answer(state, text)
         else:
             st.session_state.result = None
-            # T3.1: a manager is never asked "which plant?" about their own plant
-            home = user.plant if user is not None and user.role == "management" else ""
-            state = steward.interviewer.start(text, home_plant=home)
+            state = reused(text)
+            if state is None:
+                # T3.1: a manager is never asked "which plant?" about their own plant
+                home = user.plant if user is not None and user.role == "management" else ""
+                state = steward.interviewer.start(text, home_plant=home)
     site = other_plant(user, state.intent.sites)
     if site:  # management: own plant (and granted ones) only; the rest goes through a builder
         st.session_state.interview = None
         messages.append({"role": "assistant", "content": refusal(user, site)})
         return
     _continue(state)
+
+
+def reused(text: str):
+    """Autofill: the same words as a request colleagues (same role and plant) already confirmed -> their Intent, no
+    interview and no AI call. None: nothing learned for this person, so the interview runs as usual."""
+    from steward.interview import InterviewState
+
+    known = suggestions.intent_for(user, text)
+    if not known:
+        return None
+    try:
+        intent = Intent(**known)
+    except Exception:  # noqa: BLE001 - an entry from an older Intent shape: interview instead
+        return None
+    where = "BI team" if user.role == "builder" else user.plant
+    state = InterviewState(intent=intent, turns=[("user", text)], question=None)
+    state.notes.append(f"Colleagues ({where}) asked exactly this before; I'm using the setup they confirmed.")
+    return state
 
 
 def skip_to_defaults() -> None:
@@ -276,6 +298,8 @@ def _continue(state) -> None:
         result = steward.investigate(result, state.intent)
     with _phase("build"):
         result = steward.build(result, state.intent, user)
+    if result.decision.verdict.value in ("REUSE", "EXTEND", "CREATE", "CONSOLIDATE") and state.intent.text:
+        suggestions.record(user, state.intent.text, state.intent.model_dump(mode="json"))  # autofill learns
     _finish(result, novice=True, intent=state.intent)
 
 
@@ -1130,9 +1154,13 @@ with tab_ask:
                 if st.session_state.get("result"):
                     render_result(st.session_state.result)
         if not st.session_state.get("messages"):
+            # autofill: colleagues' requests (same role and plant) first, the curated examples fill the row
+            learned = [(s.text, f"Asked by {s.people} people in your team") for s in suggestions.for_user(user, seed=False)]
+            known = {c for c, _ in learned}
+            chips = (learned + [(c, None) for c in CHIPS if c not in known])[:4]
             with below, st.container(horizontal=True, key="bs-examples"):
-                for chip in CHIPS if ON_DATA_PACK else EXAMPLES[:3]:
-                    if st.button(chip, key=f"chip_{chip}"):
+                for chip, why in chips:
+                    if st.button(chip, key=f"chip_{chip}", help=why):
                         st.session_state.pending_question = chip
                         st.rerun()
 
