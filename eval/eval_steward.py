@@ -36,7 +36,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-os.environ["STEWARD_CATALOG"] = "datapack"
 
 from steward import Steward  # noqa: E402
 from steward.config import Settings  # noqa: E402
@@ -48,6 +47,7 @@ NO_BUILD = "NO_BUILD"  # gold for negatives: any verdict except the four builds 
 
 
 def steward() -> Steward:
+    os.environ["STEWARD_CATALOG"] = "datapack"  # here, not at import: tests import this module
     settings = replace(Settings.from_env(), use_llm="off", as_of=date(2026, 11, 6))
     return Steward(settings=settings, data_dir=ROOT / "data" / "steward" / "eval")
 
