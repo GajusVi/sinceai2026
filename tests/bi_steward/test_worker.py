@@ -103,3 +103,19 @@ def test_ai_picks_are_validated_against_the_menu(env, monkeypatch):
 
 def test_plants_named_in_text():
     assert sites_named("how is plant b doing") == ["Plant-B"] and sites_named("the CMO") == ["External-CMO"]
+
+
+def test_padding_picks_are_dropped_and_commercial_kpis_never_offered(env, monkeypatch):
+    steward, supply = env
+    worker = login("Worker21", "Worker123")
+    options = menu(steward, worker, supply)
+    assert "kpi:net_sales" not in options and "kpi:inventory_coverage" in options  # the floor gets operations KPIs
+    raw = {"reply": "Check stock.", "picks": [{"id": "kpi:inventory_coverage"}, {"id": "kpi:units_shipped"}]}
+    monkeypatch.setattr(steward, "llm", FakeLLM(raw))
+    stock = suggest(steward, worker, "Which product is running low on stock?", supply)
+    assert [i.id for i in stock.items] == ["kpi:inventory_coverage"]  # units shipped was padding
+    broad = suggest(steward, worker, "What do I do today", supply)
+    assert len(broad.items) == 2  # a broad question keeps the AI's picks
+    monkeypatch.setattr(steward, "llm", None)
+    late = suggest(steward, worker, "Are we late on any deliveries this month?", supply)
+    assert [i.id for i in late.items] == ["kpi:on_time_in_full"]  # offline: no padding either

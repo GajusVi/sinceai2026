@@ -86,11 +86,19 @@ def _chat(steward, user: User, supply) -> None:
     if not log:
         st.caption(f"Ask about {user.plant}. I point you to numbers and reports that already exist.")
     for n, m in enumerate(log):
-        ui.html(ui.message(m["role"], m["text"], new=n == len(log) - 1))
-        if m.get("items"):
+        last = n == len(log) - 1
+        ui.html(ui.message(m["role"], m["text"], new=last))
+        if not m.get("items"):
+            continue
+        if m.get("chosen"):  # a pick is history, not a button any more
+            st.caption(f"You chose {m['chosen']}")
+        elif not last:  # an older answer the user moved on from: its options, as text
+            st.caption("Suggested: " + ", ".join(i.label for i in m["items"]))
+        else:
             with st.container(horizontal=True, key=f"w-picks-{n}"):
                 for k, item in enumerate(m["items"]):
                     if st.button(item.label, key=f"w-pick-{n}-{k}", help=item.why or None):
+                        m["chosen"] = item.label
                         picked = open_item(steward, user, item.id, supply)
                         st.session_state.update(w_answer=(item.label, picked), w_chat=False)
                         st.rerun()

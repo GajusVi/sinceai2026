@@ -211,18 +211,37 @@ class Suggestions:
     by_ai: bool = False
 
 
+# The floor works with operations numbers only: commercial KPIs (net sales, gross-to-net, market access...) are for
+# management and finance, so they are not offered to workers even when a visible report carries them.
+OPS_METRICS = {m for prompts in PROMPTS.values() for p in prompts for m in p.metric_ids} | set(SUPPLY)
+
+
 def menu(steward, user: User, supply) -> dict[str, str]:
-    """What this user can open right now: every governed KPI a visible report carries, plus the most trusted reports.
-    id -> label. The AI may only pick from here (validated after the call)."""
+    """What this user can open right now: each operations KPI a visible report carries, plus the most trusted reports
+    that carry one. id -> label. The AI may only pick from here (validated after the call)."""
     visible = [a for a in steward.catalog.artifacts.values() if can_see(user, a.product_scope, a.market_scope, supply)]
-    carried = {m for a in visible for m in artifact_covered_metrics(a, steward.catalog)}
+    ops = {a.id: artifact_covered_metrics(a, steward.catalog) & OPS_METRICS for a in visible}
+    carried = set().union(*ops.values()) if ops else set()
     items = {f"kpi:{m}": steward.catalog.metrics[m].name for m in steward.catalog.metrics if m in carried}
-    governed = [a for a in visible if artifact_covered_metrics(a, steward.catalog)]  # a report of variants only: no
+    governed = [a for a in visible if ops[a.id]]
     top = sorted(governed, key=lambda a: (a.certified, a.platform != "Tableau", a.views_30d), reverse=True)
     for a in top[:MENU_REPORTS]:
-        names = ", ".join(steward.catalog.metrics[m].name for m in sorted(artifact_covered_metrics(a, steward.catalog)))
-        items[f"report:{a.id}"] = f"{a.title} ({names})"
+        items[f"report:{a.id}"] = f"{a.title} ({', '.join(steward.catalog.metrics[m].name for m in sorted(ops[a.id]))})"
     return items
+
+
+def _on_topic(steward, items: list[Suggestion], asked: list[str]) -> list[Suggestion]:
+    """Code check on the AI's picks: when the question names its numbers (stock, late deliveries, shipped...), keep
+    only picks that show one of them. The model tends to pad the list (units shipped for a stock question)."""
+    if not asked:
+        return items
+    kept = []
+    for item in items:
+        kind, _, key = item.id.partition(":")
+        shows = {key} if kind == "kpi" else artifact_covered_metrics(steward.catalog.artifacts[key], steward.catalog)
+        if shows & set(asked):
+            kept.append(item)
+    return kept
 
 
 def suggest(steward, user: User, text: str, supply) -> Suggestions:
@@ -237,13 +256,15 @@ def suggest(steward, user: User, text: str, supply) -> Suggestions:
             ))
             picks = [p for p in raw.get("picks", []) if isinstance(p, dict) and p.get("id") in options]
             items = [Suggestion(p["id"], _label(options[p["id"]]), str(p.get("why", ""))[:80]) for p in picks]
+            items = _on_topic(steward, items, words_to_metrics(text)[0])
             if items:
                 return Suggestions(" ".join(str(raw.get("reply", "")).split()), _unique(items)[:MAX_PICKS], True)
         except Exception:
             logger.warning("worker_suggest_failed", exc_info=True)
     metrics, need = words_to_metrics(text)
     usual = [m for p in PROMPTS.get(user.department or "", []) for m in p.metric_ids]
-    items = [Suggestion(f"kpi:{m}", options[f"kpi:{m}"]) for m in metrics + usual if f"kpi:{m}" in options]
+    picked = metrics or usual  # a specific question gets its own numbers only; a broad one the department's usual
+    items = [Suggestion(f"kpi:{m}", options[f"kpi:{m}"]) for m in picked if f"kpi:{m}" in options]
     reply = (f"{need.capitalize()} is not measured in governed data yet. " if need else "") + (
         "Here is what you can open now." if metrics else f"Here is what {user.department or 'your team'} usually "
         "checks first.")
