@@ -1,6 +1,6 @@
 # donatas
-updated: 2026-11-07 18:57
-now: AUDIT DONE: docs/audit/donatas.md (c694751)
-done: audit pushed; ok on 1107-182430
-next: phase 2: attack the other audits once Margiris + Martynas push
+updated: 2026-11-07 19:14
+now: ATTACK DONE: docs/audit/donatas-attack.md (87f25ca)
+done: audit c694751, attack 87f25ca
+next: review DECISION.md within 20 min of it landing; then build from it
 blocked: ask 1107-184644 (OWNERS for docs/audit/donatas.md)
