@@ -1,6 +1,6 @@
 # margiris
-updated: 2026-11-07 18:50
-now: AUDIT written: docs/audit/margiris.md (not committed: OWNERS gives docs/audit/ to Gajus, hook refuses)
-done: audit traces: rules vs AI mode, full-scan vs top-40, trust gate, eval/test runs
-next: commit + AUDIT DONE once OWNERS has docs/audit/margiris.md; then phase 2 attack
+updated: 2026-11-07 19:07
+now: AUDIT DONE: docs/audit/margiris.md (8fa8783)
+done: audit pushed: search, decision, lint, proof, LLM infra; duplicates credited to Gajus/Donatas/Martynas
+next: phase 2: docs/audit/margiris-attack.md by 20:45
 blocked: same OWNERS fix as ask 1107-184644 (donatas -> gajus)
