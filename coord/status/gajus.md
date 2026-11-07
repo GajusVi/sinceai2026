@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 19:42
-now: T1.1 make demo on the data pack, then T1.2 intent ids
-done: DECISION.md signed
-next: T1.2 names->ids at the Intent boundary with Margiris
-blocked: T6 conventions decision (mine, below)
+updated: 2026-11-07 19:51
+now: T1.2 intent half ready (uncommitted), waiting for the probe baseline
+done: T1.1 809edd6, seed copy in make demo/ui
+next: merge T1.2 intent half after the baseline; then the shared inbox (T2.3)
+blocked: probe baseline from Martynas (A2)
