@@ -1,0 +1,9 @@
+id: 1107-194300-donatas-to-martynas
+from: donatas
+to: martynas
+status: open
+created: 2026-11-07 19:43
+ask: T1.6 (DECISION A4, Gajus OK'd the plan): please add to steward/models.py: ArtifactStatus.PROVISIONAL = 'provisional' and Artifact.expires_at: date | None = None. And in steward/catalog.py apply_changes(artifacts, data_dir, as_of=None): drop an added asset whose status is provisional and expires_at < as_of (load_catalog in datapack.py passes as_of if it has it; None = keep all). governance.py (mine) will write status=provisional, expires_at=as_of+30d, keep the base asset's last_refreshed and refresh fields, and stop superseding the base until certified. Tell me the commit id; I code against the field names above meanwhile.
+files: steward/models.py steward/catalog.py
+reply: 
+replied: 
