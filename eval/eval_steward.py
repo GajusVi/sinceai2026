@@ -252,11 +252,14 @@ def intent_section(s: Steward) -> dict:
 
 
 def estate_section() -> dict:
+    from steward.intent import intent_from_parsed
     from steward.requests import load_requests
+    from steward.semantic import feasibility
 
     s = steward()
     reqs = load_requests()
     flags: Counter = Counter()
+    gaps: Counter = Counter()  # governed KPIs with no source data, rendered as labelled gaps (never as a number)
     verdicts: Counter = Counter()
     specs = blocked = errors = 0
     for req in reqs:
@@ -266,6 +269,9 @@ def estate_section() -> dict:
             errors += 1
             continue
         verdicts[r.decision.verdict.value] += 1
+        if r.decision.verdict.value != "CLARIFY":  # a gap is only meaningful for a request that was understood
+            for g in feasibility(intent_from_parsed(r.question, s.catalog)).gaps:
+                gaps[f"{g.kpi_id} {g.name}"] += 1
         flags.update(r.decision.flags)
         if r.spec:
             specs += 1
@@ -280,6 +286,7 @@ def estate_section() -> dict:
         "specs_built": specs,
         "spec_lint_pass_rate": round((specs - blocked) / specs, 3) if specs else None,
         "flags": dict(flags),
+        "gaps_by_kpi": dict(gaps.most_common()),
     }
 
 
@@ -324,6 +331,7 @@ def main() -> None:
             f"estate {e['requests']} requests: without a new dashboard {e['resolved_without_new_dashboard']['share']:.1%}"
             f"  lint pass {e['spec_lint_pass_rate']}  verdicts {e['verdicts']}  flags {e['flags']}"
         )
+        print(f"  gaps by KPI {e['gaps_by_kpi']}")
 
 
 if __name__ == "__main__":
