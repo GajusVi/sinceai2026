@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 23:47
-now: T3.7 full cut in 3 steps; Mac .app rebuild + self-test running
-done: T3.1 f208de5; T3.7 step 1 (legacy UI/API/retrieval gone); Donatas design fixes; governance patch for Donatas
-next: T3.7 step 2 (data pack default, labelled goldens) after Donatas pushes test_governance; step 3 (sample catalog + legacy backend) after Margiris OK
+updated: 2026-11-08 00:18
+now: T3.7 pushed (26a0e46): data pack only, labelled goldens, legacy backend gone
+done: T3.1 f208de5; T3.7 26a0e46; Mac .app self-test PASS
+next: Owners delete eval/eval.py (Margiris), sample catalog (Martynas), demo/inputs.jsonl (Donatas); final .app rebuild before 05:00
 blocked: Margiris OK on backend/pipeline.py, eval/eval.py, Makefile warm/eval
