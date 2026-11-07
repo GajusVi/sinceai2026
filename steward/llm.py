@@ -100,14 +100,8 @@ class BackendClient:
         return self._llm.complete_json(_SYSTEM, prompt, _AnyJSON).model_dump()
 
     def generate_text(self, prompt: str) -> str:
-        response = self._llm._client().chat.completions.create(
-            model=self.model,
-            messages=[{"role": "system", "content": _SYSTEM}, {"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=self._settings.llm_max_tokens,
-            **self._llm._extra(),
-        )
-        return (response.choices[0].message.content or "").strip()
+        """Primary provider, then LLM_FALLBACK_PROVIDER on a transport failure (backend.llm.chat_text)."""
+        return self._llm.chat_text([{"role": "system", "content": _SYSTEM}, {"role": "user", "content": prompt}])
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         raise NotImplementedError("BackendClient has no embeddings")

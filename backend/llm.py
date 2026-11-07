@@ -3,10 +3,15 @@
 Every successful live output is written to demo/cache/ keyed by (system, user, schema).
 Live mode always calls the model (so eval measures the current model); the cache is read only
 in DEMO_MODE=1 (never touches the network) or as a fallback when the live call fails.
+
+Provider chain: LLM_PROVIDER (e.g. aitta) -> LLM_FALLBACK_PROVIDER (e.g. gemini) -> callers fall back to rules.
+Only transport failures (network, 429, 5xx, timeout, auth) move to the fallback; invalid JSON does not.
+The cache key ignores the provider, so a fallback answer is cached like any other.
 """
 
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Callable
 from functools import lru_cache
@@ -14,27 +19,90 @@ from typing import TypeVar
 
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .config import ROOT, get_settings
+from .config import PROVIDERS, ROOT, Settings, get_settings
 
 T = TypeVar("T", bound=BaseModel)
 CACHE_DIR = ROOT / "demo" / "cache"
+
+
+log = logging.getLogger(__name__)
 
 
 class LLMError(RuntimeError):
     pass
 
 
+class LLMTransportError(LLMError):
+    """The provider could not be reached or refused the call (network, 429, 5xx, timeout, auth): the fallback may try."""
+
+
+class _FallbackEnv(BaseSettings):
+    """LLM_FALLBACK_PROVIDER from the environment or .env (backend/config.py is not changed for this)."""
+
+    model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
+    llm_fallback_provider: str | None = None
+
+
 @lru_cache
-def _client() -> OpenAI:
-    s = get_settings()
+def _make_client(base_url: str, api_key: str, timeout: float, retries: int) -> OpenAI:
+    return OpenAI(base_url=base_url, api_key=api_key, timeout=timeout, max_retries=retries)
+
+
+def _client(s: Settings | None = None) -> OpenAI:
+    s = s or get_settings()
     base_url, api_key, _ = s.resolved()
-    return OpenAI(base_url=base_url, api_key=api_key, timeout=s.llm_timeout_s, max_retries=s.llm_max_retries)
+    return _make_client(base_url, api_key, s.llm_timeout_s, s.llm_max_retries)
 
 
-def _extra() -> dict:
+def _extra(s: Settings | None = None) -> dict:
     """Provider-specific request options. Gemini 3 always reasons; 'low' keeps replies fast."""
-    return {"reasoning_effort": "low"} if get_settings().llm_provider == "gemini" else {}
+    return {"reasoning_effort": "low"} if (s or get_settings()).llm_provider == "gemini" else {}
+
+
+def fallback_settings(s: Settings | None = None) -> Settings | None:
+    """Settings of the fallback provider, or None when none is set, it equals the primary, or it is not configured.
+    The primary's LLM_MODEL / LLM_BASE_URL / LLM_API_KEY overrides do not carry over."""
+    s = s or get_settings()
+    name = (_FallbackEnv().llm_fallback_provider or "").strip().lower()
+    if not name or name == s.llm_provider or name not in PROVIDERS:
+        return None
+    fb = s.model_copy(update={"llm_provider": name, "llm_model": None, "llm_base_url": None, "llm_api_key": None})
+    return fb if fb.llm_ready() else None
+
+
+def _with_fallback(call: Callable[[Settings], T]) -> T:
+    """call(settings) on the primary provider; on a transport failure once more on the fallback provider."""
+    s = get_settings()
+    try:
+        result = call(s)
+        log.info("llm answered: %s", s.llm_provider)
+        return result
+    except LLMTransportError as primary_error:
+        fb = fallback_settings(s)
+        if fb is None:
+            raise
+        log.warning("llm %s failed (%s); retrying on %s", s.llm_provider, primary_error, fb.llm_provider)
+        result = call(fb)
+        log.info("llm answered: %s (fallback)", fb.llm_provider)
+        return result
+
+
+def chat_text(messages: list[dict], temperature: float = 0.2) -> str:
+    """Plain-text completion through the provider chain."""
+
+    def call(cfg: Settings) -> str:
+        model = cfg.resolved()[2]
+        try:
+            resp = _client(cfg).chat.completions.create(
+                model=model, messages=messages, temperature=temperature, max_tokens=cfg.llm_max_tokens, **_extra(cfg)
+            )
+        except Exception as e:
+            raise LLMTransportError(f"{type(e).__name__}: {e}") from e
+        return (resp.choices[0].message.content or "").strip()
+
+    return _with_fallback(call)
 
 
 def _cache_key(system: str, user: str, tag: str) -> str:
@@ -68,36 +136,45 @@ def complete_json(
     if not s.llm_ready():
         raise LLMError(f"LLM not configured for provider {s.llm_provider!r} (key or model missing)")
 
-    _, _, model = s.resolved()
     sys_full = (
         f"{system}\n\nReply with ONLY one JSON object that validates against this JSON Schema. "
         f"No prose, no markdown.\n{json.dumps(schema.model_json_schema())}"
     )
-    messages = [{"role": "system", "content": sys_full}, {"role": "user", "content": user}]
-    last_err: Exception | None = None
-    for _ in range(2):  # first try + one repair
-        try:
-            resp = _client().chat.completions.create(
-                model=model, messages=messages, temperature=temperature, max_tokens=s.llm_max_tokens, **_extra()
-            )
-        except Exception as e:  # network, auth, rate limit after SDK retries
-            raise LLMError(f"{type(e).__name__}: {e}") from e
-        text = resp.choices[0].message.content or ""
-        try:
-            obj = schema.model_validate_json(_extract_json(text))
-            if check:
-                check(obj)
-        except (ValidationError, ValueError) as e:
-            last_err = e
-            messages += [
-                {"role": "assistant", "content": text},
-                {"role": "user", "content": f"Invalid: {e}. Return only the corrected JSON object."},
-            ]
-            continue
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        path.write_text(obj.model_dump_json(indent=2), encoding="utf-8")
-        return obj
-    raise LLMError(f"invalid JSON after repair: {last_err}")
+
+    def call(cfg: Settings) -> T:
+        model = cfg.resolved()[2]
+        messages = [{"role": "system", "content": sys_full}, {"role": "user", "content": user}]
+        last_err: Exception | None = None
+        for _ in range(2):  # first try + one repair
+            try:
+                resp = _client(cfg).chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=cfg.llm_max_tokens,
+                    **_extra(cfg),
+                )
+            except Exception as e:  # network, auth, rate limit after SDK retries
+                raise LLMTransportError(f"{type(e).__name__}: {e}") from e
+            text = resp.choices[0].message.content or ""
+            try:
+                obj = schema.model_validate_json(_extract_json(text))
+                if check:
+                    check(obj)
+            except (ValidationError, ValueError) as e:
+                last_err = e
+                messages += [
+                    {"role": "assistant", "content": text},
+                    {"role": "user", "content": f"Invalid: {e}. Return only the corrected JSON object."},
+                ]
+                continue
+            return obj
+        raise LLMError(f"invalid JSON after repair: {last_err}")
+
+    obj = _with_fallback(call)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    path.write_text(obj.model_dump_json(indent=2), encoding="utf-8")
+    return obj
 
 
 def _explain(e: Exception) -> str:
@@ -111,7 +188,9 @@ def ping() -> str:
     s = get_settings()
     base, _, model = s.resolved()
     if not model:
-        raise SystemExit(f"No model set for LLM_PROVIDER={s.llm_provider}: add LLM_MODEL=... to .env (`make models` lists them)")
+        raise SystemExit(
+            f"No model set for LLM_PROVIDER={s.llm_provider}: add LLM_MODEL=... to .env (`make models` lists them)"
+        )
     try:
         resp = _client().chat.completions.create(
             model=model, messages=[{"role": "user", "content": "Reply with the word: ok"}], max_tokens=512, **_extra()
