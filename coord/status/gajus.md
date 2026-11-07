@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 20:07
-now: T2.3 shared inbox (develop now, merge after Tier 1 is green)
-done: 670fefb T1.2 intent half (false CREATE 315->68 on probes), T1.1 + seed copy
-next: T2.5 receipt strip
+updated: 2026-11-07 21:04
+now: T2.6 desktop app: launcher + native login/loader + workspace shell
+done: T1.2 intent half 670fefb, T1.6 loader, T2.3 inbox on branch
+next: Mac .app build; then T2.5 receipt strip
 blocked: probe baseline from Martynas (A2)
