@@ -39,6 +39,9 @@ prompts/to_spec.yaml    gajus
 prompts/worker_suggest.yaml gajus
 steward/auth.py         gajus
 steward/worker.py       gajus
+steward/departments.py  gajus
+prompts/departments.yaml gajus
+tools/make_large_pack.py gajus
 steward/lint.py         margiris
 steward/render.py       donatas
 catalog/bayer/measures.json martynas

@@ -9,6 +9,8 @@ try {
         "ui"     { Live; & $py -m streamlit run frontend\steward_app.py }
         "demo"   { $env:STEWARD_USE_LLM = "off"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_USE_LLM -ErrorAction SilentlyContinue }
         "bayer"  { Live; $env:STEWARD_CATALOG = "datapack"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG -ErrorAction SilentlyContinue }
+        "pack-large"  { & $py tools\make_large_pack.py }
+        "bayer-large" { Live; $env:STEWARD_CATALOG = "datapack"; $env:STEWARD_DATAPACK_XLSX = "data\bayer_large\Bayer_Large_Synthetic_Pack.xlsx"; & $py -m streamlit run frontend\steward_app.py; Remove-Item Env:STEWARD_CATALOG, Env:STEWARD_DATAPACK_XLSX -ErrorAction SilentlyContinue }
         "set-webhook" { & $py tools\coord.py set-webhook }
         "board-discord" { & $py tools\coord.py discord }
         "board"  { & $py tools\coord.py board }
@@ -20,7 +22,7 @@ try {
         "ping"   { Live; & $py -m backend.llm }
         "models" { Live; & $py -m backend.llm models }
         "test"   { $env:DEMO_MODE = "1"; & $py -m pytest -q }
-        default  { "tasks: ui demo bayer board ask ui-old api eval warm ping models test" }
+        default  { "tasks: ui demo bayer pack-large bayer-large board ask ui-old api eval warm ping models test" }
     }
 } finally {
     $env:DEMO_MODE = $prevDemo   # never leave demo mode on in this window

@@ -971,9 +971,53 @@ def render_health() -> None:
     st.dataframe(rows, width="stretch", hide_index=True, height=520)
 
 
+def render_department_map() -> None:
+    """Builders: which KPIs each plant department sees first. The AI drafts, the builder edits and approves; workers
+    read only the approved map (steward/departments.py). Relevance only: access stays in steward/auth.py."""
+    from steward import departments
+    from steward.worker import DEPARTMENTS
+
+    ui.section("Floor KPIs per department")
+    state = departments.state(steward.data_dir)
+    approved, draft = state.get("approved"), state.get("draft")
+    st.caption(f"Approved by {approved['by']} on {approved['at'][:16].replace('T', ' ')}. Workers see this map."
+               if approved else "Not approved yet: workers see the built-in defaults.")
+    if st.button("Draft with AI", key="dept_draft"):
+        with st.spinner("The AI is drafting the map from the governed KPI list"):
+            proposal = departments.propose(steward.llm, steward.settings.prompts_dir, steward.catalog, DEPARTMENTS)
+        departments.save_draft(steward.data_dir, proposal, actor)
+        st.rerun()
+    base = (draft or approved or {}).get("map") or departments.defaults()
+    if draft:
+        who = "the AI" if draft["source"] == "ai" else "the defaults (no AI model connected)"
+        st.caption(f"Draft from {who}, opened by {draft['by']}. Check it, edit it, then approve.")
+    names = {m.id: m.name for m in steward.catalog.metrics.values()}
+    version = (draft or approved or {}).get("at", "default")
+    edited, cols = {}, st.columns(2)
+    for i, dept in enumerate(DEPARTMENTS):
+        with cols[i % 2]:
+            edited[dept] = st.multiselect(dept, options=list(names), format_func=names.get, max_selections=4,
+                                          default=[m for m in base.get(dept, []) if m in names],
+                                          key=f"dept_{dept}_{version}")
+            reasons = [f"{names[m]}: {draft['why'][f'{m}@{dept}']}" for m in edited[dept]
+                       if draft and draft.get("why", {}).get(f"{m}@{dept}")]
+            if reasons:
+                st.caption(" · ".join(reasons))
+            if draft and draft.get("missing", {}).get(dept):
+                st.caption("Not governed yet: " + ", ".join(draft["missing"][dept]))
+    if st.button("Approve for the floor", type="primary", key="dept_approve"):
+        departments.approve(steward.data_dir, edited, actor, steward.catalog)
+        st.success("Approved. Workers in these departments now see these KPIs first.")
+        st.rerun()
+    if state.get("log"):
+        with st.expander("Change log"):
+            st.dataframe(list(reversed(state["log"])), width="stretch", hide_index=True)
+
+
 if tab_health is not None:
     with tab_health:
         render_health()
+        render_department_map()
 
 if tab_orphan is not None:
     with tab_orphan:

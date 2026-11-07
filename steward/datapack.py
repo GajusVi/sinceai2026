@@ -7,6 +7,7 @@ estimated_audience) are kept as "claimed" and never used for decisions.
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import date
 from pathlib import Path
@@ -15,12 +16,15 @@ import pandas as pd
 
 from .models import Artifact, ArtifactMetric, ArtifactStatus, DimensionDefinition, MetricDefinition, UsageMonth
 
-DEFAULT_XLSX = (
+ORIGINAL_XLSX = (
     Path(__file__).resolve().parent.parent
     / "data"
     / "bayer"
     / "Bayer_Pharmaceuticals_SinceAI_2026_FINAL_Builder_Data_Pack.xlsx"
 )
+# STEWARD_DATAPACK_XLSX switches every loader to another pack with the same structure (tools/make_large_pack.py).
+# Unset = the original pack: tests, golden verdicts and the pitch numbers are tied to it.
+DEFAULT_XLSX = Path(os.environ.get("STEWARD_DATAPACK_XLSX") or ORIGINAL_XLSX).resolve()
 ALL_PHARMA = "All Pharma"
 GLOBAL = "Global"
 _NAME_SUFFIX = re.compile(r" - (EMEA|US|Global)$")

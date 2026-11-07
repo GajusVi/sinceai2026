@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo bayer board ui-old ask api eval eval-steward warm test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo bayer pack-large bayer-large board ui-old ask api eval eval-steward warm test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -15,6 +15,12 @@ demo:       ## BI Steward screen with the LLM forced off (stage-safe, no network
 
 bayer:      ## BI Steward on the Bayer data pack (360 assets)
 	STEWARD_CATALOG=datapack $(PY) -m streamlit run frontend/steward_app.py
+
+pack-large: ## generate the large synthetic pack (same 24 sheets, 5,000 assets, 2021-2026, 10 plants; ~1 min)
+	$(PY) tools/make_large_pack.py
+
+bayer-large: ## BI Steward on the large synthetic pack (make pack-large first; startup ~40 s)
+	STEWARD_CATALOG=datapack STEWARD_DATAPACK_XLSX=data/bayer_large/Bayer_Large_Synthetic_Pack.xlsx $(PY) -m streamlit run frontend/steward_app.py
 
 set-webhook: ## put the Discord webhook URL from your clipboard into .env (type this, don't copy it)
 	$(PY) tools/coord.py set-webhook

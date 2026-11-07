@@ -59,6 +59,28 @@ PROMPTS: dict[str, list[Prompt]] = {
 }
 DEPARTMENTS = list(PROMPTS)
 
+
+def department_kpis(steward, department: str) -> list[str]:
+    """The KPIs a department sees first: the builder-approved map (steward/departments.py), else the defaults."""
+    from .departments import approved, defaults
+
+    mapping = approved(steward.data_dir) or {}
+    return list(mapping.get(department) or defaults().get(department, []))
+
+
+def prompts_for(steward, department: str) -> list[Prompt]:
+    """The department's buttons. With an approved map: one per approved KPI (up to 3), then the first default prompt
+    for a need that is not governed (so the honest 'not measured yet' path stays one click away)."""
+    from .departments import approved
+
+    mapping = approved(steward.data_dir) or {}
+    if department not in mapping:
+        return PROMPTS.get(department, [])
+    metrics = steward.catalog.metrics
+    kpis = [Prompt(metrics[m].name, (m,)) for m in mapping[department][:3] if m in metrics]
+    gaps = [p for p in PROMPTS.get(department, []) if p.not_governed][:1]
+    return kpis + gaps
+
 # "Other": what a worker typically needs from another department (mini grill, step 2). "Something else" = free text.
 NEEDS: dict[str, list[str]] = {
     "Warehouse Ops": ["Stock on hand by product", "Inbound and outbound deliveries", "Shipping delays"],
@@ -119,7 +141,7 @@ def other_plant(user: User, sites: list[str]) -> str:
     return next((s for s in sites if s not in user.plants), "")
 
 
-_PLANT = re.compile(r"\bplant[\s-]*([abc])\b", re.I)
+_PLANT = re.compile(r"\bplant[\s-]*([a-z])\b", re.I)  # Plant-A .. Plant-Z (large pack)
 _CMO = re.compile(r"\b(cmo|contract manufactur\w*)\b", re.I)
 
 
@@ -237,7 +259,8 @@ def menu(steward, user: User, supply) -> dict[str, str]:
     """What this user can open right now: each operations KPI a visible report carries, plus the most trusted reports
     that carry one. id -> label. The AI may only pick from here (validated after the call)."""
     visible = [a for a in steward.catalog.artifacts.values() if can_see(user, a.product_scope, a.market_scope, supply)]
-    ops = {a.id: artifact_covered_metrics(a, steward.catalog) & OPS_METRICS for a in visible}
+    floor = OPS_METRICS | set(department_kpis(steward, user.department or ""))  # approved map can widen the floor
+    ops = {a.id: artifact_covered_metrics(a, steward.catalog) & floor for a in visible}
     carried = set().union(*ops.values()) if ops else set()
     items = {f"kpi:{m}": steward.catalog.metrics[m].name for m in steward.catalog.metrics if m in carried}
     governed = [a for a in visible if ops[a.id]]
@@ -286,7 +309,7 @@ def suggest(steward, user: User, text: str, supply) -> Suggestions:
         except Exception:
             logger.warning("worker_suggest_failed", exc_info=True)
     if not items:
-        usual = [m for p in PROMPTS.get(user.department or "", []) for m in p.metric_ids]
+        usual = department_kpis(steward, user.department or "")
         picked = metrics or usual  # a specific question gets its own numbers only; a broad one the department's usual
         items = [Suggestion(f"kpi:{m}", options[f"kpi:{m}"]) for m in picked if f"kpi:{m}" in options]
         reply = (f"{need[0].upper() + need[1:]} is not in governed data yet. " if need else "") + (

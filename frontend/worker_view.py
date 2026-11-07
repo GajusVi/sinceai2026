@@ -15,12 +15,12 @@ from steward.worker import (
     CADENCES,
     DEPARTMENTS,
     NEEDS,
-    PROMPTS,
     Suggestions,
     WorkerAnswer,
     log_request,
     open_item,
     other_plant,
+    prompts_for,
     refusal,
     request_entry,
     reuse_only,
@@ -45,7 +45,7 @@ def render(steward, user: User, supply, render_dashboard) -> None:
     with st.container(horizontal=True, key="w-row"):
         if st.button("Chat", key="w-chat", help="Ask in your own words"):
             st.session_state.update(w_chat=True, w_other=None)
-        for i, prompt in enumerate(PROMPTS.get(user.department, [])):
+        for i, prompt in enumerate(prompts_for(steward, user.department)):
             if st.button(prompt.label, key=f"w-p-{i}"):
                 _answer_prompt(steward, user, prompt, supply)
         if st.button("Other department", key="w-other", help="Request another department's data at your plant"):
@@ -53,7 +53,7 @@ def render(steward, user: User, supply, render_dashboard) -> None:
     for dept in granted:  # departments a builder shared with this worker
         st.caption(f"Shared with you: {dept}")
         with st.container(horizontal=True, key=f"w-shared-{dept}"):
-            for i, prompt in enumerate(PROMPTS.get(dept, [])):
+            for i, prompt in enumerate(prompts_for(steward, dept)):
                 if st.button(prompt.label, key=f"w-s-{dept}-{i}"):
                     _answer_prompt(steward, user, prompt, supply)
 
