@@ -27,7 +27,7 @@ from pathlib import Path
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(ROOT))  # `steward` is importable from the repo and from the frozen app
-LOGIN_SIZE = (440, 600)
+LOGIN_SIZE = (960, 620)  # Donatas's login design: 400 px form + the trace panel (hidden under 720 px)
 WORKSPACE_SIZE = (1360, 860)
 
 
@@ -133,6 +133,23 @@ class Api:
             self._window.resize(*LOGIN_SIZE)
 
 
+def make_window(webview, api: Api, login_url: str):
+    """The one app window: opens on the login page; whenever the login page loads (first open, after Log out) the
+    window shrinks back to login size, so the page itself needs no window logic."""
+    window = webview.create_window(
+        "BI Steward", login_url, js_api=api, width=LOGIN_SIZE[0], height=LOGIN_SIZE[1], min_size=(420, 560),
+        background_color="#FFFFFF",
+    )
+    api._window = window
+
+    def on_loaded() -> None:
+        if "/app/shell/login.html" in (window.get_current_url() or ""):
+            window.resize(*LOGIN_SIZE)
+
+    window.events.loaded += on_loaded
+    return window
+
+
 def main() -> None:
     import webview
 
@@ -150,15 +167,7 @@ def main() -> None:
     server.start()  # starts while the user types the password, so the loading screen is short
 
     api = Api(app_port, secret)
-    api._window = webview.create_window(
-        "BI Steward",
-        login_url,
-        js_api=api,
-        width=LOGIN_SIZE[0],
-        height=LOGIN_SIZE[1],
-        min_size=(400, 560),
-        background_color="#FFFFFF",
-    )
+    make_window(webview, api, login_url)
     try:
         webview.start()
     finally:
