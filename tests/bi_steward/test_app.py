@@ -4,6 +4,8 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
+from steward.auth import login
+
 
 @pytest.fixture(autouse=True)
 def fresh_steward():
@@ -15,10 +17,16 @@ def fresh_steward():
 APP = str(Path(__file__).resolve().parents[2] / "frontend" / "steward_app.py")
 
 
+def as_builder(at: AppTest) -> AppTest:
+    """Past the mock login (steward/auth.py) as the BI team, which sees every tab and may approve."""
+    at.session_state["user"] = login("Builder12", "Admin123")
+    return at
+
+
 def test_chat_question_renders_without_exception(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
-    at = AppTest.from_file(APP, default_timeout=60).run()
+    at = as_builder(AppTest.from_file(APP, default_timeout=60)).run()
     assert not at.exception
     at.chat_input[0].set_value("Net revenue by region for Q3").run()
     assert not at.exception
@@ -29,7 +37,7 @@ def test_reset_demo_twice(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
     (tmp_path / "journal.jsonl").write_text("")
-    at = AppTest.from_file(APP, default_timeout=60).run()
+    at = as_builder(AppTest.from_file(APP, default_timeout=60)).run()
     for _ in range(2):
         next(b for b in at.sidebar.button if b.label == "Reset demo").click().run()
         assert not at.exception
@@ -40,7 +48,7 @@ def test_orphan_rescue_on_datapack(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("STEWARD_CATALOG", "datapack")
-    at = AppTest.from_file(APP, default_timeout=120).run()
+    at = as_builder(AppTest.from_file(APP, default_timeout=120)).run()
     assert not at.exception
     assert any("AST-0091" in s.value for s in at.subheader)
     assert any("inactive" in m.value for m in at.markdown)
@@ -58,7 +66,7 @@ def test_orphan_rescue_on_sample_catalog(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("STEWARD_CATALOG", raising=False)
-    at = AppTest.from_file(APP, default_timeout=60).run()
+    at = as_builder(AppTest.from_file(APP, default_timeout=60)).run()
     assert not at.exception
     assert any("make bayer" in i.value for i in at.info)
 
@@ -67,7 +75,7 @@ def _novice_app(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("STEWARD_CATALOG", "datapack")
-    return AppTest.from_file(APP, default_timeout=180).run()
+    return as_builder(AppTest.from_file(APP, default_timeout=180)).run()
 
 
 def _click(at, label):

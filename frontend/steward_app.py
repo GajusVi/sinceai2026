@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ui  # noqa: E402  (frontend/ui.py: design system)
 
 from steward import Steward, semantic  # noqa: E402
+from steward.auth import COMPANY, DEMO_ACCOUNTS, can_see, login  # noqa: E402
 from steward.catalog import CHANGES_FILE  # noqa: E402
 from steward.explain import TemplateExplainer  # noqa: E402
 from steward.governance import JOURNAL_FILE  # noqa: E402
@@ -89,6 +90,32 @@ st.set_page_config(page_title="BI Steward", layout="wide", initial_sidebar_state
 ui.inject()
 
 
+def render_login() -> None:
+    """Mock login (steward/auth.py): the account sets role, plant, location and department. Not real security."""
+    _, mid, _ = st.columns([1, 1.1, 1])
+    with mid:
+        ui.ask_hero("BI Steward")
+        with st.form("login"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Log in", type="primary", width="stretch")
+        if submitted:
+            account = login(username, password)
+            if account is None:
+                st.error("Wrong username or password.")
+            else:
+                st.session_state.user = account
+                st.rerun()
+        st.caption("Demo login, mocked (not real authentication). Accounts:  \n"
+                   + "  \n".join(f"{name} / {pw} ({role})" for name, pw, role in DEMO_ACCOUNTS))
+
+
+user = st.session_state.get("user")
+if user is None:
+    render_login()
+    st.stop()
+
+
 @st.cache_resource
 def get_steward() -> Steward:
     return Steward()
@@ -116,8 +143,19 @@ with st.sidebar:
     st.markdown("#### BI Steward")
     st.caption("Governed analytics for Bayer Pharma. Build less, build better.")
     st.caption(f"AI model: {llm_label()}  \nData as of {steward.as_of}")
-    actor = st.text_input("Your name", value="demo-user")
-    st.toggle("Expert mode: skip the interview", key="expert_mode")
+    plants = "all (company)" if user.plants == COMPANY else ", ".join(user.plants)
+    st.markdown(f"**{user.username}** · {user.role.capitalize()}")
+    st.caption(f"{user.name}, {user.location}  \nPlant: {plants}"
+               + (f"  \nDepartment: {user.department}" if user.department else ""))
+    if st.button("Log out", width="stretch"):  # the approval queue stays: the demo hands it to a builder
+        for key in ("user", "messages", "interview", "result", "result_intent", "novice_result", "requested_by"):
+            st.session_state.pop(key, None)
+        st.rerun()
+    actor = user.label
+    if user.can("expert_mode"):
+        st.toggle("Expert mode: skip the interview", key="expert_mode")
+    else:
+        st.session_state.expert_mode = False
     st.divider()
     st.caption("Example questions")
     for example in (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES):
@@ -125,11 +163,12 @@ with st.sidebar:
             st.session_state.pending_question = example
             st.session_state.interview = None  # an example is a new question, not an answer
     st.divider()
-    if st.button("Reset demo", width="stretch"):
+    if user.can("maintain") and st.button("Reset demo", width="stretch"):
         for name in (CHANGES_FILE, JOURNAL_FILE):
             (steward.data_dir / name).unlink(missing_ok=True)
         st.cache_resource.clear()
         st.session_state.clear()
+        st.session_state.user = user  # reset clears the demo data, not the login
         st.rerun()
 
 
@@ -142,6 +181,8 @@ def ask(text: str) -> None:
     Expert mode: one shot through the parser, as before. Keeps chat history and the latest full result."""
     messages = st.session_state.setdefault("messages", [])
     messages.append({"role": "user", "content": text})
+    if st.session_state.get("interview") is None:  # a new question is the asker's own, not a reviewed request
+        st.session_state.pop("requested_by", None)
     if st.session_state.get("expert_mode"):
         _finish(steward.build(steward.ask(text)), novice=False)  # W3-W6: the dashboard this decision implies
         return
@@ -556,8 +597,15 @@ def render_human_decision(result: StewardResult) -> None:
     if decision.verdict not in APPROVE_LABELS:
         return
 
+    if not user.can("approve"):
+        render_send_to_bi(result)
+        return
     novice = st.session_state.get("novice_result")
     ui.section("Next step: BI team approval" if novice else "Human decision")
+    requested_by = st.session_state.get("requested_by")
+    if requested_by:
+        st.caption(f"Requested by {requested_by}.")
+    signed = f"{actor}, requested by {requested_by}" if requested_by else actor  # journal: who asked, who approved
     owner = None
     if decision.verdict == Verdict.CREATE or (decision.best and not decision.best.artifact.has_owner):
         owner = st.text_input("Report owner", key="owner")
@@ -569,7 +617,7 @@ def render_human_decision(result: StewardResult) -> None:
     with col_ok:
         if st.button(APPROVE_LABELS[decision.verdict], type="primary", width="stretch", disabled=bool(blocked)):
             try:
-                entry = steward.governance.approve(result, actor=actor, owner=owner or None)
+                entry = steward.governance.approve(result, actor=signed, owner=owner or None)
             except ValueError as error:
                 st.error(str(error))
             else:
@@ -577,16 +625,68 @@ def render_human_decision(result: StewardResult) -> None:
                 created = f" New artifact: {entry.created_artifact_id}." if entry.created_artifact_id else ""
                 st.success("Approved and recorded in the journal." + created)
                 st.session_state.result = None
+                st.session_state.pop("requested_by", None)
     with col_no:
         if st.button("Send back", width="stretch"):
             try:
-                steward.governance.reject(result, actor=actor, reason=reason)
+                steward.governance.reject(result, actor=signed, reason=reason)
             except ValueError as error:
                 st.error(str(error))
             else:
                 st.info("Sent back and recorded in the journal. The catalog was not changed.")
                 st.session_state.result = None
+                st.session_state.pop("requested_by", None)
     st.caption("Nothing is published until someone accountable approves it. Every decision is logged.")
+
+
+def render_send_to_bi(result: StewardResult) -> None:
+    """Workers and management cannot approve: they hand the ruling to the BI team (a builder approves or sends back).
+    Demo: the queue lives in this browser session, so log out and in as a builder to review it."""
+    if result.decision.verdict == Verdict.REUSE:
+        st.caption("This report already exists: use it as it is. Nothing to approve.")
+        return
+    ui.section("Next step: BI team approval")
+    queue = st.session_state.setdefault("approval_queue", [])
+    if any(item["result"] is result for item in queue):
+        st.info("Sent to the BI team. A builder reviews it, then approves it or sends it back.")
+        return
+    label = "Request this from the BI team" if user.role == "worker" else "Send to the BI team for approval"
+    if st.button(label, type="primary"):
+        queue.append({
+            "result": result, "intent": st.session_state.get("result_intent"),
+            "novice": st.session_state.get("novice_result"), "from": user.label, "plant": user.plant,
+        })
+        st.rerun()
+    st.caption("Only a builder (BI team) can approve. Demo: log out and log in as a builder to review it.")
+
+
+def render_queue() -> None:
+    """Builders: requests waiting for approval, oldest first. Review opens the ruling with its requester."""
+    queue = st.session_state.get("approval_queue") or []
+    if not queue or not user.can("approve") or st.session_state.get("result"):
+        return
+    ui.section(f"Waiting for your approval ({len(queue)})")
+    for i, item in enumerate(queue):
+        text, col = st.columns([5, 1])
+        text.markdown(f"**{item['result'].question.text}**  \n"
+                      f"{verdict_title(item['result'].decision.verdict)} · from {item['from']}, {item['plant']}")
+        if col.button("Review", key=f"review_{i}", width="stretch"):
+            queue.pop(i)
+            st.session_state.update(
+                result=item["result"], result_intent=item["intent"], novice_result=item["novice"],
+                requested_by=item["from"], interview=None,
+                messages=[{"role": "user", "content": item["result"].question.text},
+                          {"role": "assistant", "content": f"Request from {item['from']} at {item['plant']}."}],
+            )
+            st.rerun()
+
+
+@st.cache_data
+def supply_rows() -> list[tuple[str, str, str]]:
+    """(product_name, market_id, site) from Supply_Operations: which plant supplies which product x market."""
+    frames = get_frames()
+    supply = frames["fact_supply"].merge(frames["dim_product"][["product_id", "product_name"]], on="product_id")
+    return list(supply[["product_name", "market_id", "supply_source"]].itertuples(index=False, name=None))
 
 
 @st.cache_data
@@ -708,9 +808,12 @@ def render_orphan_rescue() -> None:
                 st.success("Proposal recorded in the journal (not applied).")
 
 
-tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog = st.tabs(
-    ["Ask", "Catalog health", "Orphan rescue", "Journal", "Catalog"]
-)
+# Tabs by role (steward/auth.py ACTIONS): maintenance is the BI team's, the journal is management's and up.
+TABS = [("Ask", "ask"), ("Catalog health", "maintain"), ("Orphan rescue", "maintain"), ("Journal", "view_journal"),
+        ("Catalog", "view")]
+_names = [name for name, action in TABS if user.can(action)]
+_tabs = dict(zip(_names, st.tabs(_names), strict=True))
+tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog = (_tabs.get(name) for name, _ in TABS)
 
 SKIP_LABEL = "Use recommended"
 
@@ -771,6 +874,7 @@ with tab_ask:
             ask(question.strip())
         building.empty()
     with top:
+        render_queue()
         if not st.session_state.get("messages"):
             ui.ask_hero("What do you need to know?")
         else:
@@ -815,13 +919,16 @@ def render_health() -> None:
     st.dataframe(rows, width="stretch", hide_index=True, height=520)
 
 
-with tab_health:
-    render_health()
+if tab_health is not None:
+    with tab_health:
+        render_health()
 
-with tab_orphan:
-    render_orphan_rescue()
+if tab_orphan is not None:
+    with tab_orphan:
+        render_orphan_rescue()
 
-with tab_journal:
+
+def render_journal() -> None:
     entries = steward.governance.entries()
     if entries:
         ui.timeline([
@@ -844,6 +951,11 @@ with tab_journal:
     else:
         st.caption("No decisions yet. Approved and sent-back rulings appear here, newest first.")
 
+
+if tab_journal is not None:
+    with tab_journal:
+        render_journal()
+
 with tab_catalog:
     term = st.text_input("Search the catalog", placeholder="Report name, id, owner or domain").strip().lower()
     catalog_rows = [
@@ -852,7 +964,11 @@ with tab_catalog:
             "refreshed": a.last_refreshed, "views": a.views_30d, "status": a.status.value, "version": a.version,
         }
         for a in steward.catalog.artifacts.values()
+        if can_see(user, a.product_scope, a.market_scope, supply_rows())
     ]
+    if user.plants != COMPANY:
+        st.caption(f"Reports for {', '.join(user.plants)}: the products and markets your plant supplies. "
+                   "Other plants and company-wide reports come through a builder.")
     if term:
         catalog_rows = [r for r in catalog_rows if any(term in str(v).lower() for v in r.values())]
     st.caption(f"{len(catalog_rows):,} reports")

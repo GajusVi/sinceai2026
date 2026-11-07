@@ -9,9 +9,17 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
+from steward.auth import login
+
 pytestmark = pytest.mark.filterwarnings("ignore")
 
 APP = str(Path(__file__).resolve().parents[2] / "frontend" / "steward_app.py")
+
+
+def as_builder(at: AppTest) -> AppTest:
+    """Past the mock login (steward/auth.py) as the BI team, which sees every tab and may approve."""
+    at.session_state["user"] = login("Builder12", "Admin123")
+    return at
 REQ1 = "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country."
 
 
@@ -49,7 +57,7 @@ def app(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_USE_LLM", "off")
     monkeypatch.setenv("STEWARD_CATALOG", "datapack")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
-    app = AppTest.from_file(APP, default_timeout=120).run()
+    app = as_builder(AppTest.from_file(APP, default_timeout=120)).run()
     return app.toggle(key="expert_mode").set_value(True).run()  # one-shot REQ-0001; novice mode interviews first
 
 
@@ -102,7 +110,7 @@ def test_app_loads_with_the_backend_llm_client(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWARD_CATALOG", "datapack")
     monkeypatch.setenv("STEWARD_DATA_DIR", str(tmp_path))
     monkeypatch.setattr("steward.pipeline.get_llm", lambda settings: FakeBackendLLM())
-    app = AppTest.from_file(APP, default_timeout=120).run()
+    app = as_builder(AppTest.from_file(APP, default_timeout=120)).run()
     assert not app.exception
     assert any(c.value.startswith("AI model: ") and "openai/gpt-oss-120b" in c.value for c in app.sidebar.caption)
 
