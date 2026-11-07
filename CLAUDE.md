@@ -77,8 +77,8 @@ Windows: `.venv\Scripts\python.exe tools\coord.py ...`. Humans: `make board`, Di
    the hooks only fire when your person sends a prompt, not while you work or sit idle.
 8. ESCALATE hard calls instead of deciding them: changes to a shared contract (steward/models.py, intent.py, spec.py),
    verdict rules or thresholds, a conflict between two owners, cutting or adding a feature, anything the build plan doesn't cover.
-   `tools/coord.py say gajus "ESCALATE: <decision>. Options: A ..., B .... I recommend A because ..." --kind question`,
-   tell your person, and work on something else until the answer arrives. Gajus decides (with his architect chat) and
+   `tools/coord.py say donatas "ESCALATE: <decision>. Options: A ..., B .... I recommend A because ..." --kind question`,
+   tell your person, and work on something else until the answer arrives. Donatas decides (team lead since Sun 01:50, handoff from Gajus: docs/HANDOFF_GAJUS.md) and
    records it in NOTES.md; the answer comes back with `--re <id>`.
 
 ## Commands

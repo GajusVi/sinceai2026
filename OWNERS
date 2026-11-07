@@ -4,11 +4,11 @@
 # override (puts their own name back) and takes the file over. Decided by Gajus as lead; logged in NOTES.md.
 # The pre-commit hook (.githooks/pre-commit) refuses commits that touch someone else's files.
 backend/llm.py          margiris
-eval/eval.py            gajus   (TEMP: delete only, Margiris OK 1108)
-eval/holdout.jsonl      gajus   (TEMP: delete only, Margiris OK 1108)
+eval/eval.py            donatas   (from Gajus, handoff 1108) (TEMP: delete only, Margiris OK 1108)
+eval/holdout.jsonl      donatas   (from Gajus, handoff 1108) (TEMP: delete only, Margiris OK 1108)
 eval/                   margiris
 data/                   martynas
-frontend/               gajus   (design + AI blocks; Donatas OK 1107-094359, he keeps demo/, submission/, render.py, pitch)
+frontend/               donatas   (from Gajus, handoff 1108)
 frontend/steward.css    donatas   (T2.6 UX design, Gajus OK 1107-210507)
 frontend/ui.py          donatas   (T2.6 UX design, Gajus OK 1107-210507)
 frontend/static/fonts/GeistMono-Regular.ttf donatas   (Gajus OK 1107-230254)
@@ -17,39 +17,39 @@ frontend/static/fonts/GeistMono-OFL.txt donatas   (Gajus OK 1107-230254)
 .streamlit/config.toml  donatas   ([theme] only; Gajus OK 1107-230254)
 app/shell/              donatas   (T2.6 login + loader design; Gajus wires app/main.py)
 steward/models.py       martynas
-steward/spec.py         gajus
-steward/intent.py       gajus
-steward/datapack.py     gajus
-steward/requests.py     gajus
+steward/spec.py         donatas   (from Gajus, handoff 1108)
+steward/intent.py       donatas   (from Gajus, handoff 1108)
+steward/datapack.py     donatas   (from Gajus, handoff 1108)
+steward/requests.py     donatas   (from Gajus, handoff 1108)
 steward/llm.py          margiris
 steward/query_parser.py margiris
 steward/linking.py      margiris
 steward/decision/       margiris
 steward/search/         margiris
 steward/health.py       margiris
-prompts/interview.yaml  gajus
+prompts/interview.yaml  donatas   (from Gajus, handoff 1108)
 prompts/                margiris
-prompts/layout.yaml     gajus
+prompts/layout.yaml     donatas   (from Gajus, handoff 1108)
 steward/catalog.py      martynas
-steward/semantic.py     gajus
+steward/semantic.py     donatas   (from Gajus, handoff 1108)
 steward/pbip.py         martynas
 steward/pbip_server.py  martynas
 steward/estate_view.py  martynas
 templates/pbip/         martynas
-steward/specbuild.py    donatas   (TEMP until submission, owner gajus: OVERVIEW, Gajus OK 1108-011104)
-steward/layout.py       donatas   (TEMP until submission, owner gajus: OVERVIEW, Gajus OK 1108-011104)
-steward/investigate.py  gajus
-prompts/investigate.yaml gajus
-steward/takeaway.py     gajus
-prompts/takeaway.yaml   gajus
-tools/compare_modes.py  gajus
-prompts/to_spec.yaml    gajus
-prompts/worker_suggest.yaml gajus
-steward/auth.py         gajus
-steward/worker.py       gajus
-steward/departments.py  gajus
-prompts/departments.yaml gajus
-tools/make_large_pack.py gajus
+steward/specbuild.py    donatas   (from Gajus, handoff 1108)
+steward/layout.py       donatas   (from Gajus, handoff 1108)
+steward/investigate.py  donatas   (from Gajus, handoff 1108)
+prompts/investigate.yaml donatas   (from Gajus, handoff 1108)
+steward/takeaway.py     donatas   (from Gajus, handoff 1108)
+prompts/takeaway.yaml   donatas   (from Gajus, handoff 1108)
+tools/compare_modes.py  donatas   (from Gajus, handoff 1108)
+prompts/to_spec.yaml    donatas   (from Gajus, handoff 1108)
+prompts/worker_suggest.yaml donatas   (from Gajus, handoff 1108)
+steward/auth.py         donatas   (from Gajus, handoff 1108)
+steward/worker.py       donatas   (from Gajus, handoff 1108)
+steward/departments.py  donatas   (from Gajus, handoff 1108)
+prompts/departments.yaml donatas   (from Gajus, handoff 1108)
+tools/make_large_pack.py donatas   (from Gajus, handoff 1108)
 steward/lint.py         donatas   (TEMP until submission, owner margiris: OVERVIEW FOCUS/DATA, OK 1108-011108)
 steward/render.py       donatas
 steward/governance.py   donatas   (T1.6, Gajus OK 1107-194200)
@@ -58,15 +58,15 @@ catalog/bayer/measures.json martynas
 catalog/                martynas
 demo/                   donatas
 submission/             donatas
-README.md               gajus
-backend/config.py       gajus
-requirements.in         gajus
-requirements-extras.in  gajus
-Makefile                gajus
-run.ps1                 gajus
-setup_mac.sh            gajus
-setup_windows.ps1       gajus
+README.md               donatas   (from Gajus, handoff 1108)
+backend/config.py       donatas   (from Gajus, handoff 1108)
+requirements.in         donatas   (from Gajus, handoff 1108)
+requirements-extras.in  donatas   (from Gajus, handoff 1108)
+Makefile                donatas   (from Gajus, handoff 1108)
+run.ps1                 donatas   (from Gajus, handoff 1108)
+setup_mac.sh            donatas   (from Gajus, handoff 1108)
+setup_windows.ps1       donatas   (from Gajus, handoff 1108)
 data/build_bayer_dictionaries.py martynas
 catalog/bayer/dimensions.json martynas
 tests/bi_steward/test_overview.py donatas
-frontend/steward_app.py gajus   (OVERVIEW if-branch by Donatas in fe0dd19, Gajus OK 1108-011104)
+frontend/steward_app.py donatas   (from Gajus, handoff 1108)
