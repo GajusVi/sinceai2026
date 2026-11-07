@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from steward import Steward
+from steward import Steward, semantic
 from steward.config import Settings
 from steward.intent import Intent
 from steward.models import Verdict
@@ -73,6 +73,9 @@ def test_create_picks_a_governed_power_bi_model_with_its_owner(steward):
     chosen = best_model(Intent(products=["Hyrnuo"], markets=["CN"]))
     assert chosen["endorsement"] in ("certified", "promoted") and chosen["refresh_status"] == "healthy"
     assert spec.source_model_id == chosen["model_id"] and spec.owner_id == chosen["owner_id"]
+    assert semantic.owner_info(spec.owner_id)["status"] == "active"  # RULE-003 would block an inactive default owner
+    assert chosen["product_scope"] in ("Hyrnuo", "All Pharma")  # product scope outranks region: no APAC model fits
+    assert not [r for r in spec.lint if r.status == "block"]
     assert [c.kind for c in spec.changes] == ["assign_owner"]
     check_layout(spec)
 

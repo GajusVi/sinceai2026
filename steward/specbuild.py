@@ -13,6 +13,7 @@ from functools import lru_cache
 
 import pandas as pd
 
+from . import semantic
 from .catalog import Catalog
 from .datapack import ALL_PHARMA, DEFAULT_XLSX, GLOBAL
 from .intent import Intent
@@ -340,7 +341,8 @@ def _models() -> pd.DataFrame:
 
 
 def best_model(intent: Intent) -> dict:
-    """Power BI, certified or promoted, healthy; then product scope match, region match, certified, AI-readiness."""
+    """Power BI, certified or promoted, refresh healthy, ACTIVE owner (RULE-003 would block otherwise); then product
+    scope match, region match, certified, AI-readiness."""
     models = _models()
     ok = models[
         (models.model_type == "Power BI semantic model")
@@ -349,11 +351,16 @@ def best_model(intent: Intent) -> dict:
     ].copy()
     names = [p for p in intent.products if p != ALL_PHARMA]
     wants_global = GLOBAL in intent.markets or (not intent.markets and not intent.regions)
+    dim_market = semantic.load_frames()["dim_market"]
+    region_of = dict(zip(dim_market["market_id"], dim_market["region"], strict=True))
+    regions = set(intent.regions) | {region_of[m] for m in intent.markets if m in region_of}
 
     def rank(r) -> tuple:
+        owner_ok = 0 if semantic.owner_info(r.owner_id).get("status") == "active" else 1
         product = 0 if (names and r.product_scope in names) else (1 if r.product_scope == ALL_PHARMA else 2)
-        region = 0 if (wants_global and r.region_scope == GLOBAL) or r.region_scope in intent.regions else 1
+        region = 0 if (wants_global and r.region_scope == GLOBAL) or r.region_scope in regions else 1
         return (
+            owner_ok,
             product,
             region,
             0 if r.endorsement == "certified" else 1,
