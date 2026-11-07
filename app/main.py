@@ -177,7 +177,9 @@ def _selftest(window, api: Api, out_path: str) -> None:
     lines.append(f"workspace: {opened} after {time.time() - t0:.1f}s")
     text = js("document.body.innerText") or ""
     lines.append(f"signed in as Manager07: {'Manager07' in text}")
-    js("(()=>{const a=[...document.querySelectorAll('a')].find(a=>a.textContent.trim()==='Log out');a&&a.click()})()")
+    # The log-out link renders a moment after the page text (Martynas, Windows cold start): wait for it, then click.
+    wait(lambda: js("!!document.querySelector('a.bs-logout')"), 60)
+    js("(()=>{const a=document.querySelector('a.bs-logout');a&&a.click()})()")
     lines.append(f"log out: {wait(lambda: '/app/shell/login.html' in (window.get_current_url() or ''), 30)}")
     lines.append("RESULT: " + ("PASS" if all(l.endswith("True") or "True after" in l for l in lines) else "FAIL"))
     Path(out_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
