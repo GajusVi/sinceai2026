@@ -10,7 +10,7 @@ backend/ingest.py       martynas
 backend/models.py       martynas
 data/                   martynas
 frontend/               donatas
-steward/models.py       gajus TEMP (Martynas OK 1107-092758): Investigation fields, back to martynas next commit
+steward/models.py       martynas
 steward/spec.py         martynas
 steward/intent.py       gajus
 steward/datapack.py     gajus
