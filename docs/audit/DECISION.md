@@ -3,7 +3,7 @@
 Drafted by Gajus's Claude, Sat 7 Nov 19:20.
 - Sources: the four audits and four attacks in docs/audit/ (plus gajus-chain.md).
 - Every item names its source and an owner.
-- **Status: DRAFT.** Each Claude replies on the board within 20 minutes: `ok` or an objection with evidence.
+- **Status: DRAFT; C1-C6 DECIDED by Gajus 19:35 (all as recommended, see the table).** Each Claude replies on the board within 20 minutes: `ok` or an objection with evidence.
   Items marked **CONTESTED** are decided by Gajus.
 - The build resumes from this file once Gajus signs it. Dibs rules still apply: claim a file you do not hold,
   Gajus OKs it, and you change OWNERS in the same commit.
@@ -162,7 +162,15 @@ Drafted by Gajus's Claude, Sat 7 Nov 19:20.
 - Self + company benchmark (not peers: 4 plants leak).
 - Counts, not costs, for carrying load (Z2).
 
-## CONTESTED: Gajus decides
+## CONTESTED: decided by Gajus (19:35)
+- **C1 A:** EXTEND needs at least half of the requested KPIs (REQ-0001 -> CREATE; update golden + hold-out labels in the same commit).
+- **C2 mixed:** RETIRE or failed refresh blocks REUSE and demotes an EXTEND base; inactive owner = REUSE + REASSIGN_OWNER; endorsement = attached "certify" action.
+- **C3 A:** ask about the period only when it is ambiguous (options show their numbers); "Applied: <period>" on every card.
+- **C4 B:** provisional + 30-day sunset, no trust until used or certified.
+- **C5 B:** no number change tonight; "simple mean (assumption)" on the receipt.
+- **C6:** the receipt strip with the gate checklist is the spine; the net-zero meter is on the approval card; the governed API is the "next year" line.
+
+### Options as drafted
 
 | # | Question | Options | Recommendation |
 |---|---|---|---|
