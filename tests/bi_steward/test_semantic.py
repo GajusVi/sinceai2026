@@ -120,3 +120,8 @@ def test_site_filter_keeps_only_the_pairs_the_site_supplies():
     pairs = set(zip(supply.loc[supply.supply_source == "Plant-B", "product_id"],
                     supply.loc[supply.supply_source == "Plant-B", "market_id"], strict=True))
     assert set(zip(scoped.product_id, scoped.market_id, strict=True)) <= pairs
+
+
+def test_forecast_like_rows_are_reported_not_hidden(frames):
+    out = compute(measure("KPI-001"), frames)
+    assert any("forecast_like" in note and "used as actuals" in note for note in out.attrs["dq"])

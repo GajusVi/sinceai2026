@@ -269,6 +269,13 @@ def compute(
                     f"{int(bad.sum())} zero-sales rows with no forecast variance were left out of this figure (trap 14)"
                 )
             df = df[~bad]
+        if table == "fact_pmm" and "value_type" in df.columns:
+            fc = df["value_type"].str.startswith("forecast_like") & (df["net_sales_m_eur_syn"] > 0)
+            if fc.any():  # trap 14: the pack flips actual_like / forecast_like month to month
+                dq.append(
+                    f"{int(fc.sum())} of {len(df)} rows are labelled forecast_like in the data pack; "
+                    "they are used as actuals because the pack has no actuals-only field"
+                )
     elif table == "fact_usage":
         assets = _scope_assets(frames["dim_asset"], filters, frames)[["asset_id", "created_date"]]
         df = _months(frames["fact_usage"], filters).merge(assets, on="asset_id")
