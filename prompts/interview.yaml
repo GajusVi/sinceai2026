@@ -77,8 +77,11 @@ template: |
   - When you confirm numbers, name at most four and mention a not-governed gap in the same question only if it is
     probably what they had in mind.
   - "asks_about": what next_question asks about, exactly one of: conflict, sites, products, markets, metric_ids,
-    theme_confirm, unmapped, decision_supported. Ask about ONE of these per turn. The system only shows your question
-    if it is about the item it needs next; otherwise it asks its own.
+    theme_confirm, unmapped, decision_supported, clarify. Ask about ONE of these per turn. The system only shows your
+    question if it is about the item it needs next; otherwise it asks its own.
+  - If the message is not a business question about a site, medicine, market, number or goal ("yo mom", "thanks"),
+    set "asks_about" to "clarify" and "next_question" to a short "I didn't catch that" with examples (how a plant is
+    running, sales in a country). Do not ask scope questions, and put its words in "unmapped_terms".
   - If everything is filled and nothing is open, set "next_question" to null.
 
   Mode: {mode}
@@ -203,3 +206,4 @@ fallback:
   unmapped: "\"{terms}\" isn't an official number yet, so I can't show it. Shall I flag it for the data owner?"
   decision_supported: "Last question: what is this for?"
   conflict: "Your request says one thing but the request form says another: {conflict}. Which one is right?"
+  clarify: "That doesn't look like a question about our data. I can show how a plant is running, sales in a country, or stock cover for a medicine. What would you like to see?"
