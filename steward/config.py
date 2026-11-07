@@ -90,7 +90,8 @@ STOPWORDS = frozenset(
     something anything thing things interesting
     trial logistic logistics footprint
     power bi tableau legacy replacement workbook commercial finance executive comparing combining one
-    globally net bayer pharma indicator indicators coverage status progress launch
+    actually just good really quickly basically maybe also simply very quite only still so well some number numbers
+    worldwide globally net bayer pharma indicator indicators coverage status progress launch
     """.split()
 )
 

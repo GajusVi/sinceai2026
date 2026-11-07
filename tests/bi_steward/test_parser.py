@@ -70,3 +70,11 @@ def test_ambiguous_phrase_is_not_linked_to_a_metric(steward):
     assert parsed.metrics == []
     assert "first sales" in parsed.unmapped_terms
     assert decision.verdict.value == "CLARIFY"
+
+
+def test_filler_words_do_not_force_clarify_and_worldwide_means_global(steward):
+    parsed = RuleBasedParser(steward.catalog).parse("Actually just net revenue by region, really quickly please")
+    assert parsed.unmapped_terms == []
+    from steward.linking import asks_global
+
+    assert asks_global("Net sales for Kerendia worldwide") and asks_global("globally") and not asks_global("Net sales in Germany")

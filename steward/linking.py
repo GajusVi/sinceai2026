@@ -48,7 +48,7 @@ def find_terms(text: str, catalog: Catalog) -> list[TermMatch]:
 
 
 GLOBAL_SCOPE = "Global"
-_GLOBAL = re.compile(r"(?<!\w)global(?:ly)?(?!\w)")
+_GLOBAL = re.compile(r"(?<!\w)(?:global(?:ly)?|worldwide)(?!\w)")
 
 
 def asks_global(text: str) -> bool:
