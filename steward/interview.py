@@ -22,6 +22,7 @@ from .query_parser import RuleBasedParser
 logger = logging.getLogger(__name__)
 
 ALL_PHARMA = "All Pharma"
+_HANDLED_WORDS = {"worldwide", "world", "global", "globally", "all", "portfolio", "whole", "everything"}
 GLOBAL = "Global"
 
 
@@ -31,6 +32,7 @@ class InterviewState:
     turns: list[tuple[str, str]] = field(default_factory=list)  # ("user" | "assistant", text)
     questions_asked: int = 0
     question: str | None = None  # the pending question; None = the interview is finished
+    decision_replies: set[int] = field(default_factory=set)  # turn indexes that answer the decision question
     last_asked: str = ""  # conflict | products | markets | metric_ids | decision_supported
 
     @property
@@ -65,6 +67,8 @@ class Interviewer:
         state.question = self._pending_question or self._fallback_question(intent, state.last_asked)
         state.questions_asked += 1
         state.turns.append(("assistant", state.question))
+        if state.last_asked == "decision_supported":
+            state.decision_replies.add(len(state.turns))  # the next turn is the user's answer
         return state
 
     _pending_question: str | None = None
@@ -136,9 +140,15 @@ class Interviewer:
     def _rules_intent(self, state: InterviewState) -> Intent:
         """No LLM: re-parse everything the user has said, and read a reply to a decision question as the decision."""
         prev = state.intent
-        user_text = " ".join(text for who, text in state.turns if who == "user")
+        replies = self._scope_replies(state)
+        user_text = " ".join(replies)
         last_reply = state.turns[-1][1].lower()
-        parsed = RuleBasedParser(self.catalog).parse(user_text)
+        parser = RuleBasedParser(self.catalog)
+        parsed = parser.parse(user_text)
+        unmapped: list[str] = []
+        for reply in replies:  # a later reply that names a metric restates the request: earlier unknown words go
+            part = parser.parse(reply)
+            unmapped = part.unmapped_terms if part.metrics else unmapped + part.unmapped_terms
         intent = prev.model_copy(deep=True)
         confidence = dict(prev.confidence)
 
@@ -154,7 +164,7 @@ class Interviewer:
             intent.regions = [parsed.filters["region"]]
         if parsed.metrics:
             intent.metric_ids = list(parsed.metrics)
-        intent.unmapped_terms = list(parsed.unmapped_terms)
+        intent.unmapped_terms = [t for t in dict.fromkeys(unmapped) if t.lower() not in _HANDLED_WORDS]
         if state.last_asked == "decision_supported" and state.turns[-1][0] == "user":
             intent.decision_supported = state.turns[-1][1]
         if state.last_asked == "conflict":
@@ -168,6 +178,10 @@ class Interviewer:
                 confidence[name] = max(confidence.get(name, 0.0), 0.9)
         intent.confidence = confidence
         return intent
+
+    def _scope_replies(self, state: InterviewState) -> list[str]:
+        """The user's replies that describe the request. The answer to the decision question is prose, not a request."""
+        return [text for i, (who, text) in enumerate(state.turns) if who == "user" and i not in state.decision_replies]
 
     def _first_open(self, intent: Intent) -> str:
         if intent.conflicts:
