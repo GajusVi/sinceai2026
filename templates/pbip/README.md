@@ -24,3 +24,16 @@ Desktop installed on Martynas's machine: **2.159.1231.0 (26.10)** (read from PBI
   turn auto date/time off in generated models, or write them fresh.
 - The CSV partition stores an ABSOLUTE path (`C:\Users\...\sample_sales.csv`). Generated projects must use their own relative/import data, never this path.
 - `.pbi/cache.abf` and `localSettings.json` are ignored by git.
+
+## Title and subtitle (saved by Desktop 2.159, 7 Nov 18:2x; M4 title/subtitle builds on this)
+Card `visual.json`, inside `visual` (NOT inside `objects`), a sibling of `query`:
+```json
+"visualContainerObjects": {
+  "title":    [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}},
+                               "text": {"expr": {"Literal": {"Value": "'Net sales card'"}}}}}],
+  "subTitle": [{"properties": {"text": {"expr": {"Literal": {"Value": "'How much did we sell?'"}}}}}]
+}
+```
+- Text is a DAX string literal in single quotes (`'...'`; an apostrophe inside is doubled `''`). `title` carries `show`; `subTitle` has only `text`.
+- Desktop also wrote a visual-level `filterConfig` (type `Advanced`) for the card's field. Not needed in generated files.
+- Opening the Filters pane only changed `report.json` (`outspacePane.expanded`); no page filter has been saved yet, so the page-filter format is still unverified.
