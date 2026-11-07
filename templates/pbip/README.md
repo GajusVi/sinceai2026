@@ -5,8 +5,7 @@ Never hand-write PBIR from memory (BUILD_PLAN M3). `steward/pbip.py` copies thes
 Desktop installed on Martynas's machine: **2.159.1231.0 (26.10)** (read from PBIDesktop.exe; confirm after saving).
 
 ## To save (M3, needs a person at Desktop, about 30 min)
-1. File > Options and settings > Options > Preview features: enable **Power BI Project (.pbip) save option**,
-   **Store semantic model using TMDL format**, **Store reports using enhanced metadata format (PBIR)**. Restart Desktop.
+1. No preview toggles needed (TMDL and PBIR are regular features in this Desktop version). Use File > Save as > "Power BI project files (*.pbip)".
 2. `empty/`: new blank report, Save as ... type "Power BI project files (*.pbip)" to `templates/pbip/empty/empty.pbip`.
 3. `one_of_each/`: Get data > Text/CSV > `templates/pbip/source/sample_sales.csv` (60 rows: Nubeqa, Kerendia x Germany, US, France).
    Change `month` to Date. On one page add exactly: one **Card** (Sum of net_sales_m_eur_syn), one **Line chart**
