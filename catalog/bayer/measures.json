@@ -28,7 +28,7 @@
     "grain": "month",
     "exclude_zero_rows": false,
     "source": "derived",
-    "dax": "DIVIDE(SUM(fact_pmm[net_sales_m_eur_syn]) - CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), DATEADD(dim_month[month], -1, MONTH)), CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), DATEADD(dim_month[month], -1, MONTH)))",
+    "dax": "DIVIDE(SUM(fact_pmm[net_sales_m_eur_syn]) - CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), FILTER(ALL(dim_month[month]), dim_month[month] = EDATE(MAX(dim_month[month]), -1))), CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), FILTER(ALL(dim_month[month]), dim_month[month] = EDATE(MAX(dim_month[month]), -1))))",
     "format": "0.0%",
     "feasible": true,
     "gap_reason": ""
@@ -96,7 +96,7 @@
     "grain": "month",
     "exclude_zero_rows": true,
     "source": "fact_pmm.inventory_weeks_syn",
-    "dax": "AVERAGE(fact_pmm[inventory_weeks_syn])",
+    "dax": "CALCULATE(AVERAGE(fact_pmm[inventory_weeks_syn]), fact_pmm[net_sales_m_eur_syn] > 0)",
     "format": "0.0 weeks",
     "feasible": true,
     "gap_reason": ""
@@ -113,7 +113,7 @@
     "grain": "month",
     "exclude_zero_rows": true,
     "source": "fact_pmm.otif_pct_syn",
-    "dax": "AVERAGE(fact_pmm[otif_pct_syn])",
+    "dax": "CALCULATE(AVERAGE(fact_pmm[otif_pct_syn]), fact_pmm[net_sales_m_eur_syn] > 0)",
     "format": "0.0",
     "feasible": true,
     "gap_reason": ""
@@ -147,7 +147,7 @@
     "grain": "month",
     "exclude_zero_rows": true,
     "source": "fact_pmm.market_access_coverage_pct_syn",
-    "dax": "AVERAGE(fact_pmm[market_access_coverage_pct_syn])",
+    "dax": "CALCULATE(AVERAGE(fact_pmm[market_access_coverage_pct_syn]), fact_pmm[net_sales_m_eur_syn] > 0)",
     "format": "0.0",
     "feasible": true,
     "gap_reason": ""
