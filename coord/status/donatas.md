@@ -1,6 +1,6 @@
 # donatas
-updated: 2026-11-08 01:19
-now: OVERVIEW dashboards: render+ui pushed (4de1699); waiting for owner OKs
-done: day/night widgets de58080; OVERVIEW render 4de1699
-next: spec fields -> specbuild OVERVIEW -> layout -> lint -> pbip, after OKs; final warm before 05:00
-blocked: OKs on asks 1108-011100 (Martynas), 1108-011104 (Gajus), 1108-011108 (Margiris)
+updated: 2026-11-08 01:50
+now: OVERVIEW live (fe0dd19): Plant-B overview for management/builder; template elsewhere
+done: OVERVIEW lint 4a80529; OVERVIEW build+UI fe0dd19; render 4de1699
+next: spec.py fields after Gajus OK; layout LLM ordering for OVERVIEW only if time; final warm before 05:00
+blocked: Gajus OK on steward/spec.py; Gajus .app self-test by 04:00
