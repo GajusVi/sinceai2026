@@ -26,7 +26,6 @@ For [user], takes [input], returns [output], so they can [benefit].
 ## Requests (change needed in someone else's file: who asks, owner, what)
 - Martynas -> Margiris (steward/linking.py): "first sales" must CLARIFY, but the stem "sales" (net_sales synonym) matches inside it. Add a phrase blocklist/longest-match guard for ambiguous phrases (first sales, forecast, coverage, performance, readiness).
 - Gajus → Martynas: catalog.py split for the data-pack path, OK'd by Martynas, committed.
-- Margiris -> Martynas (steward/models.py): add `kpi_id: str = ""` and `variants: list[{kpi_id, kpi_name, definition_status, approval_status, owner_id}] = []` to MetricDefinition (catalog/bayer/metrics.json already has them). Until then steward/linking.py `kpi_index()` reads the JSON directly; I will switch to the fields once they exist.
 - Gajus → Margiris: (1) L5 NOT_FEASIBLE: tests/bi_steward/golden_datapack.json has 'batch yield' as a known_gap (xfail); remove the key when it works. (2) Rules parser flags ordinary words as unmapped (finance, comparing, performance, status, Power BI, Tableau, workbook, replacement), so 5 of the 6 request templates I tried answer CLARIFY (not run on all 150 yet). Needs a stopword/phrase list, or the LLM parser, before the hold-out (D5).
 
 ## Decisions
