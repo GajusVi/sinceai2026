@@ -1,0 +1,1 @@
+Source: https://github.com/google-labs-code/design.md (Apache-2.0), commit 1ed38aa9dd4451b9039f9aeb9ed1d2579edafddf Fri Nov 6 06:01:51 2026 -0500

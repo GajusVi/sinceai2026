@@ -29,7 +29,9 @@ KPI disambiguation card: canonical vs variants (status, owner), canonical presel
 - EXTEND: elements added by `spec.changes` get a "new" badge and a highlight; CONSOLIDATE shows the retire list.
 - Lint panel: pass / warn / block per rule with its message; any block disables approve and says why.
 - Gap cards stay grey with the reason, never a number. Footer on every page.
-- Design: our palette, no default Streamlit look where it hurts; consistent number formats (EUR m, %, weeks).
+- Design: write a `DESIGN.md` at the repo root first (format: docs/vendor/design-md/spec.md, Google's DESIGN.md spec, examples next to it;
+  check it with `npx @google/design.md lint DESIGN.md` if Node is installed), then apply it: our palette, no default Streamlit look where
+  it hurts, consistent number formats (EUR m, %, weeks). 70+ real-brand examples: Gajus's Hackathon Resources/design-repos/awesome-design-md.
 Test: the fixture `tests/bi_steward/fixtures/spec_req0001.json` renders; a gap measure renders as a gap card.
 
 ## R3 (15:00-21:00, P1)
