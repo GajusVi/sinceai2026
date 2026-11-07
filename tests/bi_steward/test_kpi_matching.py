@@ -131,3 +131,13 @@ def test_tableau_is_never_reused_it_is_extended_with_migrate_flag(pack):
     assert decision.verdict.value == "EXTEND" and decision.best.artifact.id == "AST-0019"
     assert "MIGRATE" in decision.flags
     assert any(e.rule_id == "RULE-006" for e in decision.evidence)
+
+
+def test_trust_is_rounded_so_float_noise_cannot_flip_the_reuse_threshold(pack):
+    from steward.config import REUSE_MIN_TRUST
+    from steward.decision.signals import trust
+
+    value = trust(pack.catalog.artifact("AST-0191"), AS_OF)  # .20 + .25 + .15 sums to 0.6000000000000001 in floats
+    assert value == round(value, 2) == 0.6
+    assert value >= REUSE_MIN_TRUST
+    assert all(trust(a, AS_OF) == round(trust(a, AS_OF), 2) for a in pack.catalog.active_artifacts())
