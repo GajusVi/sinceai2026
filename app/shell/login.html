@@ -34,11 +34,12 @@
          -webkit-font-smoothing: antialiased; user-select: none; }
 
   /* ---- left: the login ---------------------------------------------------------------------------------- */
-  .left { flex: 0 0 400px; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; padding: 44px 44px 28px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: .01em; }
-  .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); position: relative; }
-  .mark::after { content: ""; position: absolute; inset: 6px; border-radius: 2px; background: var(--ground); }
-  h1 { font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
+  .left { flex: 0 0 400px; position: relative; border-right: 1px solid var(--line); display: flex; flex-direction: column;
+          justify-content: center; gap: 36px; padding: 44px; }
+  .brand { display: flex; align-items: center; gap: 14px; font-weight: 700; font-size: 28px; letter-spacing: -.01em; }
+  .mark { width: 42px; height: 42px; border-radius: 10px; background: var(--accent); position: relative; flex: none; }
+  .mark::after { content: ""; position: absolute; inset: 11px; border-radius: 4px; background: var(--ground); }
+  h1 { font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; margin: 0 0 24px; }
   .sub { color: var(--muted); font-size: 14px; line-height: 1.45; margin-bottom: 28px; }
   label { display: block; font: 11px var(--mono); text-transform: uppercase; color: var(--muted); margin: 0 0 6px; letter-spacing: .08em; }
   input { width: 100%; font: 14px var(--sans); color: var(--ink); background: var(--fill); border: 1px solid var(--line);
@@ -87,7 +88,6 @@
 
     <div>
       <h1>Build less.<br>Build better.</h1>
-      <p class="sub">Governed analytics for Bayer Pharma. Every number traces to a governed KPI and a named owner.</p>
 
       <form id="form" autocomplete="off" onsubmit="return false">
         <label for="user">Username</label>
