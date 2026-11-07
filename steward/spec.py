@@ -35,6 +35,8 @@ class Visual(BaseModel):
     purpose: str = ""  # the decision it supports, one line
     comparison: str | None = None  # what it is shown against: "forecast" | "prior_month" | a Measure.name
     threshold: float | None = None  # for exception tables and colouring
+    step: int = 0  # reading order on the page, 1 = the answer; 0 = not set (layout.py, Margiris)
+    question: str = ""  # the question this visual answers, in plain words; becomes its title in the .PBIP
 
 
 class Page(BaseModel):
