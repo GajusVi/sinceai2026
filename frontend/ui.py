@@ -1,8 +1,8 @@
 """BI Steward design system for Streamlit: tokens and small HTML components (docs/steward/DESIGN.md).
 
-Concept "the ruling": every request ends in one governed decision, typeset calmly. The look lives in
-frontend/steward.css (injected once). Verdict colours appear only on the verdict; everything else is ink, grey and
-one accent for primary actions. Every string that comes from data is escaped.
+Dark, dense, one surface with the login globe: zinc panels, 1 px lines, mono for numbers and ids. The look lives in
+frontend/steward.css (injected once); these tokens mirror it and .streamlit/config.toml. Verdict colours appear only on
+the verdict and are tuned for the dark panel (contrast >= 4.5:1 on #111114). Every string from data is escaped.
 """
 
 from __future__ import annotations
@@ -12,13 +12,16 @@ from pathlib import Path
 
 import streamlit as st
 
-INK, ACCENT, MUTED, SURFACE = "#111111", "#1a4be0", "#6b6b6b", "#f4f4f4"
-GOOD, WARN, BAD, INFO = "#15803d", "#b45309", "#b91c1c", "#1a4be0"
+BG, PANEL, RAISED, LINE = "#09090b", "#111114", "#18181b", "#27272a"
+INK, MUTED, FAINT = "#fafafa", "#a1a1aa", "#71717a"
+ACCENT, FOCUS, ACCENT_TEXT = "#1a4be0", "#3b6bff", "#6b8cff"  # fill / focus ring / accent as text (#3b6bff is 4.25:1)
+SURFACE = RAISED
+GOOD, WARN, BAD, INFO = "#4ade80", "#fbbf24", "#f87171", "#6b8cff"
 
 # The verdict word and its colour (spec.change_type MIGRATE / RESCUE override the verdict's word).
 VERDICT_COLOUR = {
     "REUSE": GOOD,
-    "EXTEND": ACCENT,
+    "EXTEND": ACCENT_TEXT,
     "CONSOLIDATE": WARN,
     "MIGRATE": WARN,
     "CREATE": INK,
@@ -53,9 +56,12 @@ def ask_hero(question: str) -> None:
 
 
 def message(role: str, text: str, new: bool = False, counter: str = "") -> str:
+    """One conversation row: a small mono speaker label, then the text (rows join into one panel in steward.css)."""
     who = "me" if role == "user" else "ai"
+    label = "You" if role == "user" else "Steward"
     count = f'<div class="bs-count">{escape(counter)}</div>' if counter else ""
-    return f'<div class="bs-msg {who}{" new" if new else ""}">{count}{escape(text)}</div>'
+    return (f'<div class="bs-msg {who}{" new" if new else ""}"><span class="who">{label}</span>'
+            f'<div class="t">{count}{escape(text)}</div></div>')
 
 
 def typing(label: str = "Thinking") -> str:
@@ -74,7 +80,8 @@ def ruling(headline: str, word: str, reason: str, ids: list[str] | None = None) 
     tail = f" {chips(ids)}" if ids else ""
     html(
         f'<div class="bs-ruling"><h1 class="bs-headline">{escape(headline)}</h1>'
-        f'<div class="bs-verdict"><span class="w" style="color:{colour}">{escape(word.replace("_", " "))}</span>'
+        f'<div class="bs-verdict" style="border-left-color:{colour}">'
+        f'<span class="w" style="color:{colour}">{escape(word.replace("_", " "))}</span>'
         f'<span class="r">{escape(reason)}</span>{tail}</div></div>'
     )
 
@@ -88,8 +95,11 @@ def why(sentences: list[str]) -> None:
 
 
 def kpi_card(title: str, value: str, delta: str = "", tone: str = "neutral", note: str = "") -> str:
+    """Tremor-like card. The arrow follows the sign of the delta; the colour follows the tone that render.py set
+    (good / bad), so a falling number is only red when it is bad for the business; neutral stays grey."""
     colour = TONE.get(tone, MUTED)
-    delta_html = f'<div class="bs-kpi-delta" style="color:{colour}">{escape(delta)}</div>' if delta else ""
+    arrow = {"+": "\u25b2 ", "-": "\u25bc ", "\u2212": "\u25bc "}.get(delta.strip()[:1], "") if delta else ""
+    delta_html = f'<div class="bs-kpi-delta" style="color:{colour}">{arrow}{escape(delta)}</div>' if delta else ""
     note_html = f'<div class="bs-muted" style="margin-top:0.3rem">{escape(note)}</div>' if note else ""
     return (
         f'<div class="bs-card"><div class="bs-kpi-label">{escape(title)}</div>'

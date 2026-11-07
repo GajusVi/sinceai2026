@@ -1,133 +1,212 @@
-/* BI Steward: "the ruling". One stylesheet, injected once by frontend/ui.py (docs/steward/DESIGN.md).
-   Taste skill: palette white-link-blue (library/palettes.json), type Instrument Sans (library/type.json, self-hosted),
-   flat fills only, no borders, shadows, gradients or emoji. Verdict colours appear only on the verdict.
-   Motion (design-motion-principles, Emil lens): new message 150ms rise, verdict 200ms fade, button press; nothing else,
-   and nothing under prefers-reduced-motion. Contrast: every text colour >= 4.5:1 on --bg and --surface. */
+/* BI Steward: dark, dense, one surface with the login globe (docs/steward/DESIGN.md). One stylesheet, injected once by
+   frontend/ui.py. Tokens are mirrored in frontend/ui.py and .streamlit/config.toml: change all three together.
+   Reference for the look only (no code): shadcn/ui dark zinc, Tremor KPI cards, Palantir Blueprint density.
+   Contrast (checked): text #FAFAFA 18:1 and #A1A1AA 7.4:1 on the panel; #71717A (3.9:1) only for decoration.
+   Verdicts on #111114: REUSE #4ADE80 10.8, EXTEND #6B8CFF 6.1, amber #FBBF24 11.3, RESCUE #F87171 6.8, grey 7.4,
+   CREATE #FAFAFA 18. #3B6BFF (4.25:1) is a focus/border colour, never body text. */
 :root {
-  --bg: #ffffff; --surface: #f4f4f4; --surface-2: #ebebeb; --ink: #111111; --muted: #6b6b6b; --accent: #1a4be0;
-  --reuse: #15803d; --extend: #1a4be0; --amber: #b45309; --create: #111111; --rescue: #b91c1c;
+  --bg: #09090b; --panel: #111114; --raised: #18181b; --line: #27272a;
+  --ink: #fafafa; --muted: #a1a1aa; --faint: #71717a;
+  --accent: #1a4be0; --focus: #3b6bff; --accent-text: #6b8cff;
+  --reuse: #4ade80; --extend: #6b8cff; --amber: #fbbf24; --create: #fafafa; --rescue: #f87171; --grey: #a1a1aa;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 6px;
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-/* Frame: wide, generous margins, content about 1200px at 1440. */
-.block-container { padding-top: 3.2rem; padding-bottom: 4rem; max-width: 1200px; }
+/* ---- frame: dense, wide ---------------------------------------------------------------------------------------- */
+.stApp { background: var(--bg); }
+.block-container { padding-top: 1.1rem; padding-bottom: 2rem; max-width: 1360px; }
 [data-testid="stDecoration"] { display: none; }
-h1, h2, h3, h4, h5 { letter-spacing: -0.028em; color: var(--ink); }
+[data-testid="stVerticalBlock"] { gap: 0.55rem; }
+h1, h2, h3, h4, h5 { letter-spacing: -0.02em; color: var(--ink); }
+h1 { font-size: 1.75rem; } h2 { font-size: 1.4rem; } h3 { font-size: 1.15rem; } h4 { font-size: 1rem; }
 [data-testid="stCaptionContainer"], .bs-muted { color: var(--muted); }
 .bs-muted { font-size: 0.85rem; }
-.bs-num, .bs-kpi-value, .bs-kpi-delta, .bs-big b, [data-testid="stMetricValue"] { font-variant-numeric: tabular-nums; }
+.bs-num, .bs-kpi-value, .bs-kpi-delta, .bs-big b, .bs-tl time, [data-testid="stMetricValue"] {
+  font-family: var(--mono); font-variant-numeric: tabular-nums; }
+hr { border-color: var(--line) !important; margin: 0.6rem 0 !important; }
 
-/* Empty state: one large question. */
-.bs-ask { padding: 9vh 0 1.4rem 0; }
-.bs-ask h1 { font-size: clamp(2.2rem, 4.4vw, 3.4rem); font-weight: 600; line-height: 1.05; margin: 0; padding: 0; }
+/* ---- sidebar: panel, 1 px edge, tight nav, mono section labels ------------------------------------------------- */
+[data-testid="stSidebar"] { background: var(--panel); border-right: 1px solid var(--line); }
+[data-testid="stSidebar"] [data-testid="stSidebarContent"] { padding-top: 0.4rem; }
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.35rem; }
+[data-testid="stSidebar"] h4 { font-size: 0.95rem; margin: 0.2rem 0 0.4rem 0; }
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] { font-size: 0.78rem; line-height: 1.45; }
+[data-testid="stSidebar"] hr { margin: 0.4rem 0 !important; }
+/* nav rail (Gajus: st.radio key 'nav' inside container 'bs-rail'): rows, no radio dots, active row raised */
+.st-key-bs-rail [role="radiogroup"] { gap: 1px; width: 100%; }
+.st-key-bs-rail [role="radiogroup"] > div { width: 100%; }
+.st-key-bs-rail [data-testid="stRadioOption"] { width: 100%; margin: 0; padding: 0.36rem 0.6rem;
+  border-radius: var(--radius); border-left: 2px solid transparent; cursor: pointer;
+  transition: background-color 120ms var(--ease); }
+.st-key-bs-rail [data-testid="stRadioOption"]:hover { background: var(--raised); }
+.st-key-bs-rail [data-testid="stRadioOption"] > div > div:not([data-testid="stMarkdownContainer"]) { display: none; }
+.st-key-bs-rail [data-testid="stRadioOption"] p { font-size: 0.9rem; color: var(--muted); }
+.st-key-bs-rail [data-testid="stRadioOption"][data-selected="true"] { background: var(--raised); border-left-color: var(--focus); }
+.st-key-bs-rail [data-testid="stRadioOption"][data-selected="true"] p { color: var(--ink); font-weight: 600; }
+/* example questions: compact, left-aligned rows */
+[data-testid="stSidebar"] div[data-testid="stButton"] button { justify-content: flex-start; text-align: left;
+  min-height: 0; padding: 0.4rem 0.6rem; font-size: 0.82rem; line-height: 1.35; }
+[data-testid="stSidebar"] div[data-testid="stButton"] button > div { width: 100%; justify-content: flex-start; }
+[data-testid="stSidebar"] div[data-testid="stButton"] button [data-testid="stMarkdownContainer"] { width: 100%; }
+[data-testid="stSidebar"] div[data-testid="stButton"] button p { text-align: left; }
+[data-testid="stSidebarHeader"] { height: 0.6rem; min-height: 0; padding: 0; overflow: hidden; }
+.bs-logout { font-size: 0.82rem; color: var(--accent-text) !important; text-decoration: none; }
 
-/* Flat pills: example chips and interview answers (st.container keys bs-examples / bs-options). */
+/* ---- top bar (Gajus: container 'bs-topbar') --------------------------------------------------------------------- */
+.st-key-bs-topbar { align-items: baseline; gap: 1rem; padding: 0 0 0.55rem 0; margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--line); }
+.st-key-bs-topbar p { margin: 0; }
+.st-key-bs-topbar [data-testid="stCaptionContainer"] { font-family: var(--mono); font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+/* ---- small mono labels ------------------------------------------------------------------------------------------ */
+.bs-section { font-family: var(--mono); font-size: 0.7rem; font-weight: 500; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); margin: 1rem 0 0.35rem 0; }
+.bs-chip { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); background: var(--raised);
+  border: 1px solid var(--line); border-radius: 4px; padding: 0.02rem 0.35rem; margin-right: 0.25rem; white-space: nowrap; }
+.bs-badge { font-family: var(--mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.04em; }
+.bs-dot { width: 0.45rem; height: 0.45rem; border-radius: 999px; display: inline-block; flex: none; }
+
+/* ---- empty state ------------------------------------------------------------------------------------------------ */
+.bs-ask { padding: 7vh 0 0.8rem 0; }
+.bs-ask h1 { font-size: clamp(1.6rem, 2.6vw, 2rem); font-weight: 600; line-height: 1.1; margin: 0; padding: 0; }
+
+/* ---- pills: example chips and interview answers ---------------------------------------------------------------- */
 .st-key-bs-examples button, .st-key-bs-options button[kind="secondary"] {
-  border: none; background: var(--surface); color: var(--ink); border-radius: 999px; padding: 0.35rem 0.95rem;
-  min-height: 2.5rem;
-}
+  border: 1px solid var(--line); background: var(--raised); color: var(--ink); border-radius: var(--radius);
+  padding: 0.3rem 0.8rem; min-height: 2.1rem; }
 .st-key-bs-examples button:hover, .st-key-bs-options button[kind="secondary"]:hover {
-  background: var(--surface-2); color: var(--ink);
-}
-.st-key-bs-options button[kind="tertiary"] { color: var(--accent); min-height: 2.5rem; }
+  border-color: var(--focus); color: var(--ink); }
+.st-key-bs-options button[kind="tertiary"] { color: var(--accent-text); min-height: 2.1rem; }
 
-/* Chat input: a flat field, a visible ring only for keyboard focus. */
-[data-testid="stChatInput"] > div { border: none; background: var(--surface); box-shadow: none; }
-[data-testid="stChatInput"] textarea { font-size: 1.02rem; }
-[data-testid="stChatInput"]:focus-within > div { box-shadow: 0 0 0 2px var(--accent); }
+/* ---- inputs: raised, 1 px line, accent focus ring --------------------------------------------------------------- */
+[data-testid="stChatInput"] > div { border: 1px solid var(--line); background: var(--raised); box-shadow: none; }
+[data-testid="stChatInput"]:focus-within > div { border-color: var(--focus); box-shadow: 0 0 0 3px rgba(59, 107, 255, 0.22); }
+[data-testid="stChatInput"] textarea { font-size: 0.95rem; }
+[data-baseweb="input"] > div, [data-baseweb="textarea"] > div, [data-baseweb="select"] > div {
+  background: var(--raised) !important; border-color: var(--line) !important; }
+[data-baseweb="input"]:focus-within > div, [data-baseweb="textarea"]:focus-within > div {
+  border-color: var(--focus) !important; box-shadow: 0 0 0 3px rgba(59, 107, 255, 0.22); }
+label p { color: var(--muted); }
 
-/* Conversation: the steward speaks in ink, the user's answers stay above, muted. */
-.bs-msg { margin: 0 0 0.9rem 0; max-width: 72ch; }
-.bs-msg.ai { color: var(--ink); font-size: 1.06rem; line-height: 1.5; }
-.bs-msg.me { color: var(--muted); font-size: 0.95rem; }
-.bs-msg.me::before { content: "You: "; }
-.bs-count { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.04em; margin-bottom: 0.2rem; }
+/* ---- conversation: compact rows, mono speaker labels ------------------------------------------------------------ */
+.bs-msg { display: grid; grid-template-columns: 5.2rem 1fr; gap: 0.75rem; align-items: baseline;
+  padding: 0.45rem 0.75rem; margin: 0; max-width: 100ch; background: var(--panel);
+  border: 1px solid var(--line); border-bottom: none; }
+.bs-msg:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+.bs-msg:last-child { border-bottom: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); margin-bottom: 0.4rem; }
+.bs-msg:only-child { border-radius: var(--radius); }
+.bs-msg .who { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--faint); padding-top: 0.1rem; }
+.bs-msg .t { line-height: 1.5; }
+.bs-msg.ai .t { color: var(--ink); font-size: 0.95rem; }
+.bs-msg.ai .who { color: var(--accent-text); }
+.bs-msg.me .t { color: var(--muted); font-size: 0.9rem; }
+.bs-count { font-family: var(--mono); color: var(--faint); font-size: 0.66rem; letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 0.15rem; }
 
-/* The ruling: headline sentence, then the verdict strip. */
-.bs-ruling { margin: 1.6rem 0 1.2rem 0; }
-.bs-headline { font-size: clamp(1.7rem, 2.8vw, 2.25rem); font-weight: 600; line-height: 1.12; margin: 0 0 0.9rem 0;
-  padding: 0; max-width: 30ch; }
-.bs-verdict { display: flex; gap: 0.8rem; align-items: baseline; flex-wrap: wrap; background: var(--surface);
-  border-radius: 0.6rem; padding: 0.85rem 1.1rem; }
-.bs-verdict .w { font-weight: 700; font-size: 0.82rem; letter-spacing: 0.08em; }
-.bs-verdict .r { color: var(--ink); font-size: 1rem; }
-.bs-lead { font-size: 1.12rem; line-height: 1.55; color: var(--ink); max-width: 70ch; margin: 0.2rem 0 1.1rem 0; }
+/* ---- the ruling: headline, then the verdict banner ------------------------------------------------------------- */
+.bs-ruling { margin: 0.8rem 0 0.6rem 0; }
+.bs-ruling h1.bs-headline, .bs-headline { font-size: 26px !important; font-weight: 600; line-height: 1.15; margin: 0 0 0.55rem 0; padding: 0; max-width: 40ch; }
+.bs-verdict { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; background: var(--panel);
+  border: 1px solid var(--line); border-left: 3px solid var(--grey); border-radius: var(--radius); padding: 0.6rem 0.85rem; }
+.bs-verdict .w { font-family: var(--mono); font-weight: 500; font-size: 0.72rem; letter-spacing: 0.08em;
+  border: 1px solid currentColor; border-radius: 4px; padding: 0.1rem 0.45rem; line-height: 1.4; }
+.bs-verdict .r { color: var(--ink); font-size: 0.95rem; }
+.bs-lead { font-size: 1rem; line-height: 1.5; color: var(--ink); max-width: 80ch; margin: 0.1rem 0 0.6rem 0; }
 
-/* Dashboard preview: flat tiles, a faint fill on the white ground. */
-.bs-card { background: var(--surface); border-radius: 0.6rem; padding: 1rem 1.1rem; min-height: 7.2rem; }
-.bs-kpi-label { color: var(--muted); font-size: 0.82rem; font-weight: 500; }
-.bs-kpi-value { font-size: 1.7rem; font-weight: 600; color: var(--ink); line-height: 1.2; margin-top: 0.25rem; }
-.bs-kpi-delta { font-size: 0.82rem; font-weight: 600; margin-top: 0.15rem; }
-.bs-gap .bs-kpi-label { color: var(--ink); }
-.bs-gap .bs-kpi-value { color: var(--muted); font-size: 1.05rem; }
+/* ---- KPI cards (Tremor-like): panel, mono label, big mono value, delta with arrow ------------------------------ */
+.bs-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0.75rem 0.9rem; min-height: 6rem; }
+.bs-kpi-label { font-family: var(--mono); color: var(--muted); font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.35; }
+.bs-kpi-value { font-size: 1.65rem; font-weight: 500; color: var(--ink); line-height: 1.15; margin-top: 0.35rem;
+  letter-spacing: -0.02em; }
+.bs-kpi-delta { font-size: 0.75rem; font-weight: 500; margin-top: 0.3rem; }
+.bs-gap { border-style: dashed; }
+.bs-gap .bs-kpi-value { color: var(--muted); font-family: inherit; font-size: 1rem; letter-spacing: 0; }
 
-/* Why, sections, ids. */
-.bs-section { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--muted); margin: 2rem 0 0.5rem 0; }
-.bs-why p { margin: 0 0 0.45rem 0; max-width: 72ch; font-size: 1rem; line-height: 1.55; }
-.bs-chip { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--muted);
-  background: var(--surface); border-radius: 0.3rem; padding: 0.05rem 0.4rem; margin-right: 0.25rem;
-  white-space: nowrap; }
-.bs-badge { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; }
-.bs-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; display: inline-block; flex: none; }
+/* ---- why, trail ------------------------------------------------------------------------------------------------- */
+.bs-why p { margin: 0 0 0.35rem 0; max-width: 80ch; font-size: 0.93rem; line-height: 1.5; }
+.bs-trail { margin: 0.3rem 0 0 0; padding: 0; list-style: none; }
+.bs-trail li { position: relative; padding: 0 0 0.6rem 1.8rem; }
+.bs-trail li::before { content: attr(data-n); position: absolute; left: 0; top: 0.05rem; width: 1.25rem; height: 1.25rem;
+  border-radius: 4px; background: var(--raised); border: 1px solid var(--line); color: var(--muted);
+  font-family: var(--mono); font-size: 0.66rem; display: flex; align-items: center; justify-content: center; }
+.bs-trail .f { color: var(--ink); font-size: 0.9rem; line-height: 1.45; }
 
-/* AI trail (BI team details). */
-.bs-trail { margin: 0.4rem 0 0 0; padding: 0; list-style: none; }
-.bs-trail li { position: relative; padding: 0 0 0.85rem 2rem; }
-.bs-trail li::before { content: attr(data-n); position: absolute; left: 0; top: 0.05rem; width: 1.35rem;
-  height: 1.35rem; border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 0.72rem;
-  font-weight: 600; display: flex; align-items: center; justify-content: center; }
-.bs-trail .f { color: var(--ink); font-size: 0.93rem; line-height: 1.45; }
+/* ---- building state --------------------------------------------------------------------------------------------- */
+.bs-skel { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); }
+.bs-skel-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-top: 0.6rem; }
 
-/* Building state: a quiet, still skeleton of the result layout. */
-.bs-skel { background: var(--surface); border-radius: 0.5rem; }
-.bs-skel-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
+/* ---- catalog health and journal --------------------------------------------------------------------------------- */
+.bs-big { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin: 0.4rem 0 1rem 0; }
+.bs-big div { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.85rem 1rem; }
+.bs-big b { display: block; font-size: 2rem; font-weight: 500; letter-spacing: -0.03em; line-height: 1.05; color: var(--ink); }
+.bs-big span { color: var(--muted); font-size: 0.85rem; }
+.bs-tl { list-style: none; margin: 0.4rem 0 0 0; padding: 0; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); }
+.bs-tl li { margin: 0; display: grid; grid-template-columns: 8.5rem 1fr; gap: 1rem; padding: 0.6rem 0.9rem; }
+.bs-tl li + li { border-top: 1px solid var(--line); }
+.bs-tl time { color: var(--muted); font-size: 0.75rem; padding-top: 0.1rem; }
+.bs-tl .q { color: var(--ink); font-size: 0.93rem; }
 
-/* Catalog health and journal. */
-.bs-big { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 0.6rem 0 1.6rem 0; }
-.bs-big div { background: var(--surface); border-radius: 0.6rem; padding: 1.2rem 1.3rem; }
-.bs-big b { display: block; font-size: 2.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
-.bs-big span { color: var(--muted); font-size: 0.92rem; }
-.bs-tl { list-style: none; margin: 0.6rem 0 0 0; padding: 0; }
-.bs-tl li { margin: 0; display: grid; grid-template-columns: 9.5rem 1fr; gap: 1.2rem; padding: 0.8rem 0; }
-.bs-tl li + li { box-shadow: 0 -1px 0 var(--surface-2); }
-.bs-tl time { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-.bs-tl .q { color: var(--ink); }
+/* ---- Streamlit parts as bordered panels -------------------------------------------------------------------------- */
+[data-testid="stExpander"] details { border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius); }
+[data-testid="stExpander"] summary { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+[data-testid="stExpander"] summary:hover { color: var(--accent-text); }
+[data-testid="stDataFrame"], [data-testid="stTable"] { border: 1px solid var(--line); border-radius: var(--radius); }
+[data-testid="stPlotlyChart"] { margin-top: 0.5rem; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0; overflow: hidden; }
+[data-testid="stAlert"] { border: 1px solid var(--line); }
+div[data-testid="stButton"] button[kind="secondary"], div[data-testid="stFormSubmitButton"] button[kind="secondary"] {
+  border: 1px solid var(--line); background: var(--raised); color: var(--ink); }
+div[data-testid="stButton"] button[kind="secondary"]:hover { border-color: var(--focus); color: var(--ink); }
+div[data-testid="stButton"] button:focus-visible { box-shadow: 0 0 0 3px rgba(59, 107, 255, 0.35); }
+/* worker buttons (frontend/worker_view.py paints them with the light dark-theme green/amber): dark label for contrast */
+.st-key-w-chat button, .st-key-w-other button { color: #09090b !important; }
+.st-key-w-chat button p, .st-key-w-other button p { color: #09090b !important; }
 
-/* Flat Streamlit parts: expanders, secondary buttons and inputs on a faint fill, no outlines. */
-[data-testid="stExpander"] details { border: none; background: var(--surface); border-radius: 0.6rem; }
-[data-testid="stExpander"] summary:hover { color: var(--accent); }
-div[data-testid="stButton"] button[kind="secondary"] { border: none; background: var(--surface); }
-div[data-testid="stButton"] button[kind="secondary"]:hover { background: var(--surface-2); color: var(--ink); }
-.bs-headline, .bs-ask h1 { letter-spacing: -0.022em; }
-
-/* Buttons step on hover (theme) and press on click. */
-div[data-testid="stButton"] button { transition: transform 150ms var(--ease), background-color 150ms var(--ease); }
+/* buttons press on click */
+div[data-testid="stButton"] button { transition: transform 150ms var(--ease), border-color 150ms var(--ease); }
 div[data-testid="stButton"] button:active { transform: scale(0.97); }
 
-/* Motion: only these two entrances. */
+/* ---- motion: two entrances only ---------------------------------------------------------------------------------- */
 @keyframes bs-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes bs-fade { from { opacity: 0; } to { opacity: 1; } }
 .bs-msg.new { animation: bs-rise 150ms var(--ease) both; }
 .bs-ruling .bs-verdict { animation: bs-fade 200ms var(--ease) 80ms both; }
 
-/* Waiting on the AI: a "thinking" bubble with three pulsing dots, under the last message. */
+/* waiting on the AI: three pulsing dots */
 @keyframes bs-pulse { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
-.bs-typing { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.9rem; margin: 0 0 0.9rem 0;
-  background: var(--surface); border-radius: 999px; color: var(--muted); font-size: 0.92rem; }
-.bs-typing .dots span { display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%;
-  background: var(--muted); animation: bs-pulse 1.2s infinite both; }
+.bs-typing { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.4rem 0.75rem; margin: 0.3rem 0 0.5rem 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted);
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.bs-typing .dots span { display: inline-block; width: 5px; height: 5px; margin-right: 4px; border-radius: 50%;
+  background: var(--focus); animation: bs-pulse 1.2s infinite both; }
 .bs-typing .dots span:nth-child(2) { animation-delay: 0.2s; }
 .bs-typing .dots span:nth-child(3) { animation-delay: 0.4s; }
 
 @media (max-width: 640px) {
-  .block-container { padding-left: 1rem; padding-right: 1rem; }
+  .block-container { padding-left: 0.8rem; padding-right: 0.8rem; }
   .bs-big, .bs-skel-row { grid-template-columns: 1fr; }
-  .bs-tl li { grid-template-columns: 1fr; gap: 0.2rem; }
-  .bs-ask { padding-top: 4vh; }
+  .bs-tl li, .bs-msg { grid-template-columns: 1fr; gap: 0.15rem; }
+  .bs-ask { padding-top: 3vh; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bs-msg.new, .bs-ruling .bs-verdict, .bs-typing .dots span { animation: none; }
   div[data-testid="stButton"] button { transition: none; }
   div[data-testid="stButton"] button:active { transform: none; }
 }
+
+/* sidebar user block as a compact card (Gajus: st.container(key="bs-user"), e96ab67) */
+.st-key-bs-user { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0.55rem 0.7rem; gap: 0.3rem !important; }
+.st-key-bs-user [data-testid="stElementContainer"], .st-key-bs-user [data-testid="stMarkdown"] { margin: 0 !important; }
+.st-key-bs-user [data-testid="stMarkdownContainer"] p { margin: 0 !important; font-size: 0.88rem; line-height: 1.35; }
+.st-key-bs-user [data-testid="stCaptionContainer"] { margin: 0 !important; font-size: 0.74rem; line-height: 1.45; }
+.st-key-bs-user [data-testid="stCaptionContainer"] p { font-size: 0.74rem !important; }
+.st-key-bs-user [data-testid="stElementContainer"] { height: auto !important; min-height: 1.15rem; }
+.st-key-bs-user [data-testid="stMarkdownContainer"] { margin-bottom: 0 !important; }
