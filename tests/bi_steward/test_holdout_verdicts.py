@@ -41,3 +41,15 @@ def test_named_assets_exist_and_are_power_bi():
         if r["artifact_id"]:
             assert r["artifact_id"] in assets.index, r["id"]
             assert assets.loc[r["artifact_id"], "platform"] == "Power BI", r["id"]
+
+
+def test_relabelled_rows_keep_their_first_label():
+    """Rule changes C1/C2 (DECISION 19:45) relabelled six rows; the label made before tuning stays auditable."""
+    rows = {r["id"]: r for r in _rows()}
+    changed = {k for k, r in rows.items() if "label_v1" in r}
+    assert changed == {"H-05", "H-06", "H-09", "H-10", "H-15", "H-16"}
+    for k in changed:
+        assert rows[k]["verdict"] == "CREATE" and rows[k]["artifact_id"] is None
+        assert rows[k]["label_v1"]["verdict"] in {"NOT_FEASIBLE", "EXTEND"} and rows[k]["label_v1"]["why"]
+    untouched = [r for k, r in rows.items() if k not in changed]
+    assert all("label_v1" not in r for r in untouched)
