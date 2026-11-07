@@ -8,6 +8,7 @@ from ..models import Candidate, Decision, Evidence, Gap, GapKind, ParsedQuestion
 from ..search import SearchHit
 from ..linking import kpi_index
 from .conflicts import find_conflicts
+from .feasible import not_feasible
 from .signals import coverage, trust, trust_gaps
 
 
@@ -67,14 +68,24 @@ def decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as
 def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as_of: date) -> Decision:
     conflicts = find_conflicts(question.metrics, catalog)
 
+    infeasible = not_feasible(question, catalog)
+    if infeasible:
+        infeasible.conflicts = conflicts
+        return infeasible
+
     if question.unmapped_terms or question.conflicts:
         evidence = [
             Evidence(claim=f"Not in the governed dictionary: '{term}'", rule_id=None, severity="blocker")
             for term in question.unmapped_terms
-        ] + [Evidence(claim=f"Conflict in the request: {c}", rule_id=None, severity="blocker") for c in question.conflicts]
+        ] + [
+            Evidence(claim=f"Conflict in the request: {c}", rule_id=None, severity="blocker")
+            for c in question.conflicts
+        ]
         reasons = []
         if question.unmapped_terms:
-            reasons.append("These terms are not in the governed dictionary: " + ", ".join(question.unmapped_terms) + ".")
+            reasons.append(
+                "These terms are not in the governed dictionary: " + ", ".join(question.unmapped_terms) + "."
+            )
         if question.conflicts:
             reasons.append("The request contradicts itself: " + "; ".join(question.conflicts) + ".")
         return Decision(verdict=Verdict.CLARIFY, conflicts=conflicts, reasons=reasons, evidence=evidence)
@@ -111,7 +122,9 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
         if _is_tableau(best):
             flags.append("MIGRATE")
             best.gaps.append(Gap(kind=GapKind.TRUST, key="platform"))
-            reasons.append("It is a Tableau report: Tableau is never reused as is, the extension is a Power BI version (migrate, do not copy 1:1).")
+            reasons.append(
+                "It is a Tableau report: Tableau is never reused as is, the extension is a Power BI version (migrate, do not copy 1:1)."
+            )
             evidence.append(
                 Evidence(
                     claim=f"{best.artifact.id} is on Tableau: rationalise before migrating, no 1:1 recreation (RULE-006)",
@@ -122,9 +135,17 @@ def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, a
             )
         elif best.coverage >= REUSE_MIN_COVERAGE:
             best.gaps.extend(trust_gaps(best.artifact, as_of))
-            reasons.append(f"Trust {best.trust:.2f} is below the threshold {REUSE_MIN_TRUST}: it needs an owner or certification.")
+            reasons.append(
+                f"Trust {best.trust:.2f} is below the threshold {REUSE_MIN_TRUST}: it needs an owner or certification."
+            )
         return Decision(
-            verdict=Verdict.EXTEND, best=best, alternatives=alternatives, conflicts=conflicts, reasons=reasons, evidence=evidence, flags=flags
+            verdict=Verdict.EXTEND,
+            best=best,
+            alternatives=alternatives,
+            conflicts=conflicts,
+            reasons=reasons,
+            evidence=evidence,
+            flags=flags,
         )
 
     if not covers_a_metric:

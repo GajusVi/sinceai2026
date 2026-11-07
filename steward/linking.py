@@ -31,7 +31,7 @@ def find_terms(text: str, catalog: Catalog) -> list[TermMatch]:
                 found.append(TermMatch(match.start(), match.end(), kind, term_id, dimension))
 
     for metric in catalog.metrics.values():
-        scan(metric.synonyms, "metric", metric.id)
+        scan([metric.name, *metric.synonyms], "metric", metric.id)
     for dimension in catalog.dimensions.values():
         scan(dimension.synonyms, "dimension", dimension.id)
         for value in dimension.values:
@@ -52,7 +52,7 @@ _GLOBAL = re.compile(r"(?<!\w)(?:global(?:ly)?|worldwide)(?!\w)")
 
 
 def asks_global(text: str) -> bool:
-    """"global" in a request is a scope filter (market=Global), not a breakdown. BUILD_PLAN 2.4, decision of 2026-11-07."""
+    """ "global" in a request is a scope filter (market=Global), not a breakdown. BUILD_PLAN 2.4, decision of 2026-11-07."""
     return bool(_GLOBAL.search(text.lower()))
 
 
@@ -126,7 +126,9 @@ def asset_metric_ids(artifact: Artifact, catalog: Catalog) -> set[str]:
     """Metrics the asset is about: a variant KPI counts as its canonical metric (the data pack's own duplicate notion:
     46 same-product asset pairs share >= 60% of canonical metrics). Use for duplicates; use `canonical_kpis` for coverage."""
     canonical, variants = kpi_index(catalog)
-    return {canonical[k] for k in artifact.kpi_ids if k in canonical} | {variants[k][0] for k in artifact.kpi_ids if k in variants}
+    return {canonical[k] for k in artifact.kpi_ids if k in canonical} | {
+        variants[k][0] for k in artifact.kpi_ids if k in variants
+    }
 
 
 def canonical_kpis(artifact: Artifact, catalog: Catalog) -> set[str]:

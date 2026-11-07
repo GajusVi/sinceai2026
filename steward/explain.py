@@ -34,11 +34,11 @@ class TemplateExplainer:
 
     def gap_label(self, gap: Gap) -> str:
         if gap.kind == GapKind.METRIC:
-            return f"metric \"{self.catalog.metric(gap.key).name}\""
+            return f'metric "{self.catalog.metric(gap.key).name}"'
         if gap.kind == GapKind.FILTER:
-            return f"filter \"{self.catalog.dimension_value_label(gap.key, gap.value)}\""
+            return f'filter "{self.catalog.dimension_value_label(gap.key, gap.value)}"'
         if gap.kind == GapKind.DIMENSION:
-            return f"breakdown by \"{self.catalog.dimension(gap.key).name}\""
+            return f'breakdown by "{self.catalog.dimension(gap.key).name}"'
         if gap.kind == GapKind.SCOPE:
             return f"report is limited to {self.catalog.dimension_value_label(gap.key, gap.value)}"
         return TRUST_LABELS.get(gap.key, gap.key)
@@ -50,23 +50,29 @@ class TemplateExplainer:
                 "**Please clarify the question.** Could not tell which metric you are looking for, e.g. revenue, margin or OTIF. "
                 "If the metric is not in the dictionary yet, the domain owner has to define it first."
             )
+        if decision.verdict == Verdict.NOT_FEASIBLE:
+            return (
+                "**Not possible with governed data.** "
+                + " ".join(decision.reasons)
+                + " Accept a buildable alternative, or file a data request for the missing source."
+            )
         if decision.verdict == Verdict.REUSE:
             return (
-                f"**Use \"{best.artifact.title}\"** ({best.artifact.owner}). "
+                f'**Use "{best.artifact.title}"** ({best.artifact.owner}). '
                 f"{self._trust_text(best, as_of)} It fully answers the question; no new report is needed."
             )
         if decision.verdict == Verdict.EXTEND:
             gaps = ", ".join(self.gap_label(g) for g in best.gaps)
             return (
-                f"**Extend \"{best.artifact.title}\"** ({best.artifact.owner or 'no owner assigned'}). "
+                f'**Extend "{best.artifact.title}"** ({best.artifact.owner or "no owner assigned"}). '
                 f"{self._trust_text(best, as_of)} It covers {best.coverage:.0%} of the question. "
                 f"Missing: {gaps}. This is an extension of an existing report, not a new dashboard."
             )
-        metrics = ", ".join(f"\"{self.catalog.metric(m).name}\"" for m in question.metrics)
+        metrics = ", ".join(f'"{self.catalog.metric(m).name}"' for m in question.metrics)
         nearest = ""
         if best:
             missing = ", ".join(self.gap_label(g) for g in best.gaps if g.kind != GapKind.TRUST)
-            nearest = f" The closest is \"{best.artifact.title}\", but it lacks: {missing}."
+            nearest = f' The closest is "{best.artifact.title}", but it lacks: {missing}.'
         return (
             f"**No suitable report exists.**{nearest} Proposed: a new report built on the official metrics {metrics}. "
             "An owner must be assigned before it is created."
@@ -85,7 +91,7 @@ class TemplateExplainer:
         if conflict.actual_metric_id:
             actual = f", which is actually {self.catalog.metric(conflict.actual_metric_id).name}"
         return (
-            f"**Warning:** in \"{conflict.artifact_title}\", \"{conflict.label}\" is calculated as "
+            f'**Warning:** in "{conflict.artifact_title}", "{conflict.label}" is calculated as '
             f"`{conflict.artifact_formula}`{actual}. The official definition of {official.name} is "
             f"`{conflict.official_formula}`. Do not compare these numbers directly."
         )

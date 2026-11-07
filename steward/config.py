@@ -75,6 +75,10 @@ EXTEND_MIN_COVERAGE = 0.5
 STALE_AFTER_DAYS = 90
 LOW_USAGE_VIEWS = 5
 DUPLICATE_THRESHOLD = 0.6
+# Unmapped words that name a measure ("batch yield"): no metric mapped + one of these = not in the KPI catalog -> NOT_FEASIBLE
+METRIC_NOUNS = frozenset(
+    "yield rate index ratio margin cost score churn throughput defect deviation utilization utilisation efficiency productivity".split()
+)
 CONSOLIDATE_JACCARD = 0.6  # canonical-KPI overlap that makes two candidates one duplicate cluster (BUILD_PLAN 2.1)
 
 # Words that carry no analytics meaning. Any other word in a question that no dictionary term covers goes to
@@ -98,4 +102,12 @@ STOPWORDS = frozenset(
 
 # Multi-word phrases that contain a dictionary stem but mean something else ("first sales" is not net sales).
 # find_terms refuses to link inside them, so their words surface as unmapped_terms and the verdict is CLARIFY.
-AMBIGUOUS_PHRASES = ("first sales", "sales forecast", "sales performance", "market readiness", "launch readiness", "supply risk", "supply-risk")
+AMBIGUOUS_PHRASES = (
+    "first sales",
+    "sales forecast",
+    "sales performance",
+    "market readiness",
+    "launch readiness",
+    "supply risk",
+    "supply-risk",
+)

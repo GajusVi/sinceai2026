@@ -29,7 +29,6 @@
     "question": "What is the batch yield for Kerendia?",
     "verdict": "NOT_FEASIBLE",
     "artifact_id": null,
-    "known_gap": "L5 (Margiris): NOT_FEASIBLE is not in the engine yet, it answers CLARIFY because 'batch' and 'yield' are unmapped.",
     "note": "Metric is not in the KPI catalog at all: say so and offer the nearest governed metric (BUILD_PLAN 2.1)."
   }
 ]

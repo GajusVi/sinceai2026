@@ -38,6 +38,10 @@ class Governance:
         blocks = [r for r in (result.spec.lint if result.spec else []) if r.status == "block"]
         if blocks:  # W6 lint gate: a block means approve is disabled
             raise ValueError("Blocked by the lint gate: " + "; ".join(f"{r.rule_id} {r.message}" for r in blocks))
+        if decision.verdict == Verdict.NOT_FEASIBLE:
+            raise ValueError(
+                "Nothing to approve: the governed data cannot answer this. Accept an alternative or file a data request."
+            )
         if decision.verdict == Verdict.EXTEND:
             created = self._extend(best.artifact, result, owner)
         elif decision.verdict == Verdict.CREATE:
