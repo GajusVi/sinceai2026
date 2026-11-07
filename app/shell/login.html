@@ -12,7 +12,8 @@
             await window.pywebview.api.ready() -> bool      (polled every 300 ms after a good login)
             window.pywebview.api.open()                      (grow the window into the workspace)
   Opened in a plain browser (no pywebview) the page runs a mock so the design can be reviewed.
-  Visual reference only (not code): Aceternity/Magic UI globe + terminal, Blueprint density.
+  Right panel: a lit dot globe. Land mask = the 256x128 world map embedded in cobe 2.0.1 (github.com/shuding/cobe,
+  MIT, Shu Ding; bytes unchanged, see THIRD_PARTY_NOTICES.md). Renderer, lighting, arcs: ours (2D canvas).
 -->
 <style>
   @font-face { font-family: "Instrument Sans"; src: url("../../frontend/static/fonts/InstrumentSans-Regular.ttf"); font-weight: 400; }
@@ -64,44 +65,16 @@
   #steps li.done::before { content: "\2713  "; color: var(--accent); }
   #steps li:not(.done)::before { content: "\2022  "; }
 
-  /* ---- right: the night panel --------------------------------------------------------------------------- */
-  .right { flex: 1; position: relative; background: var(--night); overflow: hidden; color: var(--night-ink); }
-  .grid { position: absolute; inset: 0; opacity: .5;
-          background-image: linear-gradient(rgba(var(--dot), .07) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(var(--dot), .07) 1px, transparent 1px);
-          background-size: 36px 36px;
-          mask-image: radial-gradient(ellipse at 60% 45%, #000 30%, transparent 75%);
-          -webkit-mask-image: radial-gradient(ellipse at 60% 45%, #000 30%, transparent 75%); }
-  .glow { position: absolute; width: 520px; height: 520px; border-radius: 50%; filter: blur(90px); opacity: .45; }
-  .glow.a { background: #1A4BE0; left: 8%; top: -12%; animation: drift-a 18s ease-in-out infinite alternate; }
-  .glow.b { background: #0E9F8F; right: -10%; bottom: -18%; opacity: .28; animation: drift-b 23s ease-in-out infinite alternate; }
-  @keyframes drift-a { to { transform: translate(140px, 120px) scale(1.15); } }
-  @keyframes drift-b { to { transform: translate(-160px, -90px) scale(.9); } }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; filter: blur(.4px); }
-  /* cobe (real WebGL globe, vendor/cobe.js); the dot canvas above is the fallback when WebGL or modules are off */
-  #cobe { inset: auto; opacity: 0; transition: opacity .5s; cursor: grab; filter: blur(.3px); }
 
-  .hud { position: absolute; left: 32px; top: 28px; font-family: var(--mono); font-size: 11px; color: var(--night-muted);
-         letter-spacing: .12em; text-transform: uppercase; }
-  .hud b { color: var(--ok); font-weight: 400; }
-  .hud b::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
-                   margin-right: 7px; vertical-align: 1px; animation: blink 2.4s infinite; }
-  @keyframes blink { 50% { opacity: .3; } }
-
-  .console { position: absolute; left: 32px; right: 32px; bottom: 28px; max-width: 560px;
-             background: rgba(7, 11, 20, .72); border-radius: 10px; padding: 14px 16px 16px;
-             box-shadow: 0 0 0 1px rgba(var(--dot), .16), 0 0 40px rgba(26, 75, 224, .12);
-             backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-  .console header { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px;
-                    color: var(--night-muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
-  #log { font-family: var(--mono); font-size: 12.5px; line-height: 1.75; height: 10.6em; overflow: hidden; white-space: pre; }
-  #log .k { color: #8FA8FF; }
-  #log .v { color: var(--night-ink); }
-  #log .m { color: var(--night-muted); }
-  #log .cur { display: inline-block; width: 7px; height: 1.05em; background: #8FA8FF; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  /* ---- right: the globe panel --------------------------------------------------------------------------- */
+  .right { flex: 1; position: relative; overflow: hidden; color: #E6ECFF;
+           background: radial-gradient(120% 95% at 62% 56%, #0B1B3A 0%, #071230 42%, #040A1C 78%, #02060F 100%); }
+  #globe { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .credit { position: absolute; right: 28px; bottom: 22px; text-align: right; font-size: 12px; line-height: 1.45;
+            color: rgba(230, 236, 255, .74); letter-spacing: .01em; }
+  .credit span { display: block; font-size: 11px; color: rgba(160, 176, 214, .62); }
 
   @media (max-width: 720px) { .right { display: none; } .left { flex: 1; } }
-  @media (prefers-reduced-motion: reduce) { .glow, .hud b::before, #log .cur { animation: none; } }
 </style>
 </head>
 <body>
@@ -146,110 +119,167 @@
   </section>
 
   <section class="right" aria-hidden="true">
-    <div class="grid"></div>
-    <div class="glow a"></div>
-    <div class="glow b"></div>
     <canvas id="globe"></canvas>
-    <canvas id="cobe"></canvas>
-    <div class="hud">Governance chain <b>online</b></div>
-    <div class="console">
-      <header><span>bi-steward / trace</span><span id="clock"></span></header>
-      <div id="log"></div>
-    </div>
+    <p class="credit">Demonstration for Bayer · SinceAI 2026<span>Not an official Bayer product</span></p>
   </section>
 
 <script>
 (() => {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  // ---- dot globe: Fibonacci sphere, rotated and projected, depth-shaded --------------------------------------
-  const cv = document.getElementById("globe"), ctx = cv.getContext("2d");
-  const N = 900, pts = [];
-  for (let i = 0; i < N; i++) {           // even points on a sphere
-    const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), t = i * 2.399963;
-    pts.push([Math.cos(t) * r, y, Math.sin(t) * r]);
-  }
-  // a few "sites" that pulse (plants and markets), as fixed points on the sphere
-  const sites = [[0.32, 0.55, 0.77], [0.55, 0.42, 0.72], [-0.2, 0.62, 0.76], [0.7, -0.2, 0.68], [-0.62, 0.1, 0.78]];
-  let W = 0, H = 0, dpr = 1, angle = 0;
-  function size() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = cv.clientWidth; H = cv.clientHeight;
-    cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-  function draw(t) {
-    ctx.clearRect(0, 0, W, H);
-    const R = Math.min(W, H) * 0.27, cx = W * 0.56, cy = H * 0.36, tilt = 0.38;
-    const ca = Math.cos(angle), sa = Math.sin(angle), ct = Math.cos(tilt), st = Math.sin(tilt);
-    const proj = ([x, y, z]) => {
-      const x1 = x * ca + z * sa, z1 = -x * sa + z * ca;      // spin around y
-      const y2 = y * ct - z1 * st, z2 = y * st + z1 * ct;     // tilt toward the viewer
-      return [cx + x1 * R, cy + y2 * R, z2];
-    };
-    for (const p of pts) {
-      const [x, y, z] = proj(p);
-      const a = z > 0 ? 0.18 + 0.62 * z : 0.05 + 0.08 * (1 + z);   // back side faint
-      ctx.fillStyle = `rgba(122,154,255,${a.toFixed(3)})`;
-      const s = z > 0 ? 1.15 + 0.6 * z : 0.8;
-      ctx.fillRect(x, y, s, s);
-    }
-    for (let i = 0; i < sites.length; i++) {
-      const [x, y, z] = proj(sites[i]);
-      if (z <= 0.05) continue;
-      const pulse = reduce ? 0.5 : (Math.sin(t / 700 + i * 1.7) + 1) / 2;
-      ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 6.283); ctx.fillStyle = "rgba(74,222,128,.95)"; ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y, 4 + pulse * 9, 0, 6.283);
-      ctx.strokeStyle = `rgba(74,222,128,${(0.5 * (1 - pulse)).toFixed(3)})`; ctx.lineWidth = 1; ctx.stroke();
-    }
-    // rim light
-    const g = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, R * 1.25);
-    g.addColorStop(0, "rgba(26,75,224,0)"); g.addColorStop(0.5, "rgba(26,75,224,.10)"); g.addColorStop(1, "rgba(26,75,224,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.25, 0, 6.283); ctx.fill();
-  }
-  function loop(t) {
-    if (window.BS_COBE) { ctx.clearRect(0, 0, W, H); return; }  // the real globe took over
-    angle += 0.0016; draw(t); requestAnimationFrame(loop);
-  }
-  size(); addEventListener("resize", size);
-  if (reduce) draw(0); else requestAnimationFrame(loop);
-
-  // ---- console: the BI Steward chain, one step per line (numbers from the audit trace, docs/audit/donatas.md) --
-  const LINES = [
-    ["login", "Manager07 · management · Plant-B"],
-    ["ask", "“Is supply safe for Plant-B?”"],
-    ["understand", "OTIF · inventory cover · forecast acc · Plant-B"],
-    ["search", "360 governed assets · KPI index"],
-    ["decide", "CREATE · no asset covers 3 of 3 KPIs"],
-    ["spec", "3 cards · trend · exceptions table"],
-    ["lint", "10 pass · 0 warn · 0 block"],
-    ["render", "OTIF 78.3% · 7 products below 90%"],
-    ["approve", "Builder12 for Manager07 · spec ee7ee0fe"],
-    ["export", "Power BI .pbip · 12/12 measures verified"],
-  ];
-  const log = document.getElementById("log"), MAX = 6;
-  const shown = [];
-  const pad = (s) => (s + "            ").slice(0, 11);
-  function paint(partial) {
-    const rows = shown.map(([k, v]) => `<span class="m">&gt; </span><span class="k">${pad(k)}</span><span class="v">${v}</span>`);
-    if (partial) rows.push(`<span class="m">&gt; </span><span class="k">${pad(partial[0])}</span><span class="v">${partial[1]}</span><span class="cur"></span>`);
-    else rows.push(`<span class="m">&gt; </span><span class="cur"></span>`);
-    log.innerHTML = rows.slice(-MAX).join("\n");
-  }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  async function typeLoop() {
-    if (reduce) { LINES.slice(-MAX + 1).forEach((l) => shown.push(l)); paint(); return; }
-    for (;;) {
-      for (const [k, v] of LINES) {
-        for (let i = 1; i <= v.length; i++) { paint([k, v.slice(0, i)]); await sleep(18 + Math.random() * 26); }
-        shown.push([k, v]); if (shown.length > MAX) shown.shift(); paint(); await sleep(520);
-      }
-      await sleep(1800); shown.length = 0;
+
+  // ---- globe ---------------------------------------------------------------------------------------------------
+  // Land mask: cobe 2.0.1's embedded world map (equirectangular 256x128, MIT, Shu Ding), bytes unchanged.
+  const LAND_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAACAAQAAAADMzoqnAAAECklEQVR42u3VsW4jRRzH8d94gzfF4Q0VQaC4vBLTRTp0mze4ggfAPAE5XQEFsGNAVIjwBrmW7h7gJE+giKjyABTZE4g06LKJETdRJvtD65kdz6yduKABiW+TVfzRf2bXYxtcE/59YJCz6YdbgQF6ACSRrwYKYImmh5PbwOewlV3wlQNbAN6SEExjUOO+BU0aCSnxReHABUlK4YFQeJeUT3da8IIkZ6NGoSnFY5KsMoVzMKfECUnqxgPYRArarmUCndHwzIEaQEpg5xVdBXROl8mpAQx5dUgPiHoYAAkg5w3JABR06byGAVgcRGAz5bznj6phBQNRFwyqgdxebH6gshJAesWoFhgYpApAFoG8BIZ/fEhSox5jDjQXmV0Ar5XJfAIrALi3URVs09gHIL4XJCkLC5LH9JWiArABFCSrQjdgkBzRJ0WJeUOSNyQAfJJwUSWUBRlJQ8oGHATACGlBynnzy2kEYLNjrxouigD8BZcgOeVPqh12RtufaCN5wCPVDpvQ9lsIrqndsJtDcWqBCpf4hWN7OdWHBw58FwIaNOU/n1TpMW2DFaD48cmr4185T8NHkpUFX749pQPVdgRKC/DGoQPVeAEKv+WHvY8OOWNTPRp5kHuwSf8wzXtVBKR7YwEH9H3lQUaypUfSATOALyVNu5vZJW31Bnx98nkLfDUWJaz6ixvm+RIQRdl3kmRxxiaDoGnZW4CpPfkaQadlcPim1xOSvETQo7Lv75enVAXJ3xGUlony4KQBBWUM1NiDc6qhyS8RgQs18OCMMtPDaAUIyg0PZkRWDqs+wnKJBTDI1Js6BolegOsKmUxNDBAAKqQyMQmidhegBlLZ+wwKYdv5M/8x1khkb1cgKqP2H+MKyV5vS+whrE8DQDgAlUAoRBX056EElJCjJVACeJBZgNfVp+iCCm4RBWCgKsRxASSA9KgDhDtCiTuMyfHsKXzhC6wNAIjjWb8LKAOA2ctk3FmCOlgKFy8f1N0JJtgsxinYnVAHt4t3gPzZXSCTyCWCQmBT91QE3B5yarSN40dNHYPka4TlDhTUI8zLvl0JSL3vZn6DsCFZOeB2yROEpR68sECQQA++xIGCR2X7DwlEoLRgUrZrqlUg50S1uy43YqDcN6UFBVkhAjWiCV2Q0jgQPdplMKxvBXodcOfAwJYvgdL+1etA1YJJfBcZlQV7sO1i2gHoNiyxtQ5sBsCgWyoxCHiFFd2L5nUTCqMAqGUgsQ9f5kCcCiZgRYkMgMTd5WsB1rTzj0Em14BE4r+QxN1lCEsVur2PoF5Wbg8RJXR4djgvBgauhLywoEZQrt1KKRdVS4CdlJ8qafyP+9KIj/nE/d7kKwH9jgS72e9DV+kvfTWgct4ZyP8Byb8BPG7MaaIIkAQAAAAASUVORK5CYII=";
+  // Markets of the data pack (Dim_Market) at their capitals. Plants have no location in the pack, so no plant is
+  // placed on the map: each arc joins two markets that the same supply source serves (fact_supply).
+  const MARKETS = {
+    DE: [52.52, 13.40], FR: [48.86, 2.35], UK: [51.51, -0.13], US: [38.91, -77.04], CA: [45.42, -75.70],
+    JP: [35.68, 139.69], CN: [39.90, 116.40], AU: [-35.28, 149.13], BR: [-15.79, -47.88], MX: [19.43, -99.13],
+  };
+  const ARCS = [  // [from, to, supply source serving both]
+    ["DE", "US", "Plant-C"], ["DE", "JP", "Plant-C"], ["US", "CA", "Plant-C"], ["CN", "AU", "Plant-B"],
+    ["BR", "MX", "Plant-B"], ["UK", "FR", "External-CMO"], ["FR", "BR", "External-CMO"],
+  ];
+  const TILT = 0.40, SPIN = 0.00055;                      // axial tilt toward the viewer; radians per frame
+  const LIGHT = (() => { const v = [-0.62, 0.52, 0.58], n = Math.hypot(...v); return v.map((c) => c / n); })();
+  const GREEN = "137,211,41";                              // #89D329 family
+  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const unit = (lat, lon) => {                             // x = cos(lat) sin(lon), y = sin(lat), z = cos(lat) cos(lon)
+    const a = lat * Math.PI / 180, o = lon * Math.PI / 180;
+    return [Math.cos(a) * Math.sin(o), Math.sin(a), Math.cos(a) * Math.cos(o)];
+  };
+  const LEVELS = 18, COLORS = [];                          // night navy -> #00BCFF -> light highlight
+  for (let i = 0; i < LEVELS; i++) {
+    const t = i / (LEVELS - 1), mix = (a, b, k) => a.map((c, j) => Math.round(c + (b[j] - c) * k));
+    const c = t < 0.72 ? mix([20, 44, 92], [0, 188, 255], t / 0.72) : mix([0, 188, 255], [170, 232, 255], (t - 0.72) / 0.28);
+    COLORS.push(`rgba(${c.join(",")},${(0.5 + 0.5 * t).toFixed(3)})`);
+  }
+
+  const cv = document.getElementById("globe"), ctx = cv.getContext("2d");
+  let land = [], W = 0, H = 0, R = 0, cx = 0, cy = 0, base = 1, phi = -0.35, last = 0, grads = null;
+  const markers = Object.entries(MARKETS).map(([id, [lat, lon]], i) => ({ id, v: unit(lat, lon), seed: i * 0.83 }));
+  const arcs = ARCS.map(([a, b], i) => {
+    const A = unit(...MARKETS[a]), B = unit(...MARKETS[b]);
+    const w = Math.acos(Math.min(1, A[0] * B[0] + A[1] * B[1] + A[2] * B[2])), lift = 0.05 + 0.22 * w / Math.PI;
+    const pts = [];
+    for (let k = 0; k <= 44; k++) {                        // great circle, lifted above the surface
+      const t = k / 44, s0 = Math.sin((1 - t) * w) / Math.sin(w), s1 = Math.sin(t * w) / Math.sin(w);
+      const h = 1 + lift * Math.sin(Math.PI * t);
+      pts.push([(A[0] * s0 + B[0] * s1) * h, (A[1] * s0 + B[1] * s1) * h, (A[2] * s0 + B[2] * s1) * h]);
+    }
+    return { pts, period: 9 + i * 1.4, offset: i * 2.3, speed: 0.30 + 0.04 * (i % 3) };
+  });
+
+  function buildLand(img) {
+    const c = document.createElement("canvas"); c.width = 256; c.height = 128;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0, 256, 128);
+    const px = g.getImageData(0, 0, 256, 128).data, N = 24000;
+    for (let i = 0; i < N; i++) {                          // Fibonacci sphere, keep the points on land
+      const y = 1 - 2 * (i + 0.5) / N, r = Math.sqrt(1 - y * y), th = i * 2.399963229728653;
+      const x = Math.cos(th) * r, z = Math.sin(th) * r;
+      const lat = Math.asin(y), lon = Math.atan2(x, z);
+      const u = Math.min(255, Math.floor((lon / (2 * Math.PI) + 0.5) * 256));
+      const v = Math.min(127, Math.max(0, Math.floor((0.5 - lat / Math.PI) * 128)));
+      if (px[(v * 256 + u) * 4] > 127) land.push([x, y, z]);
     }
   }
-  typeLoop();
-  const clock = document.getElementById("clock");
-  const tick = () => { clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
-  tick(); setInterval(tick, 1000);
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    R = H * 0.455; cx = W * 0.6; cy = H * 0.56; base = Math.max(1.1, R * 0.0066);   // planet from orbit: low, right
+    const lx = cx + LIGHT[0] * R * 0.07, ly = cy - LIGHT[1] * R * 0.07;
+    const halo = ctx.createRadialGradient(cx, cy, R * 0.985, cx, cy, R * 1.10);
+    halo.addColorStop(0, "rgba(0,170,255,0.16)"); halo.addColorStop(1, "rgba(0,120,255,0)");
+    const lit = ctx.createRadialGradient(lx, ly, R * 0.97, lx, ly, R * 1.15);
+    lit.addColorStop(0, "rgba(0,188,255,0.30)"); lit.addColorStop(0.4, "rgba(0,160,255,0.10)"); lit.addColorStop(1, "rgba(0,120,255,0)");
+    const body = ctx.createRadialGradient(cx - R * 0.42, cy - R * 0.40, R * 0.08, cx, cy, R);
+    body.addColorStop(0, "#0D2850"); body.addColorStop(0.55, "#081A38"); body.addColorStop(1, "#040C20");
+    grads = { halo, lit, body, lx, ly };
+    if (reduce) draw(0);
+  }
+
+  function rot([x, y, z]) {                               // spin about the axis, then tilt toward the viewer
+    const c = Math.cos(phi), s = Math.sin(phi), ct = Math.cos(TILT), st = Math.sin(TILT);
+    const x1 = x * c + z * s, z1 = -x * s + z * c;
+    return [x1, y * ct - z1 * st, y * st + z1 * ct];      // screen x right, y up, z toward the viewer
+  }
+  const hidden = ([x, y, z]) => z < 0 && x * x + y * y < 1;   // behind the sphere
+
+  function draw(now) {
+    if (!W || !H || !grads) return;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = grads.halo; ctx.beginPath(); ctx.arc(cx, cy, R * 1.10, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = grads.lit; ctx.beginPath(); ctx.arc(grads.lx, grads.ly, R * 1.15, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = grads.body; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.fill();
+
+    const buckets = Array.from({ length: LEVELS }, () => []);
+    for (const p of land) {                                // land dots: lit side bright, soft terminator, limb fade
+      const [x, y, z] = rot(p);
+      if (z <= 0.02) continue;
+      const day = smooth(-0.22, 0.55, x * LIGHT[0] + y * LIGHT[1] + z * LIGHT[2]);
+      const limb = Math.pow(z, 0.7);
+      const b = (0.05 + 0.95 * day) * (0.22 + 0.78 * limb);
+      const r = base * (0.38 + 0.62 * limb) * (0.8 + 0.34 * day);
+      buckets[Math.min(LEVELS - 1, Math.floor(b * LEVELS))].push(cx + x * R, cy - y * R, r);
+    }
+    for (let l = 0; l < LEVELS; l++) {
+      const a = buckets[l]; if (!a.length) continue;
+      ctx.fillStyle = COLORS[l]; ctx.beginPath();
+      for (let i = 0; i < a.length; i += 3) { ctx.moveTo(a[i] + a[i + 2], a[i + 1]); ctx.arc(a[i], a[i + 1], a[i + 2], 0, 6.2832); }
+      ctx.fill();
+    }
+
+    const t = now / 1000;
+    ctx.lineCap = "round";
+    for (const arc of arcs) {                              // arcs fade in and out; a pulse runs along each
+      const local = ((t + arc.offset) % arc.period) / arc.period;
+      const env = reduce ? 0.55 : smooth(0, 0.12, local) * (1 - smooth(0.72, 0.84, local));
+      if (env < 0.01) continue;
+      const P = arc.pts.map(rot);
+      ctx.lineWidth = Math.max(1, R * 0.0042);
+      for (let k = 0; k < P.length - 1; k++) {
+        if (hidden(P[k]) || hidden(P[k + 1])) continue;
+        const fade = 0.25 + 0.75 * smooth(-0.3, 0.3, (P[k][2] + P[k + 1][2]) / 2);
+        ctx.strokeStyle = `rgba(${GREEN},${(0.42 * env * fade).toFixed(3)})`;
+        ctx.beginPath(); ctx.moveTo(cx + P[k][0] * R, cy - P[k][1] * R); ctx.lineTo(cx + P[k + 1][0] * R, cy - P[k + 1][1] * R); ctx.stroke();
+      }
+      if (reduce) continue;
+      const head = ((t * arc.speed + arc.offset * 0.37) % 1) * (P.length - 1);
+      for (let j = 0; j < 7; j++) {                        // head + short fading trail
+        const f = head - j * 0.9; if (f < 0) break;
+        const k = Math.floor(f), u = f - k, q0 = P[k], q1 = P[Math.min(P.length - 1, k + 1)];
+        const q = [q0[0] + (q1[0] - q0[0]) * u, q0[1] + (q1[1] - q0[1]) * u, q0[2] + (q1[2] - q0[2]) * u];
+        if (hidden(q)) continue;
+        const a = env * (1 - j / 7), sx = cx + q[0] * R, sy = cy - q[1] * R;
+        if (j === 0) { ctx.fillStyle = `rgba(${GREEN},${(0.22 * a).toFixed(3)})`; ctx.beginPath(); ctx.arc(sx, sy, base * 3.2, 0, 6.2832); ctx.fill(); }
+        ctx.fillStyle = `rgba(200,240,140,${(0.95 * a).toFixed(3)})`; ctx.beginPath(); ctx.arc(sx, sy, base * (1.5 - j * 0.15), 0, 6.2832); ctx.fill();
+      }
+    }
+
+    for (const m of markers) {                             // markets: far side hidden, faded near the limb
+      const [x, y, z] = rot(m.v);
+      const vis = smooth(-0.02, 0.2, z); if (vis <= 0) continue;
+      const sx = cx + x * R, sy = cy - y * R;
+      if (!reduce) {
+        const pulse = ((t * 0.45 + m.seed) % 1);
+        ctx.strokeStyle = `rgba(${GREEN},${(0.45 * (1 - pulse) * vis).toFixed(3)})`; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(sx, sy, base * (2 + pulse * 6), 0, 6.2832); ctx.stroke();
+      }
+      ctx.fillStyle = `rgba(${GREEN},${(0.95 * vis).toFixed(3)})`; ctx.beginPath(); ctx.arc(sx, sy, base * 1.9, 0, 6.2832); ctx.fill();
+    }
+  }
+
+  function loop(now) {                                     // capped at 60 fps
+    if (now - last >= 16) { phi += SPIN * Math.min(4, (now - last) / 16.7 || 1); last = now; draw(now); }
+    requestAnimationFrame(loop);
+  }
+  const img = new Image();
+  img.onload = () => { buildLand(img); resize(); if (!reduce) requestAnimationFrame(loop); };
+  img.src = LAND_PNG;
+  addEventListener("resize", resize);
 
   // ---- login contract (app/main.py) ------------------------------------------------------------------------
   const MOCK = {  // a plain browser has no pywebview: preview the flow
@@ -290,53 +320,6 @@
   $("form").addEventListener("submit", signIn);
   $("pass").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); signIn(); } });
 })();
-</script>
-<script type="module">
-// The globe: cobe 2.0.1 (vendor/cobe.js, MIT, Shu Ding), configured as Magic UI's Globe component
-// (magicuidesign/magicui@37ce829 apps/www/registry/magicui/globe.tsx, MIT): theta 0.3, diffuse 0.4, 16k samples,
-// mapBrightness 1.2, DPR 2, phi +0.005 per frame, drag damping 1400 with a spring, 500 ms fade-in.
-// Ported from React + motion/react to plain JS; cobe 2 has no onRender, so our loop calls globe.update().
-// Colours and markers are ours (night panel; markets from the data pack). Any failure keeps the fallback dot globe.
-import createGlobe from "./vendor/cobe.js";
-const right = document.querySelector(".right"), cv = document.getElementById("cobe");
-const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const MARKERS = [   // Leverkusen (Bayer HQ) + markets in the data pack
-  [51.03, 6.98, 0.045], [52.52, 13.40, 0.03], [35.68, 139.69, 0.035], [31.23, 121.47, 0.035],
-  [-23.55, -46.63, 0.035], [40.71, -74.01, 0.035], [48.86, 2.35, 0.025], [19.43, -99.13, 0.03],
-].map(([lat, lon, size]) => ({ location: [lat, lon], size }));
-let size = 0, phi = 0, drag = null, r = 0, rs = 0, vel = 0, globe;
-function place() {
-  const W = right.clientWidth, H = right.clientHeight;
-  size = Math.round(Math.min(W, H) * 0.66);
-  Object.assign(cv.style, { width: size + "px", height: size + "px", left: Math.round(W * 0.56 - size / 2) + "px",
-                            top: Math.round(H * 0.36 - size / 2) + "px" });
-}
-try {
-  place();
-  globe = createGlobe(cv, {
-    devicePixelRatio: 2, width: size * 2, height: size * 2, phi: 0, theta: 0.3, dark: 1, diffuse: 0.4,
-    mapSamples: 16000, mapBrightness: 1.2, baseColor: [0.32, 0.4, 0.75], markerColor: [0.29, 0.87, 0.5],
-    glowColor: [0.1, 0.29, 0.88], markers: MARKERS,
-  });
-  window.BS_COBE = true; document.getElementById("globe").style.display = "none";
-  setTimeout(() => (cv.style.opacity = "1"), 0);
-  addEventListener("resize", () => { place(); globe.update({ width: size * 2, height: size * 2 }); });
-  cv.addEventListener("pointerdown", (e) => { drag = e.clientX; cv.style.cursor = "grabbing"; });
-  const end = () => { drag = null; cv.style.cursor = "grab"; };
-  cv.addEventListener("pointerup", end); cv.addEventListener("pointerout", end);
-  cv.addEventListener("pointermove", (e) => { if (drag !== null) { r += (e.clientX - drag) / 1400; drag = e.clientX; } });
-  const frame = () => {
-    if (drag === null && !reduce) phi += 0.005;
-    vel += ((r - rs) * 100 - vel * 30) / 60 / 1;  // spring: stiffness 100, damping 30, mass 1 (motion/react defaults used by Magic UI)
-    rs += vel / 60;
-    globe.update({ phi: phi + rs });
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
-} catch (e) {
-  console.warn("cobe unavailable, keeping the dot globe:", e);
-  window.BS_COBE = false; cv.remove();
-}
 </script>
 </body>
 </html>
