@@ -123,14 +123,12 @@ def test_guard_hostile_reply_in_interview_is_data_not_instruction(pack):
 # ------------------------------------------------------------------------------- FINDINGS (strict xfail, fix = delete)
 
 
-@pytest.mark.xfail(strict=True, reason="F1 market ids are not linked")
 def test_f1_country_code_is_understood(pack):
     """'OTIF Nubeqa DE': a planner types the market code. Today 'DE' is an unknown word, so the answer is CLARIFY."""
     q = ask(pack, "OTIF Nubeqa DE").question
     assert q.filters.get("market") == "DE"
 
 
-@pytest.mark.xfail(strict=True, reason="F2 typos are unknown words; no 'did you mean'")
 @pytest.mark.parametrize(
     "text, key, value",
     [
@@ -145,10 +143,9 @@ def test_f2_small_typo_is_recovered_or_suggested(pack, text, key, value):
     assert result.question.filters.get(key) == value or suggested
 
 
-@pytest.mark.xfail(
-    strict=True, reason="F3 CLARIFY blames the metric even when it was understood"
+@pytest.mark.parametrize(
+    "text, word", [("OTIF Nubeqa Germnyy", "Germnyy"), ("Net sales for Aspirin in Germany", "Aspirin")]
 )
-@pytest.mark.parametrize("text, word", [("OTIF Nubeqa DE", "DE"), ("Net sales for Aspirin in Germany", "Aspirin")])
 def test_f3_clarify_names_the_word_it_did_not_understand(pack, text, word):
     result = ask(pack, text)
     assert result.decision.verdict == Verdict.CLARIFY
@@ -156,9 +153,6 @@ def test_f3_clarify_names_the_word_it_did_not_understand(pack, text, word):
     assert "which metric" not in result.explanation.split("\n\n")[0]
 
 
-@pytest.mark.xfail(
-    strict=True, reason="F4 answer is an 8-11k char wall of KPI-id warnings"
-)
 @pytest.mark.parametrize("text", ["Net sales for Eylea in Japan", "OTIF Nubeqa DE", "Net sales for Xarelto in Brazil"])
 def test_f4_answer_is_short_and_free_of_kpi_ids(pack, text):
     explanation = ask(pack, text).explanation
@@ -166,7 +160,6 @@ def test_f4_answer_is_short_and_free_of_kpi_ids(pack, text):
     assert "KPI-0" not in explanation
 
 
-@pytest.mark.xfail(strict=True, reason="F5 second product or market silently dropped")
 @pytest.mark.parametrize(
     "text", ["Compare Xarelto vs Eylea net sales", "Net sales for Xarelto OR Eylea in Brazil AND Japan"]
 )
@@ -177,7 +170,6 @@ def test_f5_two_products_are_kept_or_asked_about(pack, text):
     assert kept_both or result.decision.verdict == Verdict.CLARIFY
 
 
-@pytest.mark.xfail(strict=True, reason="F6 self-correction ('I mean France') is ignored, the first market wins")
 def test_f6_self_correction_wins(pack):
     result = ask(pack, "Net sales for Nubeqa in Germany, I mean France")
     head = result.explanation.split("\n\n")[0]
@@ -185,7 +177,6 @@ def test_f6_self_correction_wins(pack):
     assert result.question.filters.get("market") == "FR" or asked_which
 
 
-@pytest.mark.xfail(strict=True, reason="F7 a period outside the data (2031, Q3 2025) is accepted without a word")
 @pytest.mark.parametrize("text", ["Net sales for Xarelto in Brazil in 2031", "Net sales for Nubeqa in Q3 2025"])
 def test_f7_period_outside_the_data_is_flagged(pack, text):
     result = ask(pack, text)
@@ -193,7 +184,6 @@ def test_f7_period_outside_the_data_is_flagged(pack, text):
     assert result.decision.verdict == Verdict.CLARIFY or "2026" in claims or "outside" in claims
 
 
-@pytest.mark.xfail(strict=True, reason="F8 'Brazil globally' keeps Brazil without noticing the contradiction")
 def test_f8_scope_contradiction_is_asked_about(pack):
     result = ask(pack, "Net sales for Xarelto in Brazil globally")
     assert result.decision.verdict == Verdict.CLARIFY or result.question.conflicts

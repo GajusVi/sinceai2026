@@ -34,7 +34,10 @@ SYNONYMS = {
 }
 PRODUCT_SYN = {"P-NUB": ["nubeqa"], "P-KER": ["kerendia"], "P-EYL": ["eylea"], "P-XAR": ["xarelto"],
                "P-LYN": ["lynkuet"], "P-BEY": ["beyonttra"], "P-HYR": ["hyrnuo"]}
-MARKET_EXTRA = {"US": ["usa", "united states"], "UK": ["britain", "great britain"]}
+MARKET_EXTRA = {
+    "US": ["usa", "united states"], "UK": ["britain", "great britain"], "BR": ["brasil", "brasilien", "brésil"],
+    "DE": ["deutschland"], "SE": ["sverige"], "FI": ["suomi"], "IT": ["italia"], "ES": ["españa"],
+}
 REGION_SYN = {"EMEA": ["emea", "europe"], "North America": ["north america"],
               "Asia Pacific": ["asia pacific", "apac"], "Latin America": ["latin america", "latam"]}
 

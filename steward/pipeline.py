@@ -72,8 +72,24 @@ class Steward:
         decision = decide(question, hits, self.catalog, self.as_of)
         for c in confirm:
             decision.evidence.append(Evidence(claim=f"Confirm with the requester: {c}", severity="warning"))
-        explanation = self.explainer.explain(question, decision, self.as_of)
+        explanation = self.explainer.explain(question, decision, self.as_of) + self._horizon_note(question, decision)
         return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
+
+    def _horizon_note(self, question, decision) -> str:
+        """F7: a period outside the months the data covers is said out loud (evidence + a line in the answer)."""
+        from .linking import kpi_index
+
+        if not kpi_index(self.catalog)[0]:  # only the data pack has a known time range
+            return ""
+        from .decision.horizon import period_evidence
+        from .semantic import load_frames
+
+        months = load_frames()["dim_month"]["month"]
+        found = period_evidence(question.text, question.period, months.min().date(), months.max().date())
+        if found is None:
+            return ""
+        decision.evidence.append(found)
+        return "\n\n**Note:** " + found.claim
 
     def ask_intent(self, intent) -> StewardResult:
         """The interview's end: the confirmed Intent goes through the same search -> decide -> explain as `ask`;
@@ -103,7 +119,7 @@ class Steward:
                     severity="info",
                 )
             )
-        explanation = self.explainer.explain(question, decision, self.as_of)
+        explanation = self.explainer.explain(question, decision, self.as_of) + self._horizon_note(question, decision)
         return StewardResult(question=question, decision=decision, explanation=explanation, as_of=self.as_of)
 
     def build(self, result: StewardResult, intent=None) -> StewardResult:

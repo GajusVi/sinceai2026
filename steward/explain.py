@@ -6,11 +6,14 @@ from pathlib import Path
 from typing import Protocol
 
 from .catalog import Catalog
+from .linking import near_matches
 from .llm import LLMClient
 from .models import Candidate, Decision, Gap, GapKind, ParsedQuestion, Verdict
 from .prompts import render_prompt
 
 logger = logging.getLogger(__name__)
+
+MAX_CONFLICT_LINES = 3  # per answer; the rest is one summary line, the full list is in the Evidence panel
 
 TRUST_LABELS = {
     "certification": "certification by the domain owner",
@@ -29,8 +32,45 @@ class TemplateExplainer:
 
     def explain(self, question: ParsedQuestion, decision: Decision, as_of: date) -> str:
         parts = [self._verdict_text(question, decision, as_of)]
-        parts += [self._conflict_text(c) for c in decision.conflicts]
+        parts += self._conflict_parts(decision)
         return "\n\n".join(parts)
+
+    def _conflict_parts(self, decision: Decision) -> list[str]:
+        """Only conflicts in the reports this answer is about, at most MAX_CONFLICT_LINES; the rest is counted."""
+        if decision.best is None:  # nothing recommended (CLARIFY, NOT_FEASIBLE): catalog-wide warnings are noise
+            return []
+        relevant = {c.artifact.id for c in [decision.best, *decision.alternatives] if c}
+        mine = [c for c in decision.conflicts if c.artifact_id in relevant][:MAX_CONFLICT_LINES]
+        parts = [self._conflict_text(c) for c in mine]
+        rest = len(decision.conflicts) - len(mine)
+        if rest > 0:
+            parts.append(
+                f"{rest} other report{'s' if rest != 1 else ''} in the catalog calculate this number differently "
+                "from the official definition. The Evidence list below has the details."
+            )
+        return parts
+
+    def _clarify_text(self, question: ParsedQuestion) -> str:
+        """Says what was NOT understood (the word, with a 'did you mean'), not a generic 'which metric'."""
+        parts = ["**Please clarify the question.**"]
+        parts += question.conflicts
+        if question.unmapped_terms:
+            shown = []
+            for term in question.unmapped_terms[:6]:
+                near = near_matches(term, self.catalog)
+                shown.append(f'"{term}"' + (f" (did you mean {' or '.join(near)}?)" if near else ""))
+            parts.append(
+                "I don't recognise " + ", ".join(shown) + ". If it is a real number or product, the domain owner "
+                "has to define it first."
+            )
+        known = [self.catalog.metric(m).name for m in question.metrics] + [
+            self.catalog.dimension_value_label(d, v) for d, v in question.filters.items()
+        ]
+        if known:
+            parts.append("Understood so far: " + ", ".join(known) + ".")
+        if not question.metrics:
+            parts.append("I could not tell which number you want, e.g. net sales, OTIF or stock cover.")
+        return " ".join(parts)
 
     def gap_label(self, gap: Gap) -> str:
         if gap.kind == GapKind.METRIC:
@@ -46,10 +86,7 @@ class TemplateExplainer:
     def _verdict_text(self, question: ParsedQuestion, decision: Decision, as_of: date) -> str:
         best = decision.best
         if decision.verdict == Verdict.CLARIFY:
-            return (
-                "**Please clarify the question.** Could not tell which metric you are looking for, e.g. revenue, margin or OTIF. "
-                "If the metric is not in the dictionary yet, the domain owner has to define it first."
-            )
+            return self._clarify_text(question)
         if decision.verdict == Verdict.NOT_FEASIBLE:
             return (
                 "**Not possible with governed data.** "
@@ -89,11 +126,10 @@ class TemplateExplainer:
         official = self.catalog.metric(conflict.metric_id)
         actual = ""
         if conflict.actual_metric_id:
-            actual = f", which is actually {self.catalog.metric(conflict.actual_metric_id).name}"
+            actual = f" (it is really {self.catalog.metric(conflict.actual_metric_id).name})"
         return (
-            f'**Warning:** in "{conflict.artifact_title}", "{conflict.label}" is calculated as '
-            f"`{conflict.artifact_formula}`{actual}. The official definition of {official.name} is "
-            f"`{conflict.official_formula}`. Do not compare these numbers directly."
+            f'**Warning:** in "{conflict.artifact_title}", "{conflict.label}" is not the official {official.name}'
+            f"{actual}: it is calculated differently. Do not compare these numbers directly."
         )
 
 
@@ -113,7 +149,7 @@ class LLMExplainer:
                     self.prompts_dir,
                     "explain",
                     question=question.text,
-                    decision=decision.model_dump_json(exclude={"alternatives"}),
+                    decision=decision.model_dump_json(exclude={"alternatives", "conflicts"}),
                     draft=draft,
                 )
             )

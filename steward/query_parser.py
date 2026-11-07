@@ -7,7 +7,7 @@ from typing import Protocol
 
 from .catalog import Catalog
 from .config import AMBIGUOUS_PHRASES, STOPWORDS
-from .linking import TermMatch, apply_global_scope, find_terms
+from .linking import GLOBAL_SCOPE, TermMatch, apply_global_scope, asks_global, find_terms, split_terms
 from .llm import LLMClient
 from .models import ParsedQuestion
 from .prompts import render_prompt
@@ -33,20 +33,24 @@ class RuleBasedParser:
         dimensions: list[str] = []
         filters: dict[str, str] = {}
 
-        terms = find_terms(text, self.catalog)
+        terms, superseded = split_terms(text, self.catalog)
+        values: dict[str, list[str]] = {}
         for term in terms:
             if term.kind == "metric" and term.id not in metrics:
                 metrics.append(term.id)
             elif term.kind == "dimension" and term.id not in dimensions:
                 dimensions.append(term.id)
             elif term.kind == "value" and term.dimension:
-                filters.setdefault(term.dimension, term.id)
+                values.setdefault(term.dimension, [])
+                if term.id not in values[term.dimension]:
+                    values[term.dimension].append(term.id)
+        apply_values(values, filters, dimensions)
 
         period = parse_period(text)
         if period and "quarter" not in dimensions:
             dimensions.append("quarter")
 
-        unmapped = unmapped_terms(text, terms)
+        unmapped = unmapped_terms(text, terms + superseded)
         apply_global_scope(filters, text, self.catalog)
         return finalize(
             ParsedQuestion(
@@ -87,10 +91,13 @@ class LLMParser:
         period = raw.get("period") or parse_period(text)
         if period and "quarter" not in dimensions:
             dimensions.append("quarter")
+        # The model returns one value per dimension; the rules catch a second one ("Xarelto vs Eylea").
+        apply_values(multi_values(text, self.catalog), filters, dimensions, only_multi=True)
         apply_global_scope(filters, text, self.catalog)
         # The model may flag terms the dictionary lacks; the rule check catches words it silently skipped.
         unmapped = [str(t).strip() for t in raw.get("unmapped") or [] if str(t).strip()]
-        for term in unmapped_terms(text, find_terms(text, self.catalog)):
+        kept, superseded = split_terms(text, self.catalog)
+        for term in unmapped_terms(text, kept + superseded):
             if not any(term.lower() in u.lower() for u in unmapped):
                 unmapped.append(term)
         return finalize(
@@ -141,9 +148,38 @@ def unmapped_terms(text: str, terms: list[TermMatch]) -> list[str]:
     return out
 
 
+def multi_values(text: str, catalog: Catalog) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for term in find_terms(text, catalog):
+        if term.kind == "value" and term.dimension and term.id not in out.setdefault(term.dimension, []):
+            out[term.dimension].append(term.id)
+    return out
+
+
+def apply_values(
+    values: dict[str, list[str]], filters: dict[str, str], dimensions: list[str], only_multi: bool = False
+) -> None:
+    """One named value is a filter. Several ("Xarelto vs Eylea", "Brazil and Japan") are a breakdown, as in
+    Intent.to_parsed_question: the first is never kept silently while the others vanish."""
+    for dimension, ids in values.items():
+        if len(ids) > 1:
+            filters.pop(dimension, None)
+            if dimension not in dimensions:
+                dimensions.append(dimension)
+        elif ids and not only_multi:
+            filters.setdefault(dimension, ids[0])
+
+
 def finalize(question: ParsedQuestion) -> ParsedQuestion:
-    """A dimension that is already filtered ("in LATAM") is not also a breakdown."""
+    """A dimension that is already filtered ("in LATAM") is not also a breakdown. A question that says "global" but
+    also names a place contradicts itself: ask which one is meant."""
     question.dimensions = [d for d in question.dimensions if d not in question.filters]
+    named_place = question.filters.get("market", GLOBAL_SCOPE) != GLOBAL_SCOPE or "region" in question.filters
+    if asks_global(question.text) and named_place:
+        place = question.filters.get("market") or question.filters.get("region")
+        message = f'The question says "global" but also names a place ({place}): which one is meant?'
+        if message not in question.conflicts:
+            question.conflicts.append(message)
     return question
 
 

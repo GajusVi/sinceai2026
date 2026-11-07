@@ -15,7 +15,7 @@ from pathlib import Path
 from .catalog import Catalog
 from .config import AMBIGUOUS_PHRASES, METRIC_NOUNS, STOPWORDS
 from .intent import MAX_QUESTIONS, Intent, Mode
-from .linking import asks_global
+from .linking import asks_global, find_terms, value_ids
 from .llm import LLMClient
 from .prompts import load_prompt, render_prompt
 from .query_parser import RuleBasedParser
@@ -422,16 +422,19 @@ class Interviewer:
         intent = prev.model_copy(deep=True)
         confidence = dict(prev.confidence)
 
-        if parsed.filters.get("product"):
-            intent.products = [self.catalog.dimension_value_label("product", parsed.filters["product"])]
+        terms = find_terms(user_text, self.catalog)  # all named values: "Xarelto and Eylea" is two products
+        if products := value_ids(terms, "product"):
+            intent.products = [self.catalog.dimension_value_label("product", p) for p in products]
         elif state.last_asked == "products" and re.search(r"\ball\b|portfolio|whole|everything", last_reply):
             intent.products = [ALL_PHARMA]
-        if parsed.filters.get("market"):
-            intent.markets = [parsed.filters["market"]]
+        if markets := value_ids(terms, "market"):
+            intent.markets = markets
         elif asks_global(user_text) or (state.last_asked == "markets" and re.search(r"world|all markets", last_reply)):
             intent.markets = [GLOBAL]
-        if parsed.filters.get("region") and parsed.filters["region"] not in intent.regions:
-            intent.regions = intent.regions + [parsed.filters["region"]] if prev.regions else [parsed.filters["region"]]
+        regions = value_ids(terms, "region")
+        if regions and not set(regions) <= set(intent.regions):
+            added = [r for r in regions if r not in intent.regions]
+            intent.regions = intent.regions + added if prev.regions else regions
         if state.last_asked in ("markets", "unmapped") and state.turns[-1][0] == "user":
             answer = state.turns[-1][1]
             if state.last_asked == "unmapped" and re.search(r"\b(both|all|each|every)\b", answer, re.I):

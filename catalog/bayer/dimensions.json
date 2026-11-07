@@ -74,7 +74,8 @@
         "id": "DE",
         "label": "Germany",
         "synonyms": [
-          "germany"
+          "germany",
+          "deutschland"
         ]
       },
       {
@@ -88,28 +89,32 @@
         "id": "IT",
         "label": "Italy",
         "synonyms": [
-          "italy"
+          "italy",
+          "italia"
         ]
       },
       {
         "id": "ES",
         "label": "Spain",
         "synonyms": [
-          "spain"
+          "spain",
+          "españa"
         ]
       },
       {
         "id": "FI",
         "label": "Finland",
         "synonyms": [
-          "finland"
+          "finland",
+          "suomi"
         ]
       },
       {
         "id": "SE",
         "label": "Sweden",
         "synonyms": [
-          "sweden"
+          "sweden",
+          "sverige"
         ]
       },
       {
@@ -162,7 +167,10 @@
         "id": "BR",
         "label": "Brazil",
         "synonyms": [
-          "brazil"
+          "brazil",
+          "brasil",
+          "brasilien",
+          "brésil"
         ]
       },
       {

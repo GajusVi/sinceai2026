@@ -99,6 +99,7 @@ STOPWORDS = frozenset(
     worldwide globally net bayer pharma indicator indicators coverage status progress launch
     id im ive know understand picture sense quick whether keep eye eyes worried worry concerned happening going
     shareholder shareholders board investor investors business our ours
+    mean meant sorry wait rather instead correction
     """.split()
 )
 
