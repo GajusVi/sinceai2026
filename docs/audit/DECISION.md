@@ -40,7 +40,7 @@ Drafted by Gajus's Claude, Sat 7 Nov 19:20.
 | # | Change | Owner | Effort | Done when |
 |---|---|---|---|---|
 | T1.1 | `make demo` and `make ui` load the data pack (Makefile, run.ps1). | Gajus | 10 min | `make demo` shows REQ-0001's dashboard |
-| T1.2 | **"Does it already exist", one PR** (details below the table). Owners: Gajus for the intent half, Margiris for engine and lint. | Gajus + Margiris | M, 3 h | T1.3 probes: Intent-path false CREATE <= 4/40, false REUSE 0 |
+| T1.2 | **"Does it already exist", one PR** (details below the table). Owners: Gajus for the intent half, Margiris for engine and lint. | Gajus + Margiris | M, 3 h | T1.3 probes: Intent-path false CREATE <= 4/40, false REUSE 0, **and no chosen best asset carries RETIRE or a failed refresh** on the probes and the audit cases (Margiris, accepted 20:05) |
 | T1.3 | **Proof on the real path** (details below the table). | Margiris + Martynas | S-M, 2 h | results.json shows both paths |
 | T1.4 | Open Martynas's 12-measure check export in Desktop; compare with the expected values (**non-blocking**, A1). | Martynas (needs Windows + Desktop) | 5 min | 12/12 match or bugs filed |
 | T1.5 | **Stage insurance** (details below the table). | Margiris (llm), Donatas (warm) | S, 1.5 h | 429 shows a badge, not a hang |
