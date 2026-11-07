@@ -125,3 +125,16 @@ def test_site_filter_keeps_only_the_pairs_the_site_supplies():
 def test_forecast_like_rows_are_reported_not_hidden(frames):
     out = compute(measure("KPI-001"), frames)
     assert any("forecast_like" in note and "used as actuals" in note for note in out.attrs["dq"])
+
+
+def test_percentage_kpis_have_the_same_scale_in_dax_and_python():
+    """Desktop showed KPI-031 as 0.2 and KPI-054 as 0.1: DIVIDE(count, count) is a fraction, Python returns percentage
+    points. Every '%' KPI that is not a fraction in Python must be percentage points in DAX too (no DAX engine here, so
+    check the expression: a *_pct column average, or a ratio multiplied by 100)."""
+    from steward.semantic import _entries, is_fraction
+
+    for kpi_id, e in _entries().items():
+        if not e["feasible"] or e["unit"] != "%" or is_fraction(kpi_id):
+            continue
+        dax = e["dax"]
+        assert "_pct" in dax or "* 100" in dax or "100 *" in dax, f"{kpi_id}: {dax}"

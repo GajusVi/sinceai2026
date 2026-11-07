@@ -164,7 +164,7 @@
     "grain": "snapshot",
     "exclude_zero_rows": false,
     "source": "derived",
-    "dax": "DIVIDE(COUNTROWS(FILTER(fact_access, fact_access[reimbursement_status] = \"listed\")), COUNTROWS(fact_access))",
+    "dax": "DIVIDE(COUNTROWS(FILTER(fact_access, fact_access[reimbursement_status] = \"listed\")), COUNTROWS(fact_access)) * 100",
     "format": "0.0",
     "feasible": true,
     "gap_reason": ""
@@ -300,7 +300,7 @@
     "grain": "snapshot",
     "exclude_zero_rows": false,
     "source": "derived",
-    "dax": "DIVIDE(COUNTROWS(FILTER(dim_asset, dim_asset[endorsement] = \"certified\")), COUNTROWS(dim_asset))",
+    "dax": "DIVIDE(COUNTROWS(FILTER(dim_asset, dim_asset[endorsement] = \"certified\")), COUNTROWS(dim_asset)) * 100",
     "format": "0.0",
     "feasible": true,
     "gap_reason": ""
