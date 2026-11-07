@@ -44,6 +44,8 @@ prompts/departments.yaml gajus
 tools/make_large_pack.py gajus
 steward/lint.py         margiris
 steward/render.py       donatas
+steward/governance.py   donatas   (T1.6, Gajus OK 1107-194200)
+tests/bi_steward/test_governance.py donatas
 catalog/bayer/measures.json martynas
 catalog/                martynas
 demo/                   donatas

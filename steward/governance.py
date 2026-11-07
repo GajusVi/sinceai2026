@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from .catalog import CHANGES_FILE, Catalog
@@ -20,6 +20,10 @@ from .models import (
 )
 
 JOURNAL_FILE = "journal.jsonl"
+PROVISIONAL_DAYS = 30  # DECISION C4: an approved change sunsets unless it is used or certified
+# ArtifactStatus.PROVISIONAL + Artifact.expires_at come from models.py (ask 1107-194300-donatas-to-martynas);
+# until they land, an approved change is a DRAFT without an expiry date.
+_PROVISIONAL = getattr(ArtifactStatus, "PROVISIONAL", ArtifactStatus.DRAFT)
 
 
 class Governance:
@@ -97,24 +101,26 @@ class Governance:
             elif gap.kind in (GapKind.DIMENSION, GapKind.FILTER) and gap.key not in dimensions:
                 dimensions.append(gap.key)
 
-        trust_keys = {g.key for g in gaps if g.kind == GapKind.TRUST}
         new_owner = owner or artifact.owner
+        version = self._next_version(artifact.family_id)
         extended = artifact.model_copy(
             update={
-                "id": f"{artifact.family_id}-v{artifact.version + 1}",
+                "id": f"{artifact.family_id}-v{version}",
                 "metrics": metrics,
                 "dimensions": dimensions,
-                "version": artifact.version + 1,
+                "version": version,
                 "previous_id": artifact.id,
                 "owner": new_owner,
                 "owner_active": bool(new_owner) and (artifact.owner_active or owner is not None),
-                "certified": artifact.certified or "certification" in trust_keys,
-                "last_refreshed": result.as_of,
+                # T1.6: a new version earns its own trust. It keeps the base's refresh date (no fake "refreshed
+                # today"), inherits no certification or endorsement, and starts unused.
+                "certified": False,
+                "endorsement": "none",
                 "views_30d": 0,
-                "status": ArtifactStatus.ACTIVE,
+                **self._provisional(result.as_of),
             }
         )
-        self._save_change(added=extended, superseded=artifact.id)
+        self._save_change(added=extended)  # the base stays active until the new version is certified
         return extended
 
     def _create(self, result: StewardResult, owner: str) -> Artifact:
@@ -139,10 +145,21 @@ class Governance:
             last_refreshed=result.as_of,
             views_30d=0,
             family_id=f"new-{slug}-{index:03d}",
-            status=ArtifactStatus.DRAFT,
-        )
+        ).model_copy(update=self._provisional(result.as_of))
         self._save_change(added=artifact)
         return artifact
+
+    def _next_version(self, family_id: str) -> int:
+        """The base is no longer superseded, so two extensions of it must not share an id."""
+        versions = [a.version for a in self.catalog.artifacts.values() if a.family_id == family_id]
+        return max(versions, default=0) + 1
+
+    @staticmethod
+    def _provisional(as_of: date) -> dict:
+        fields: dict = {"status": _PROVISIONAL}
+        if "expires_at" in Artifact.model_fields:
+            fields["expires_at"] = as_of + timedelta(days=PROVISIONAL_DAYS)
+        return fields
 
     def _save_change(self, added: Artifact, superseded: str | None = None) -> None:
         path = self.data_dir / CHANGES_FILE
