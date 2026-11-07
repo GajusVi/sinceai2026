@@ -1,6 +1,6 @@
 # martynas
-updated: 2026-11-07 09:24
-now: M3: Power BI Desktop templates (needs me at Desktop)
-done: M0 OWNERS back 778e5fc; M1 contract + bindings reviewed d7dbcd8 (KPI-051 users kept, name-vs-scope 71 right, espana synonym)
-next: M4 pbip.py report half once templates/pbip is saved; M5 hold-out rows with Margiris
+updated: 2026-11-07 10:22
+now: M4: finishing steward/pbip.py report half against templates/pbip
+done: M0 778e5fc; M1 d7dbcd8; DQ forecast_like line 5532621; M3 templates saved empty 3771c84 + one_of_each (this push)
+next: M4 pbip.py PBIR report half, open in Desktop, screenshot; M5 hold-out with Margiris
 blocked: -
