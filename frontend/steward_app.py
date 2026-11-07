@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import ui  # noqa: E402  (frontend/ui.py: design system)
+import worker_view  # noqa: E402  (frontend/worker_view.py: the production-floor Ask tab)
 
 from steward import Steward, semantic  # noqa: E402
 from steward.auth import COMPANY, DEMO_ACCOUNTS, can_see, login  # noqa: E402
@@ -20,6 +21,7 @@ from steward.governance import JOURNAL_FILE  # noqa: E402
 from steward.linking import kpi_index  # noqa: E402
 from steward.models import GapKind, StewardResult, Verdict  # noqa: E402
 from steward.render import render as render_spec  # noqa: E402
+from steward.worker import log_request, other_plant, read_log, refusal  # noqa: E402
 
 EXAMPLES = [
     "What is herbicide revenue in LATAM vs plan for Q3?",
@@ -157,8 +159,8 @@ with st.sidebar:
     else:
         st.session_state.expert_mode = False
     st.divider()
-    st.caption("Example questions")
-    for example in (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES):
+    st.caption("Example questions" if user.role != "worker" else "")
+    for example in (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES) if user.role != "worker" else []:
         if st.button(example, width="stretch"):
             st.session_state.pending_question = example
             st.session_state.interview = None  # an example is a new question, not an answer
@@ -181,8 +183,8 @@ def ask(text: str) -> None:
     Expert mode: one shot through the parser, as before. Keeps chat history and the latest full result."""
     messages = st.session_state.setdefault("messages", [])
     messages.append({"role": "user", "content": text})
-    if st.session_state.get("interview") is None:  # a new question is the asker's own, not a reviewed request
-        st.session_state.pop("requested_by", None)
+    if st.session_state.get("interview") is None:  # a new question: the asker's own, or a floor request picked up
+        st.session_state.requested_by = st.session_state.pop("next_requested_by", None)
     if st.session_state.get("expert_mode"):
         _finish(steward.build(steward.ask(text)), novice=False)  # W3-W6: the dashboard this decision implies
         return
@@ -192,6 +194,11 @@ def ask(text: str) -> None:
     else:
         st.session_state.result = None
         state = steward.interviewer.start(text)
+    site = other_plant(user, state.intent.sites)
+    if site:  # management: own plant (and granted ones) only; the rest goes through a builder
+        st.session_state.interview = None
+        messages.append({"role": "assistant", "content": refusal(user, site)})
+        return
     _continue(state)
 
 
@@ -283,7 +290,7 @@ def get_frames() -> dict:
     return semantic.load_frames()
 
 
-def render_dashboard(result: StewardResult, governance: bool = True) -> None:
+def render_dashboard(result: StewardResult, governance: bool = True, takeaway: bool = True) -> None:
     """W5-W7 on screen: the spec's dashboard on governed data, its changes, the lint gate, the governance footer."""
     spec = result.spec
     if spec is None:
@@ -310,7 +317,7 @@ def render_dashboard(result: StewardResult, governance: bool = True) -> None:
     )
     dash = render_spec(spec, frames, filters)
 
-    text = get_takeaway(key, tuple(sorted(filters.items())), result.question.text, dash)
+    text = get_takeaway(key, tuple(sorted(filters.items())), result.question.text, dash) if takeaway else ""
     if text:
         ui.lead(text)
     cards = [ui.kpi_card(c.title, c.value, c.comparison, c.tone, c.note) for c in dash.cards]
@@ -662,8 +669,11 @@ def render_send_to_bi(result: StewardResult) -> None:
 
 def render_queue() -> None:
     """Builders: requests waiting for approval, oldest first. Review opens the ruling with its requester."""
+    if not user.can("approve") or st.session_state.get("result"):
+        return
+    render_floor_requests()
     queue = st.session_state.get("approval_queue") or []
-    if not queue or not user.can("approve") or st.session_state.get("result"):
+    if not queue:
         return
     ui.section(f"Waiting for your approval ({len(queue)})")
     for i, item in enumerate(queue):
@@ -679,6 +689,40 @@ def render_queue() -> None:
                           {"role": "assistant", "content": f"Request from {item['from']} at {item['plant']}."}],
             )
             st.rerun()
+
+
+def render_floor_requests() -> None:
+    """Builders: requests from the production floor (steward/worker.py). Access to another department -> grant or
+    decline (demo: any builder grants). A missing number -> start it: the full pipeline runs, requester attached."""
+    requests = [r for r in st.session_state.get("floor_requests", []) if r["status"] == "open"]
+    if not requests:
+        return
+    ui.section(f"Requests from the floor ({len(requests)})")
+    for i, req in enumerate(requests):
+        text, ok, no = st.columns([4, 1, 1])
+        if req["kind"] == "access":
+            who = f"{req['username']} ({req['from_department']}, {req['plant']})"
+            text.markdown(f"**{req['department']} data for {who}**  \nNeeds: {req['need']}, {req['cadence'].lower()}")
+            if ok.button("Grant", key=f"grant_{i}", width="stretch"):
+                grants = st.session_state.setdefault("grants", {}).setdefault(req["username"], [])
+                if req["department"] not in grants:
+                    grants.append(req["department"])
+                _decide_request(req, "granted")
+        else:
+            text.markdown(f"**{req['need']}** for {req['username']} ({req['from_department']}, {req['plant']})  \n"
+                          "No report they can open has it yet")
+            if ok.button("Start it", key=f"start_{i}", width="stretch"):
+                st.session_state.update(pending_question=f"{req['need']} for {req['plant']}",
+                                        next_requested_by=req["who"], interview=None, messages=[], result=None)
+                _decide_request(req, "started")
+        if no.button("Decline", key=f"decline_{i}", width="stretch"):
+            _decide_request(req, "declined")
+
+
+def _decide_request(req: dict, status: str) -> None:
+    req["status"] = status
+    log_request(steward.data_dir, req, status, actor)
+    st.rerun()
 
 
 @st.cache_data
@@ -856,38 +900,42 @@ def render_messages(extra: str | None = None) -> None:
 
 
 with tab_ask:
-    top = st.container()
-    typed = st.chat_input("Ask in your own words")
-    below = st.container()
-    question = typed or st.session_state.pop("pending_answer", None) or st.session_state.pop("pending_question", None)
-    skip = st.session_state.pop("pending_skip", False)
-    work = skip or bool(question and question.strip())
-    if work:  # the building state: the conversation so far and a still skeleton, replaced when the answer is ready
+    if user.role == "worker":
+        worker_view.render(steward, user, supply_rows(), render_dashboard)
+    else:
+        top = st.container()
+        typed = st.chat_input("Ask in your own words")
+        below = st.container()
+        question = (typed or st.session_state.pop("pending_answer", None)
+                    or st.session_state.pop("pending_question", None))
+        skip = st.session_state.pop("pending_skip", False)
+        work = skip or bool(question and question.strip())
+        if work:  # the building state: the conversation so far and a still skeleton, replaced when the answer is ready
+            with top:
+                building = st.empty()
+                with building.container():
+                    render_messages(extra="Use the recommended setup" if skip else question.strip())
+                    ui.skeleton(full=skip or bool(st.session_state.get("expert_mode")))
+            if skip:
+                skip_to_defaults()
+            else:
+                ask(question.strip())
+            building.empty()
         with top:
-            building = st.empty()
-            with building.container():
-                render_messages(extra="Use the recommended setup" if skip else question.strip())
-                ui.skeleton(full=skip or bool(st.session_state.get("expert_mode")))
-        if skip:
-            skip_to_defaults()
-        else:
-            ask(question.strip())
-        building.empty()
-    with top:
-        render_queue()
+            render_queue()
+            if not st.session_state.get("messages"):
+                ui.ask_hero("What do you need to know?")
+            else:
+                render_messages()
+                render_options()
+                if st.session_state.get("result"):
+                    render_result(st.session_state.result)
         if not st.session_state.get("messages"):
-            ui.ask_hero("What do you need to know?")
-        else:
-            render_messages()
-            render_options()
-            if st.session_state.get("result"):
-                render_result(st.session_state.result)
-    if not st.session_state.get("messages"):
-        with below, st.container(horizontal=True, key="bs-examples"):
-            for chip in CHIPS if ON_DATA_PACK else EXAMPLES[:3]:
-                if st.button(chip, key=f"chip_{chip}"):
-                    st.session_state.pending_question = chip
-                    st.rerun()
+            with below, st.container(horizontal=True, key="bs-examples"):
+                for chip in CHIPS if ON_DATA_PACK else EXAMPLES[:3]:
+                    if st.button(chip, key=f"chip_{chip}"):
+                        st.session_state.pending_question = chip
+                        st.rerun()
 
 
 def render_health() -> None:
@@ -955,6 +1003,12 @@ def render_journal() -> None:
 if tab_journal is not None:
     with tab_journal:
         render_journal()
+        floor_log = read_log(steward.data_dir)
+        if floor_log:
+            with st.expander(f"Requests from the floor ({len(floor_log)} log lines)"):
+                st.dataframe([{k: r.get(k) for k in ("logged_at", "who", "kind", "department", "need", "cadence",
+                                                    "status", "decided_by")} for r in reversed(floor_log)],
+                             width="stretch", hide_index=True)
 
 with tab_catalog:
     term = st.text_input("Search the catalog", placeholder="Report name, id, owner or domain").strip().lower()
