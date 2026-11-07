@@ -80,6 +80,11 @@ METRIC_NOUNS = frozenset(
     "yield rate index ratio margin cost score churn throughput defect deviation utilization utilisation efficiency productivity".split()
 )
 CONSOLIDATE_JACCARD = 0.6  # canonical-KPI overlap that makes two candidates one duplicate cluster (BUILD_PLAN 2.1)
+# RETIRE candidate (BUILD_PLAN 11.2): all must hold, plus a reason (trusted duplicate or no active owner)
+RETIRE_MIN_AGE_MONTHS = 3  # created at least this many months before as_of
+RETIRE_BOTTOM_SHARE = 0.20  # average monthly users in the bottom 20% of the same asset type
+RETIRE_MAX_USERS_RECENT = 10  # and fewer unique users than this in each of the last RETIRE_RECENT_MONTHS months
+RETIRE_RECENT_MONTHS = 3
 
 # Words that carry no analytics meaning. Any other word in a question that no dictionary term covers goes to
 # ParsedQuestion.unmapped_terms and turns the verdict into CLARIFY (no silent drops). Grow this list, never the goldens.

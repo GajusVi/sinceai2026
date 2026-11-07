@@ -10,6 +10,7 @@ from ..search import SearchHit
 from .conflicts import find_conflicts
 from .consolidate import cluster_evidence, duplicate_clusters
 from .feasible import not_feasible
+from .lifecycle import add_lifecycle
 from .signals import coverage, trust, trust_gaps
 
 
@@ -123,7 +124,7 @@ def conflict_evidence(conflicts: list, catalog: Catalog, limit: int = 10) -> lis
 def decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as_of: date) -> Decision:
     decision = _decide(question, hits, catalog, as_of)
     decision.evidence.extend(conflict_evidence(decision.conflicts, catalog))
-    return decision
+    return add_lifecycle(decision, catalog, as_of)
 
 
 def _decide(question: ParsedQuestion, hits: list[SearchHit], catalog: Catalog, as_of: date) -> Decision:
