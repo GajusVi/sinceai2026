@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 12:06
-now: HALT after Panu Q&A: collecting new items
-done: 707c207 UX pass, 54a3a20 eval-steward
-next: post new task list
+updated: 2026-11-07 16:40
+now: Production resumed: ownership open (dibs + Gajus OK); dynamic dashboard task to Margiris + Martynas
+done: 8d4219e mock login + roles, 0584544 worker fast path
+next: review their dynamic-layout proposal, OK dibs
 blocked: T6 conventions decision (mine, below)
