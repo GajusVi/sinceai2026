@@ -218,6 +218,29 @@ def _scope_assets(df: pd.DataFrame, filters: dict[str, str], frames: dict[str, p
     return out
 
 
+def scoped_frames(frames: dict[str, pd.DataFrame], filters: dict[str, str] | None) -> dict[str, pd.DataFrame]:
+    """The governed tables restricted to a spec's scope, with the same rules and columns as `compute` (used by the .pbip export,
+    so a Nubeqa dashboard opened in Power BI holds, and shows, Nubeqa only)."""
+    if not filters:
+        return dict(frames)
+    out = dict(frames)
+    for table in ("fact_pmm", "fact_supply", "fact_access", "fact_launch"):
+        if table in frames:
+            out[table] = _scope(frames[table], filters, frames)[list(frames[table].columns)]
+    if "dim_asset" in frames:
+        out["dim_asset"] = _scope_assets(frames["dim_asset"], filters, frames)
+    if "fact_usage" in frames and "dim_asset" in out:
+        usage = _months(frames["fact_usage"], filters)
+        out["fact_usage"] = usage[usage["asset_id"].isin(out["dim_asset"]["asset_id"])]
+    if "dim_month" in frames:
+        out["dim_month"] = _months(frames["dim_month"], filters)
+    if filters.get("product") and filters["product"] != ALL_PHARMA and "fact_pmm" in out:
+        out["dim_product"] = frames["dim_product"][frames["dim_product"]["product_id"].isin(out["fact_pmm"]["product_id"])]
+    if (filters.get("market") and filters["market"] != GLOBAL or filters.get("region")) and "fact_pmm" in out:
+        out["dim_market"] = frames["dim_market"][frames["dim_market"]["market_id"].isin(out["fact_pmm"]["market_id"])]
+    return out
+
+
 def _result(rows: list[tuple], by: str | None, dq: list[str]) -> pd.DataFrame:
     frame = pd.DataFrame(rows, columns=[BY_COLUMN[by] if by else "scope", "value"])
     if not by:

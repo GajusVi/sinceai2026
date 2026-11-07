@@ -28,7 +28,7 @@
     "grain": "month",
     "exclude_zero_rows": false,
     "source": "derived",
-    "dax": "DIVIDE(SUM(fact_pmm[net_sales_m_eur_syn]) - CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), FILTER(ALL(dim_month[month]), dim_month[month] = EDATE(MAX(dim_month[month]), -1))), CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), FILTER(ALL(dim_month[month]), dim_month[month] = EDATE(MAX(dim_month[month]), -1))))",
+    "dax": "VAR cur = MAX(dim_month[month]) VAR cur_sales = CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), dim_month[month] = cur) VAR prior_sales = CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), dim_month[month] = EDATE(cur, -1)) RETURN DIVIDE(cur_sales - prior_sales, prior_sales)",
     "format": "0.0%",
     "feasible": true,
     "gap_reason": ""

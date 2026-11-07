@@ -26,6 +26,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from .semantic import scoped_frames
 from .spec import DashboardSpec, Measure, Visual
 
 TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "pbip" / "one_of_each" / "one_of_each.Report"
@@ -378,7 +379,7 @@ def _report_files(spec: DashboardSpec, name: str, measures: list[Measure], extra
 def build_files(spec: DashboardSpec, frames: dict[str, pd.DataFrame]) -> dict[str, str]:
     """All files of the project, path -> text content."""
     name = _safe_name(spec.name)
-    frames = _prepare(frames)
+    frames = _prepare(scoped_frames(frames, spec.filters))  # the model holds the spec's scope only, as the app shows it
     buildable = [m for m in spec.measures if m.feasible and m.expression.strip()]
     gaps = [m for m in spec.measures if not m.feasible]
     extra: dict[str, str] = {}
@@ -393,6 +394,8 @@ def build_files(spec: DashboardSpec, frames: dict[str, pd.DataFrame]) -> dict[st
     notes = [
         f"Gap, not in the model: {m.name} ({m.kpi_id}): {m.gap_reason or 'no governed source data'}" for m in gaps
     ]
+    if spec.filters:
+        notes.insert(0, "Scope: the model holds only " + ", ".join(f"{k} = {v}" for k, v in spec.filters.items()) + ".")
     files = {
         f"{name}.pbip": _json(
             {"version": "1.0", "artifacts": [{"report": {"path": f"{name}.Report"}}], "settings": {"enableAutoRecovery": True}}

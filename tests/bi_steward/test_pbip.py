@@ -206,4 +206,21 @@ def test_dax_matches_the_python_numbers_on_trap_14_and_months():
     dax = {m.kpi_id: m.expression for m in all_measures()}
     for kpi in ("KPI-016", "KPI-020", "KPI-027"):  # averages leave out the zero-sales rows, as semantic.compute does
         assert "fact_pmm[net_sales_m_eur_syn] > 0" in dax[kpi], kpi
-    assert "DATEADD" not in dax["KPI-004"] and "EDATE" in dax["KPI-004"]  # month-start dates are not contiguous days
+    assert "DATEADD" not in dax["KPI-004"] and "EDATE(cur, -1)" in dax["KPI-004"]  # month-start dates are not contiguous days
+    assert "VAR cur = MAX(dim_month[month])" in dax["KPI-004"]  # latest month in a card, each month on a month axis
+
+
+def test_export_holds_only_the_specs_scope_and_the_fixture_dax_is_the_governed_dax():
+    from steward.semantic import compute, measure, scoped_frames
+
+    frames = load_frames()
+    scoped = scoped_frames(frames, {"product": "Nubeqa"})
+    assert set(scoped["fact_pmm"]["product_id"]) == {"P-NUB"} and list(scoped["dim_product"]["product_id"]) == ["P-NUB"]
+    assert list(scoped["fact_pmm"].columns) == list(frames["fact_pmm"].columns)
+    full = compute(measure("KPI-001"), frames, {"product": "Nubeqa"})["value"][0]
+    assert abs(scoped["fact_pmm"]["net_sales_m_eur_syn"].sum() - full) < 1e-6  # the model sums to what the app shows
+    assert len(scoped_frames(frames, {})["fact_pmm"]) == 980
+    spec = DashboardSpec.model_validate_json((ROOT / "tests/bi_steward/fixtures/spec_req0001.json").read_text(encoding="utf-8"))
+    governed = {m.kpi_id: m.expression for m in all_measures()}
+    assert all(m.expression == governed[m.kpi_id] for m in spec.measures if m.kpi_id in governed)
+    assert "Scope: the model holds only product = Nubeqa." in build_files(spec, frames)["README.txt"]

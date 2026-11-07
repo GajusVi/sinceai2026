@@ -72,7 +72,7 @@
     {
       "name": "Net Sales Growth",
       "kpi_id": "KPI-004",
-      "expression": "DIVIDE([Net Sales] - CALCULATE([Net Sales], DATEADD(dim_month[month], -1, MONTH)), CALCULATE([Net Sales], DATEADD(dim_month[month], -1, MONTH)))",
+      "expression": "VAR cur = MAX(dim_month[month]) VAR cur_sales = CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), dim_month[month] = cur) VAR prior_sales = CALCULATE(SUM(fact_pmm[net_sales_m_eur_syn]), dim_month[month] = EDATE(cur, -1)) RETURN DIVIDE(cur_sales - prior_sales, prior_sales)",
       "format": "0.0%",
       "unit": "%",
       "source": "derived",
@@ -96,7 +96,7 @@
     {
       "name": "Market Access Coverage",
       "kpi_id": "KPI-027",
-      "expression": "AVERAGE(fact_pmm[market_access_coverage_pct_syn])",
+      "expression": "CALCULATE(AVERAGE(fact_pmm[market_access_coverage_pct_syn]), fact_pmm[net_sales_m_eur_syn] > 0)",
       "format": "0.0",
       "unit": "%",
       "source": "fact_pmm.market_access_coverage_pct_syn",
