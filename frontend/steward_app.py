@@ -22,6 +22,7 @@ from steward.explain import TemplateExplainer  # noqa: E402
 from steward.governance import JOURNAL_FILE  # noqa: E402
 from steward.inbox import FILE as INBOX_FILE  # noqa: E402
 from steward.inbox import Inbox  # noqa: E402
+from steward.receipts import Meter, receipts  # noqa: E402
 from steward.intent import Intent  # noqa: E402
 from steward.linking import kpi_index  # noqa: E402
 from steward.models import GapKind, StewardResult, Verdict  # noqa: E402
@@ -145,7 +146,9 @@ if user is None:
 
 @st.cache_resource
 def get_steward() -> Steward:
-    return Steward()
+    s = Steward()
+    s.meter = Meter(s.llm)  # receipts (T2.5): AI calls and time per phase; numbers live per session
+    return s
 
 
 steward = get_steward()
@@ -232,17 +235,21 @@ def ask(text: str) -> None:
     messages.append({"role": "user", "content": text})
     if st.session_state.get("interview") is None:  # a new question: the asker's own, or a floor request picked up
         st.session_state.requested_by = st.session_state.pop("next_requested_by", None)
+        st.session_state.phases = {}  # receipts: this request's time and AI calls per phase
     if st.session_state.get("expert_mode"):
-        _finish(
-            steward.build(steward.ask(text), None, user), novice=False
-        )  # W3-W6: the dashboard this decision implies
+        with _phase("decide"):  # expert: understanding, search, decision and explanation in one call
+            asked = steward.ask(text)
+        with _phase("build"):
+            built = steward.build(asked, None, user)
+        _finish(built, novice=False)  # W3-W6: the dashboard this decision implies
         return
     state = st.session_state.get("interview")
-    if state is not None and not state.done:
-        state = steward.interviewer.answer(state, text)
-    else:
-        st.session_state.result = None
-        state = steward.interviewer.start(text)
+    with _phase("understand"):
+        if state is not None and not state.done:
+            state = steward.interviewer.answer(state, text)
+        else:
+            st.session_state.result = None
+            state = steward.interviewer.start(text)
     site = other_plant(user, state.intent.sites)
     if site:  # management: own plant (and granted ones) only; the rest goes through a builder
         st.session_state.interview = None
@@ -257,7 +264,9 @@ def skip_to_defaults() -> None:
     if state is None or state.done:
         return
     st.session_state.messages.append({"role": "user", "content": "Use the recommended setup"})
-    _continue(steward.interviewer.finish_with_defaults(state))
+    with _phase("understand"):
+        state = steward.interviewer.finish_with_defaults(state)
+    _continue(state)
 
 
 def _continue(state) -> None:
@@ -268,8 +277,18 @@ def _continue(state) -> None:
     st.session_state.interview = None
     state.intent = own_plant_scope(user, state.intent)  # management: no plant named -> own plant (supply data)
     st.session_state.messages.append({"role": "assistant", "content": understood(state)})
-    result = steward.investigate(steward.ask_intent(state.intent), state.intent)
-    _finish(steward.build(result, state.intent, user), novice=True, intent=state.intent)
+    with _phase("decide"):
+        result = steward.ask_intent(state.intent)
+    with _phase("explain"):
+        result = steward.investigate(result, state.intent)
+    with _phase("build"):
+        result = steward.build(result, state.intent, user)
+    _finish(result, novice=True, intent=state.intent)
+
+
+def _phase(name: str):
+    """Time + AI calls of one step, kept in this session (the engine and its meter are shared)."""
+    return steward.meter.phase(name, into=st.session_state.setdefault("phases", {}))
 
 
 def _finish(result: StewardResult, novice: bool, intent=None) -> None:
@@ -282,6 +301,7 @@ def _finish(result: StewardResult, novice: bool, intent=None) -> None:
     st.session_state.result = result
     st.session_state.novice_result = novice
     st.session_state.result_intent = intent
+    st.session_state.result_phases = dict(st.session_state.get("phases") or {})
 
 
 def understood(state) -> str:
@@ -566,6 +586,7 @@ def render_result(result: StewardResult) -> None:
         render_dashboard(result, governance=False)
         ui.section("Why")
         ui.why(why_sentences(result))
+        render_receipts(result)
         render_human_decision(result)
         st.write("")
         if st.toggle("Show details for the BI team", key="show_details"):
@@ -580,10 +601,40 @@ def render_result(result: StewardResult) -> None:
     )
     ui.section("Why")
     ui.why(why_sentences(result))
+    render_receipts(result)
     render_ai(result)
     render_details(result, dashboard=False)
     render_dashboard(result)
     render_human_decision(result)
+
+
+def render_receipts(result: StewardResult) -> None:
+    """The chain, one line per step: what went in, what came out, why, what it cost (T2.5, the pipeline slide).
+    The Decide line carries the gate checklist. Donatas styles .st-key-bs-receipts."""
+    rows = receipts(result, st.session_state.get("result_intent"), steward.catalog, steward.as_of,
+                    st.session_state.get("result_phases"))
+    ui.section("How this was decided")
+    with st.container(key="bs-receipts"):
+        for n, r in enumerate(rows, 1):
+            cost = []
+            if r.ms is not None:
+                cost.append(f"{r.ms / 1000:.1f} s" if r.ms >= 1000 else f"{r.ms:.0f} ms")
+            if r.llm_calls:
+                cost.append(f"{r.llm_calls} AI call{'s' if r.llm_calls > 1 else ''}")
+            meta = " · ".join(cost)
+            st.markdown(
+                f"**{n}. {r.step}**  {escape(r.inp)} → **{escape(r.out)}**"
+                + (f"  \n{escape(r.why)}" if r.why else "")
+                + (f"  \n:gray[{meta}]" if meta else "")
+                + (f"  \n:red[{escape(r.failed)}]" if r.failed else "")
+            )
+            if r.gates:
+                with st.expander(f"Checklist for {r.ids[0] if r.ids else 'the best report'} "
+                                 f"({sum(g.ok for g in r.gates)}/{len(r.gates)} pass)"):
+                    for g in r.gates:
+                        mark = ":green[✓]" if g.ok else ":red[✗]"
+                        action = f" → *{g.action}*" if g.action and not g.ok else ""
+                        st.markdown(f"{mark} {g.name}" + (f" · {escape(g.detail)}" if g.detail else "") + action)
 
 
 def verdict_word(result: StewardResult) -> str:
@@ -797,6 +848,7 @@ def render_queue() -> None:
                 novice_result=row["novice"],
                 requested_by=row["from"],
                 inbox_id=row["id"],
+                result_phases={},  # the requester's timings are not ours to show
                 interview=None,
                 messages=[
                     {"role": "user", "content": row["question"]},
@@ -835,6 +887,7 @@ def render_floor_requests() -> None:
                     st.session_state.update(
                         result=steward.build(steward.ask_intent(intent), intent, user),
                         result_intent=intent, novice_result=True, requested_by=req["who"], interview=None,
+                        result_phases={},
                         messages=[{"role": "user", "content": intent.text},
                                   {"role": "assistant", "content": f"Request from {req['who']} at {req['plant']}."}],
                     )
