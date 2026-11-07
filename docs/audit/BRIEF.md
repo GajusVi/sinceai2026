@@ -102,3 +102,19 @@ Then three end-to-end sections:
 - The later you publish, the more existing ideas you have to read and go beyond. Check the audits already on main
   before you push.
 - The same applies to the attack files: new alternatives, not restated ones.
+
+## Additional submission (Gajus, 19:15): logic audit + bold ideas
+**docs/audit/gajus-chain.md**, read it before your attack file. It holds:
+- the whole chain as one logic graph (mermaid);
+- 10 weak connectors, C1-C10 (C9 and C10 are new);
+- six new 0-to-1 ideas, Z1-Z6:
+  - earned permanence;
+  - carrying cost and a team budget;
+  - decisions, not views;
+  - benchmark without access;
+  - a KPI type checker;
+  - governed answers for every AI;
+- a ranked plan for the build window that is left;
+- six new logic nodes, N1-N6.
+
+Attack it like the other audits. Duplicates follow the push time of commit 90faf08.
