@@ -100,7 +100,7 @@ Urgency: 78 normal / 31 high / 41 urgent. Status: 78 new / 72 triaged.
 17. **Usage dated before the asset existed**: for assets created from Apr 2026, 218 of 400 usage rows are earlier than created_date.
     Count usage only from the creation month; report the rest as a data-quality finding.
 18. **Asset names contradict their market_scope.** 88 asset names end in a market suffix (" - EMEA" 36, " - US" 26, " - Global" 26).
-    Only 2 of 88 match market_scope exactly, and 67 contradict it even when an EMEA name may sit on an EMEA country or Global
+    Only 2 of 88 match market_scope exactly, and 71 contradict it (code count, Martynas M1: 4 EMEA-named Global assets and 2 US-named Global ones included)
     (e.g. AST-0009 "Nubeqa Supply - US" = Global; AST-0010 "All Pharma Commercial Reach - Global" = US;
     AST-0016 "All Pharma Launch - EMEA" = CA). Rule: market_scope is the truth for compatibility; the name is a search hint only;
     a mismatch is a data-quality finding shown on the evidence card. Text search (BM25) will be misled by these names,
