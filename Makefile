@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: extras setup ui demo bayer board ui-old ask api eval warm test lint ping models hack unhack freeze
+.PHONY: extras setup ui demo bayer board ui-old ask api eval eval-steward warm test lint ping models hack unhack freeze
 
 setup:      ## install/repair everything (idempotent)
 	./setup_mac.sh
@@ -36,6 +36,9 @@ api:        ## FastAPI on :8000 (docs at /docs)
 
 eval:       ## hold-out accuracy / F1 / misses -> eval/results.json
 	$(PY) eval/eval.py
+
+eval-steward: ## BI Steward eval: false-REUSE, accuracy, intent F1, lint pass rate, 150-request estate (~10 s)
+	STEWARD_CATALOG=datapack $(PY) eval/eval_steward.py
 
 warm:       ## record live outputs for demo inputs + hold-out into demo/cache (run Saturday)
 	$(PY) -m backend.warm && $(PY) eval/eval.py
