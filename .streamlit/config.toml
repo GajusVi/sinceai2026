@@ -1,11 +1,35 @@
-# Nordic corporate look: flat fills, dark green accent, plenty of white.
+# BI Steward design system (docs/steward/DESIGN.md). Sources: UI UX Pro Max (B2B service / analytics dashboard rows:
+# "Accessible & Ethical + Minimalism & Swiss", navy + one trust-blue accent, Inter "Minimal Swiss" pairing),
+# taste-skill (one system, one accent, no violet), design-motion-principles (Emil lens for SaaS dashboards).
 [theme]
 base = "light"
-primaryColor = "#0E5E3B"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F2F4F3"
-textColor = "#1B1F1D"
-font = "sans serif"
+primaryColor = "#0369A1"
+backgroundColor = "#F8FAFC"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0F172A"
+linkColor = "#0369A1"
+borderColor = "#E2E8F0"
+showWidgetBorder = true
+showSidebarBorder = true
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+baseFontSize = 15
+baseRadius = "0.6rem"
+buttonRadius = "0.5rem"
+headingFontWeights = [700, 650, 600, 600, 600, 600]
+metricValueFontWeight = 650
+greenColor = "#15803D"
+redColor = "#DC2626"
+orangeColor = "#D97706"
+blueColor = "#0369A1"
+dataframeHeaderBackgroundColor = "#F1F5F9"
+chartCategoricalColors = ["#0369A1", "#64748B", "#D97706", "#15803D", "#0F172A", "#94A3B8"]
+
+[theme.sidebar]
+backgroundColor = "#0F172A"
+secondaryBackgroundColor = "#1E293B"
+textColor = "#E2E8F0"
+borderColor = "#1E293B"
 
 [server]
 headless = true

@@ -85,7 +85,7 @@ def test_novice_chat_one_click_answers_then_dashboard_first(monkeypatch, tmp_pat
     assert at.session_state["messages"][-2]["content"].startswith("Got it: Plant-B")
     assert "Nothing like this exists yet" in at.session_state["messages"][-1]["content"]  # plain words, no verdict
     assert at.session_state["result"].spec.filters["site"] == "Plant-B"
-    assert at.subheader[0].value == "Plant-B: how well a site is running"
+    assert any("Plant-B: how well a site is running" in m.value and "bs-verdict" in m.value for m in at.markdown)
     assert not any("Lint gate" in m.value for m in at.markdown)  # governance only behind the details toggle
 
 

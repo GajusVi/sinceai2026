@@ -104,15 +104,8 @@ class Steward:
         from concurrent.futures import ThreadPoolExecutor
 
         from .investigate import investigate
-        from .semantic import feasibility
 
-        gaps = [f"{m.kpi_id} {m.name}" for m in feasibility(intent).gaps]
-        products = set(intent.products)
-        estate = sorted(
-            (a for a in self.catalog.active_artifacts() if a.product_scope in products),
-            key=lambda a: -sum(u.unique_users for u in a.usage),
-        )
-        summary = intent.model_dump_json(include={"products", "markets", "regions", "sites", "metric_ids", "theme"})
+        summary, estate, gaps = self._dossier_inputs(intent)
         with ThreadPoolExecutor(max_workers=2) as pool:
             inv = pool.submit(
                 investigate, self.llm, self.settings.prompts_dir, text, summary, result.decision, estate, gaps
@@ -126,6 +119,32 @@ class Steward:
             explanation = self.explainer.explain(result.question, result.decision, self.as_of)
         explanation += self._horizon_note(result.question, result.decision)
         return result.model_copy(update={"explanation": explanation, "investigation": investigation})
+
+    def _dossier_inputs(self, intent) -> tuple[str, list, list[str]]:
+        """What the AI investigation reads besides the decision: the understood scope, the other assets of the
+        requested products (most used first) and the governed KPIs without source data."""
+        from .semantic import feasibility
+
+        gaps = [f"{m.kpi_id} {m.name}" for m in feasibility(intent).gaps]
+        products = set(intent.products)
+        estate = sorted(
+            (a for a in self.catalog.active_artifacts() if a.product_scope in products),
+            key=lambda a: -sum(u.unique_users for u in a.usage),
+        )
+        summary = intent.model_dump_json(include={"products", "markets", "regions", "sites", "metric_ids", "theme"})
+        return summary, estate, gaps
+
+    def investigate(self, result: StewardResult, intent) -> StewardResult:
+        """The AI investigation for a result that has none yet (the interview path). No LLM: unchanged."""
+        if self.llm is None or result.investigation is not None or not self._on_datapack():
+            return result
+        from .investigate import investigate
+
+        summary, estate, gaps = self._dossier_inputs(intent)
+        inv = investigate(
+            self.llm, self.settings.prompts_dir, result.question.text, summary, result.decision, estate, gaps
+        )
+        return result.model_copy(update={"investigation": inv})
 
     def _adopt_asset(self, intent, investigation, result: StewardResult) -> StewardResult | None:
         """CLARIFY only because no metric was named ("replace our Tableau Xarelto workbook"), no open conflict, and the

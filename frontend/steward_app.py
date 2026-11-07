@@ -2,11 +2,15 @@
 
 import sys
 import tempfile
+from html import escape
 from pathlib import Path
 
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import ui  # noqa: E402  (frontend/ui.py: design system)
 
 from steward import Steward, semantic  # noqa: E402
 from steward.catalog import CHANGES_FILE  # noqa: E402
@@ -36,7 +40,7 @@ BAYER_EXAMPLES = [
     "Inventory coverage for Xarelto in Germany",
 ]
 
-LINT_ICONS = {"pass": "✅", "warn": "⚠️", "block": "⛔"}
+LINT_COLOURS = {"pass": ui.GOOD, "warn": ui.WARN, "block": ui.BAD}
 
 VERDICT_TITLES = {
     Verdict.REUSE: "Reuse as is",
@@ -46,8 +50,6 @@ VERDICT_TITLES = {
     "CONSOLIDATE": "Consolidate duplicates",
     "NOT_FEASIBLE": "Not possible with governed data",
 }
-
-SEVERITY_ICONS = {"info": "🔵", "warning": "🟠", "blocker": "🔴"}
 
 # C3 evidence shape. Shown only while decision.evidence is empty, and always labelled as a sample.
 FAKE_EVIDENCE = [
@@ -81,6 +83,7 @@ APPROVE_LABELS = {
 }
 
 st.set_page_config(page_title="BI Steward", layout="wide")
+ui.inject()
 
 
 @st.cache_resource
@@ -107,9 +110,9 @@ ON_DATA_PACK = bool(kpi_index(steward.catalog)[0])  # data-pack catalog: example
 labels = TemplateExplainer(steward.catalog)
 
 with st.sidebar:
-    st.title("BI Steward")
-    st.caption(f"Reference date for freshness checks: {steward.as_of}")
-    st.caption("Language model: " + llm_label())
+    st.markdown("### BI Steward")
+    st.caption("Governed analytics for Bayer Pharma: build less, build better.")
+    st.caption(f"AI model: {llm_label()}  \nData as of {steward.as_of}")
     actor = st.text_input("Your name", value="demo-user")
     st.toggle("Expert mode: skip the interview", key="expert_mode")
     st.divider()
@@ -164,7 +167,8 @@ def _continue(state) -> None:
         return
     st.session_state.interview = None
     st.session_state.messages.append({"role": "assistant", "content": understood(state)})
-    _finish(steward.build(steward.ask_intent(state.intent), state.intent), novice=True, intent=state.intent)
+    result = steward.investigate(steward.ask_intent(state.intent), state.intent)
+    _finish(steward.build(result, state.intent), novice=True, intent=state.intent)
 
 
 def _finish(result: StewardResult, novice: bool, intent=None) -> None:
@@ -220,14 +224,12 @@ def render_evidence(decision) -> None:
     if sample:
         items = FAKE_EVIDENCE
     st.markdown("#### Evidence")
+    lines = []
     for item in items:
         e = item if isinstance(item, dict) else item.model_dump()
         sev = str(getattr(e["severity"], "value", e["severity"])).lower()
-        with st.container(border=True):
-            st.markdown(f"{SEVERITY_ICONS.get(sev, '⚪')} **{e['claim']}**")
-            st.caption(
-                f"`{e['rule_id']}` · {sev} · records: {', '.join(map(str, e['record_ids'])) or 'none'} · value: {e['value']}"
-            )
+        lines.append(ui.evidence_line(e["claim"], sev, e["rule_id"], [str(i) for i in e["record_ids"]], e["value"]))
+    ui.html('<div class="bs-card">' + "".join(lines) + "</div>")
     if sample:
         st.caption("Sample evidence: not from the engine yet.")
 
@@ -273,18 +275,13 @@ def render_dashboard(result: StewardResult, governance: bool = True) -> None:
     }
     dash = render_spec(spec, frames, filters)
 
-    tiles = [("card", c) for c in dash.cards] + [("gap", g) for g in dash.gaps]
-    for row in range(0, len(tiles), 4):
-        for col, (kind, tile) in zip(st.columns(4), tiles[row : row + 4], strict=False):
-            with col:
-                if kind == "card":
-                    st.metric(tile.title, tile.value, tile.comparison or None,
-                              delta_color="off" if tile.tone == "neutral" else "normal", help=tile.note or tile.kpi_id)
-                else:
-                    with st.container(border=True):
-                        st.markdown(f"**{tile.title}**")
-                        st.caption("Gap: governed KPI, no source data")
-                        st.caption(tile.reason)
+    text = get_takeaway(key, tuple(sorted(filters.items())), result.question.text, dash)
+    if text:
+        ui.takeaway(text)
+        st.write("")
+    tiles = [ui.kpi_card(c.title, c.value, c.comparison, c.tone, c.note) for c in dash.cards]
+    tiles += [ui.gap_card(g.title, g.reason) for g in dash.gaps]
+    ui.card_row(tiles)
     fig_cols = st.columns(2)
     for i, (_title, fig) in enumerate(dash.figures):
         fig_cols[i % 2].plotly_chart(fig, use_container_width=True, key=f"fig_{key}_{i}")
@@ -306,6 +303,38 @@ def render_dashboard(result: StewardResult, governance: bool = True) -> None:
         render_governance(spec)
 
 
+@st.cache_data(show_spinner="AI is reading the numbers...")
+def get_takeaway(spec_key: str, filters: tuple, question: str, _dash) -> str:
+    """One LLM call per spec and filter selection (Streamlit reruns must not call the model again)."""
+    from steward.takeaway import takeaway
+
+    return takeaway(steward.llm, steward.settings.prompts_dir, question, _dash)
+
+
+def render_ai(result: StewardResult, expanded: bool = True) -> None:
+    """The AI investigation: what the model checked, step by step with record ids, and whether it agrees."""
+    inv = result.investigation
+    if inv is None:
+        if steward.llm is None:
+            st.caption("AI investigation is off (no language model). The rules evidence is below.")
+        return
+    verdict = getattr(result.decision.verdict, "value", result.decision.verdict)
+    best = result.decision.best.artifact.id if result.decision.best else "no asset"
+    if inv.agrees:
+        status = ui.badge("AI agrees with the rules", ui.GOOD)
+    else:
+        mine = " ".join(x for x in (inv.recommendation, inv.best_asset_id) if x)
+        status = ui.badge(f"AI suggests {mine} (rules: {verdict} {best}): a human decides", ui.WARN)
+    with st.expander("How the AI investigated this request", expanded=expanded):
+        ui.html(status + ui.trail([(s.finding, s.record_ids) for s in inv.steps]))
+        if inv.why:
+            ui.html(f'<div class="bs-muted"><b>Why:</b> {escape(inv.why)}</div>')
+        for risk in inv.risks:
+            ui.html(f'<div class="bs-muted">Risk: {escape(risk)}</div>')
+        if inv.dropped_steps:
+            st.caption(f"{inv.dropped_steps} AI step(s) dropped: they cited records or numbers the tools did not find.")
+
+
 def render_governance(spec) -> None:
     """What changes, the lint gate and the exports: for the BI team, not for the requester."""
     key = spec.provenance.get("spec_hash", "spec")
@@ -316,7 +345,8 @@ def render_governance(spec) -> None:
     st.markdown("##### Lint gate (RULE-001..008, FOCUS, DATA)")
     if spec.lint:
         for r in spec.lint:
-            st.write(f"{LINT_ICONS.get(r.status, '•')} **{r.rule_id}** {r.message}")
+            ui.html(f"{ui.badge(r.status.upper(), LINT_COLOURS.get(r.status, ui.MUTED))} "
+                    f"<b>{r.rule_id}</b> <span class='bs-muted'>{escape(r.message)}</span>")
     else:
         st.caption("The lint gate is not available yet; nothing blocks approval.")
     st.download_button(
@@ -352,14 +382,21 @@ def _index(options: list[str], value: str | None) -> int:
 def render_result(result: StewardResult) -> None:
     """Novice: the answer first (plain headline + dashboard), governance details behind a toggle, then the
     approval. Expert: the full governance view as before."""
+    verdict = getattr(result.decision.verdict, "value", result.decision.verdict)
+    st.write("")
     if st.session_state.get("novice_result"):
         intent = st.session_state.get("result_intent")
-        st.subheader(_headline(result, intent))
+        ui.verdict_banner(verdict, _headline(result, intent), plain_outcome(result))
+        render_ai(result, expanded=False)
         render_dashboard(result, governance=False)
         if st.toggle("Show details for the BI team", key="show_details"):
             render_details(result, dashboard=True)
         render_human_decision(result)
         return
+    best = result.decision.best
+    ui.verdict_banner(verdict, verdict_title(result.decision.verdict) + (f": {best.artifact.title}" if best else ""),
+                      plain_outcome(result))
+    render_ai(result)
     render_details(result, dashboard=False)
     render_dashboard(result)
     render_human_decision(result)
@@ -375,7 +412,7 @@ def _headline(result: StewardResult, intent) -> str:
 
 def render_details(result: StewardResult, dashboard: bool) -> None:
     decision = result.decision
-    st.markdown(f"#### Verdict: {verdict_title(decision.verdict)}")
+    st.markdown("#### Why")
     st.markdown(result.explanation)
     render_evidence(decision)
     if dashboard and result.spec is not None:
@@ -627,6 +664,15 @@ def render_options() -> None:
 
 
 with tab_ask:
+    if not st.session_state.get("messages") and not st.session_state.get("pending_question"):
+        ui.hero(
+            "Governed analytics assistant",
+            "Ask for a dashboard. Get the one you should have.",
+            "Describe what you need in your own words. The AI works out what you mean, checks the 360 existing "
+            "reports, and recommends reuse, an extension, a merge or a new build, on official data only.",
+        )
+    ui.pipeline_steps([("AI understands", True), ("Rules decide", False), ("AI investigates", True),
+                       ("Governed dashboard", False), ("AI takeaway", True), ("Human approves", False)])
     typed = st.chat_input("Ask a business question, e.g. " + (BAYER_EXAMPLES if ON_DATA_PACK else EXAMPLES)[0])
     question = typed or st.session_state.pop("pending_answer", None) or st.session_state.pop("pending_question", None)
     if st.session_state.pop("pending_skip", False):

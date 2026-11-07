@@ -1,4 +1,8 @@
 """N4: REQ-0001 W0 -> W8 on screen in the data-pack app (Streamlit AppTest, no browser)."""
+
+import html
+import re
+from collections import namedtuple
 from pathlib import Path
 
 import pytest
@@ -17,13 +21,27 @@ def fresh():
     st.cache_data.clear()
 
 
-OTHER_METRICS = {"Reports in catalog", "Certified", "Duplicates", "Retirement candidates",
-                 "Question coverage", "Trust", "Views (30 days)"}  # health tab and the recommended-report block
+OTHER_METRICS = {
+    "Reports in catalog",
+    "Certified",
+    "Duplicates",
+    "Retirement candidates",
+    "Question coverage",
+    "Trust",
+    "Views (30 days)",
+}  # health tab and the recommended-report block
+
+
+KPI = namedtuple("KPI", "label value")
+_KPI = re.compile(r'bs-kpi-label">([^<]*)</div><div class="bs-kpi-value"[^>]*>([^<]*)</div>')
 
 
 def dashboard_metrics(app):
-    """The health tab and the decision block render their own metrics; the dashboard's are the others."""
-    return [m for m in app.metric if m.label not in OTHER_METRICS]
+    """The dashboard's KPI cards (frontend/ui.kpi_card HTML); gap cards and st.metric tiles elsewhere are not KPIs."""
+    found = []
+    for m in app.markdown:
+        found += [KPI(html.unescape(a), html.unescape(b)) for a, b in _KPI.findall(m.value) if "bs-gap" not in m.value]
+    return found
 
 
 @pytest.fixture
@@ -40,7 +58,10 @@ def test_req0001_shows_the_dashboard_then_approve_writes_the_spec_hash(app, tmp_
     app.chat_input[0].set_value(REQ1).run()
     assert not app.exception
     assert [m.label for m in dashboard_metrics(app)] == [
-        "Nubeqa net sales", "Nubeqa net sales growth", "Nubeqa forecast variance", "Nubeqa market access coverage",
+        "Nubeqa net sales",
+        "Nubeqa net sales growth",
+        "Nubeqa forecast variance",
+        "Nubeqa market access coverage",
     ]
     assert any(c.value.startswith("v2 (extend)") or "Source model" in c.value for c in app.caption)
     assert {s.label for s in app.selectbox} >= {"Product", "Market"}
@@ -83,7 +104,7 @@ def test_app_loads_with_the_backend_llm_client(monkeypatch, tmp_path):
     monkeypatch.setattr("steward.pipeline.get_llm", lambda settings: FakeBackendLLM())
     app = AppTest.from_file(APP, default_timeout=120).run()
     assert not app.exception
-    assert any(c.value.startswith("Language model: ") and "openai/gpt-oss-120b" in c.value for c in app.sidebar.caption)
+    assert any(c.value.startswith("AI model: ") and "openai/gpt-oss-120b" in c.value for c in app.sidebar.caption)
 
 
 def test_pbip_download_is_offered_for_a_linted_spec_and_labelled_draft(app):
