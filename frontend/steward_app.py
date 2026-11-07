@@ -188,11 +188,12 @@ with st.sidebar:
     with st.container(key="bs-rail"):  # left navigation rail (T2.6); Donatas styles .st-key-bs-rail
         PAGE = st.radio("Workspace", _names, key="nav", label_visibility="collapsed")
     st.caption(f"AI model: {llm_label()}  \nData as of {steward.as_of}")
-    st.markdown(f"**{user.username}** · {user.role.capitalize()}")
-    st.caption(
-        f"{user.name}, {user.location}  \nPlant: {PLANTS}"
-        + (f"  \nDepartment: {user.department}" if user.department else "")
-    )
+    with st.container(key="bs-user"):  # styled by Donatas (.st-key-bs-user): the compact user card
+        st.markdown(f"**{user.username}** · {user.role.capitalize()}")
+        st.caption(
+            f"{user.name}, {user.location}  \nPlant: {PLANTS}"
+            + (f"  \nDepartment: {user.department}" if user.department else "")
+        )
     if APP_MODE:  # back to the native login window (the launcher's page); this session ends with the page
         st.markdown(f'<a class="bs-logout" href="{os.environ.get(apptoken.ENV_LOGIN_URL, "")}" target="_top">'
                     "Log out</a>", unsafe_allow_html=True)
