@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 03:29
-now: N4 render.py + dashboard panel in the Ask flow (frontend/steward_app.py)
-done: N1 28df501, N2 1d22199, N3 531658c pushed
-next: N4 by 08:00, handover 08:15, Panu 09:00
+updated: 2026-11-07 05:08
+now: F9-F12 interview patch pushed; waiting on Margiris F1-F8
+done: 402e2d3 grill-me comfort + F9-F12 (intent/interview/app), message to Margiris 1107-050145
+next: hand-over note for Donatas, README G6, euro case G5
 blocked: T6 conventions decision (mine, below)
