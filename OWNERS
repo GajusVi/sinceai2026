@@ -30,6 +30,7 @@ prompts/layout.yaml     gajus
 steward/catalog.py      martynas
 steward/semantic.py     gajus
 steward/pbip.py         gajus
+steward/pbip_server.py  martynas
 templates/pbip/         martynas
 steward/specbuild.py    gajus
 steward/layout.py       gajus
