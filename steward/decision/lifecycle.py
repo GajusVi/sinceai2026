@@ -5,8 +5,9 @@ Data-pack assets only: the sample catalog has none of these fields, so its golde
 
 RETIRE is a recommendation, never an action (owner/steward approves, reversible for 30 days). It needs ALL of:
 old enough to judge, low use relative to comparable assets AND in each of the last months, nobody depends on it quietly,
-and a reason beyond low use (a more trusted duplicate, or no active owner). A report that carries a high-criticality
-KPI is never recommended for retirement: it goes to HUMAN_REVIEW instead. Thresholds: steward/config.py.
+and a reason beyond low use (a more trusted duplicate, or no active owner). A report that is the ONLY one carrying a
+high-criticality KPI is never recommended for retirement: it goes to HUMAN_REVIEW instead (Gajus, option B).
+Thresholds: steward/config.py.
 """
 
 from __future__ import annotations
@@ -214,10 +215,33 @@ class RetireAssessment:
         )
 
 
+def kpi_holders(catalog: Catalog) -> dict[str, set[str]]:
+    """Canonical KPI id -> ids of the active assets that carry it."""
+    holders: dict[str, set[str]] = {}
+    for a in catalog.active_artifacts():
+        for kpi in canonical_kpis(a, catalog):
+            holders.setdefault(kpi, set()).add(a.id)
+    return holders
+
+
+def sole_critical_kpis(artifact: Artifact, catalog: Catalog, ref: Reference, holders: dict[str, set[str]]) -> list[str]:
+    """High-criticality KPIs that NO other active asset carries (decided by Gajus, option B, 11:41): retiring such an
+    asset would leave a critical KPI without any governed report. A critical KPI that a duplicate also carries does not
+    block retirement."""
+    mine = canonical_kpis(artifact, catalog) & ref.high_kpis
+    return sorted(k for k in mine if not (holders.get(k, set()) - {artifact.id}))
+
+
 def assess_retire(
-    artifact: Artifact, catalog: Catalog, as_of: date, ref: Reference, cuts: dict[str, float] | None = None
+    artifact: Artifact,
+    catalog: Catalog,
+    as_of: date,
+    ref: Reference,
+    cuts: dict[str, float] | None = None,
+    holders: dict[str, set[str]] | None = None,
 ) -> RetireAssessment:
     cuts = cuts if cuts is not None else bottom_cuts(catalog)
+    holders = holders if holders is not None else kpi_holders(catalog)
     result = RetireAssessment(artifact.id)
     created = artifact.created_date
     result.checks["old_enough"] = bool(created) and _month_index(as_of) - _month_index(created) >= RETIRE_MIN_AGE_MONTHS
@@ -238,7 +262,7 @@ def assess_retire(
     result.facts["subscriptions"] = str(subscriptions)
     result.checks["quiet"] = bool(recent) and subscriptions == 0 and not result.downstream
 
-    result.critical_kpis = sorted(set(artifact.kpi_ids) & ref.high_kpis)
+    result.critical_kpis = sole_critical_kpis(artifact, catalog, ref, holders)
     result.checks["not_critical"] = not result.critical_kpis
 
     result.duplicate_of = _more_trusted_duplicate(artifact, catalog, as_of)
@@ -269,7 +293,7 @@ def retire_evidence(artifact: Artifact, a: RetireAssessment, catalog: Catalog, a
         return [
             Evidence(
                 claim=(
-                    f"{artifact.id} looks unused and redundant, but it carries high-criticality KPI "
+                    f"{artifact.id} looks unused, but it is the only report carrying high-criticality KPI "
                     f"{', '.join(a.critical_kpis[:3])}: a person reviews it, it is not recommended for retirement"
                 ),
                 rule_id="RETIRE",

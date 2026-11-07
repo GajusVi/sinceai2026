@@ -9,6 +9,7 @@ from steward.decision.lifecycle import (
     assess_retire,
     bottom_cuts,
     fix_refresh,
+    kpi_holders,
     migrate_evidence,
     reassign_owner,
     reference,
@@ -81,33 +82,36 @@ def test_reassign_tiers_match_the_data_pack_doc(catalog, ref):
     assert all("BI Platform Owner" in reassign_owner(a, ref)[0].claim for a in missing)
 
 
-def test_funnel_numbers_match_the_data_pack_doc(catalog, ref):
-    cuts = bottom_cuts(catalog)
-    results = [assess_retire(a, catalog, AS_OF, ref, cuts) for a in catalog.active_artifacts()]
-    assert sum(r.retire for r in results) + sum(r.human_review for r in results) == 21
-    assert not any(r.retire and r.human_review for r in results)
+def test_funnel_gives_21_retire_candidates_and_none_leaves_a_critical_kpi_bare(catalog, ref):
+    """Option B (Gajus 11:41): every other condition holds for 21 assets; retiring all of them still leaves every
+    high-criticality KPI with at least one active report."""
+    cuts, holders = bottom_cuts(catalog), kpi_holders(catalog)
+    results = [assess_retire(a, catalog, AS_OF, ref, cuts, holders) for a in catalog.active_artifacts()]
+    retire = {r.artifact_id for r in results if r.retire}
+    assert len(retire) == 21 and not any(r.human_review for r in results)
+    for kpi in ref.high_kpis & set(holders):
+        assert holders[kpi] - retire, f"{kpi} would have no report left"
 
 
-def test_high_criticality_kpi_goes_to_human_review_not_retire(catalog, ref):
+def test_sole_holder_of_a_critical_kpi_goes_to_human_review_not_retire(catalog, ref):
     a = catalog.artifact("AST-0009")
-    r = assess_retire(a, catalog, AS_OF, ref)
+    holders = {k: {a.id} for k in a.kpi_ids}  # pretend no other report carries its KPIs
+    r = assess_retire(a, catalog, AS_OF, ref, holders=holders)
     assert r.human_review and not r.retire and r.critical_kpis
     (ev,) = retire_evidence(a, r, catalog, AS_OF)
-    assert "not recommended for retirement" in ev.claim and a.id in ev.record_ids
+    assert "only report carrying" in ev.claim and "not recommended for retirement" in ev.claim and a.id in ev.record_ids
+
+
+def test_critical_kpi_carried_by_another_report_does_not_block_retire(catalog, ref):
+    a = catalog.artifact("AST-0009")
+    r = assess_retire(a, catalog, AS_OF, ref)
+    assert r.retire and not r.critical_kpis
+    claims = " ".join(e.claim for e in retire_evidence(a, r, catalog, AS_OF))
+    assert "retire candidate" in claims and "Never automatic" in claims and "no active owner" in claims
 
 
 def _retire_candidate(catalog, ref):
-    """AST-0009 with its critical KPIs removed: shows RETIRE fires when every other condition holds."""
-    a = catalog.artifact("AST-0009").model_copy(update={"kpi_ids": []})
-    return a
-
-
-def test_retire_when_nothing_critical_and_all_else_holds(catalog, ref):
-    a = _retire_candidate(catalog, ref)
-    r = assess_retire(a, catalog, AS_OF, ref)
-    assert r.retire
-    claims = " ".join(e.claim for e in retire_evidence(a, r, catalog, AS_OF))
-    assert "retire candidate" in claims and "Never automatic" in claims and "no active owner" in claims
+    return catalog.artifact("AST-0009")
 
 
 @pytest.mark.parametrize(

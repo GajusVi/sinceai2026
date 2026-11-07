@@ -305,6 +305,12 @@ def main() -> None:
     }
     if not args.no_estate:
         result["estate"] = estate_section()
+    # Top-level keys the legacy Proof tab (frontend/app.py, make ui-old) reads: n, accuracy, macro_f1, misses.
+    # accuracy = verdict accuracy; macro_f1 = mean of the four intent-field F1 scores (not a verdict F1).
+    result["n"] = result["verdict"]["n"]
+    result["accuracy"] = result["verdict"]["accuracy"]
+    result["macro_f1"] = round(sum(x["f1"] for x in result["intent"]["fields"].values()) / 4, 3)
+    result["misses"] = result["verdict"]["misses"]
     Path(args.out).write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
 
     v = result["verdict"]
