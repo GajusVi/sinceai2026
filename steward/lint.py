@@ -8,7 +8,7 @@ Exceptions to RULE-002 are recorded as spec.provenance["exception:<KPI id>"] = r
 from __future__ import annotations
 
 from .catalog import Catalog
-from .linking import kpi_index
+from .linking import asset_metric_ids, kpi_index, kpi_jaccard
 from .models import Artifact
 from .spec import DashboardSpec, LintResult, Measure
 
@@ -25,7 +25,9 @@ RULES = (
     "DATA",
 )
 
-REUSE_JACCARD = 0.6  # RULE-001: canonical-KPI overlap that makes an existing asset a substitute
+REUSE_JACCARD = (
+    0.6  # RULE-001: canonical-metric overlap (variants count as their metric) that makes an existing asset a substitute
+)
 MAX_VISUALS_PER_PAGE = 7
 MAX_PAGES = 2
 MAX_CARDS = 4
@@ -81,14 +83,6 @@ def _spec_kpis(spec: DashboardSpec, catalog: Catalog) -> set[str]:
     return (set(spec.kpi_ids) | {m.kpi_id for m in spec.measures if m.kpi_id}) & _canonical_ids(catalog)
 
 
-def _asset_kpis(asset: Artifact, catalog: Catalog) -> set[str]:
-    return set(asset.kpi_ids) & _canonical_ids(catalog)
-
-
-def _jaccard(a: set[str], b: set[str]) -> float:
-    return len(a & b) / len(a | b) if a | b else 0.0
-
-
 def _scope(filters: dict[str, str], catalog: Catalog) -> tuple[str, str]:
     """(product id, market id); empty string = All Pharma / Global. Product names ("Nubeqa") are mapped to ids ("P-NUB")."""
     product = filters.get("product", "")
@@ -105,13 +99,16 @@ def _avg_users(asset: Artifact) -> float:
 
 def _substitutes(spec: DashboardSpec, catalog: Catalog) -> list[tuple[Artifact, float]]:
     """Active assets on the same product + market scope whose canonical KPIs overlap the spec's by Jaccard >= 0.6."""
-    wanted = _spec_kpis(spec, catalog)
+    canonical = kpi_index(catalog)[0]
+    wanted = {
+        canonical[k] for k in _spec_kpis(spec, catalog)
+    }  # metric ids: a variant KPI on an asset still makes it a substitute
     scope = _scope(spec.filters, catalog)
     found = []
     for asset in catalog.active_artifacts():
         if _scope(asset.filters, catalog) != scope or asset.id in spec.base_asset_ids:
             continue
-        score = _jaccard(wanted, _asset_kpis(asset, catalog))
+        score = kpi_jaccard(wanted, asset_metric_ids(asset, catalog))
         if wanted and score >= REUSE_JACCARD:
             found.append((asset, round(score, 2)))
     return sorted(found, key=lambda x: -x[1])

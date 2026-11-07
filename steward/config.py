@@ -75,6 +75,7 @@ EXTEND_MIN_COVERAGE = 0.5
 STALE_AFTER_DAYS = 90
 LOW_USAGE_VIEWS = 5
 DUPLICATE_THRESHOLD = 0.6
+CONSOLIDATE_JACCARD = 0.6  # canonical-KPI overlap that makes two candidates one duplicate cluster (BUILD_PLAN 2.1)
 
 # Words that carry no analytics meaning. Any other word in a question that no dictionary term covers goes to
 # ParsedQuestion.unmapped_terms and turns the verdict into CLARIFY (no silent drops). Grow this list, never the goldens.

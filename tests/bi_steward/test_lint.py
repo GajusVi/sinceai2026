@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from test_kpi_matching import Pack
 
-from steward.linking import kpi_index
+from steward.linking import asset_metric_ids, kpi_index
 from steward.lint import RULES, can_approve, lint, worst
 from steward.spec import DashboardSpec, Measure, Page, SpecChange, Visual
 
@@ -53,16 +53,31 @@ def test_can_approve_needs_a_lint_run_and_no_block(spec, catalog):
 
 # RULE-001
 def test_rule_001_create_is_blocked_when_a_substitute_exists(spec, catalog):
-    canonical = set(kpi_index(catalog)[0])
+    canonical = kpi_index(catalog)[0]
     asset = next(
         a
         for a in catalog.active_artifacts()
-        if a.market_scope == "Global" and a.product_scope == "All Pharma" and len(set(a.kpi_ids) & canonical) >= 2
+        if a.market_scope == "Global" and a.product_scope == "All Pharma" and len(asset_metric_ids(a, catalog)) >= 2
     )
+    metrics = asset_metric_ids(asset, catalog)
     spec.change_type, spec.base_asset_ids, spec.filters, spec.measures = "create", [], {}, []
-    spec.kpi_ids = sorted(set(asset.kpi_ids) & canonical)
+    spec.kpi_ids = sorted(k for k, metric in canonical.items() if metric in metrics)
     r = result(spec, catalog, "RULE-001")
     assert r.status == "block" and asset.id in r.record_ids
+
+
+def test_rule_001_a_variant_kpi_still_makes_an_asset_a_substitute(spec, catalog):
+    """An asset that carries only a VARIANT of the requested metric (e.g. KPI-018 for inventory coverage) is still a substitute."""
+    canonical, variants = kpi_index(catalog)
+    asset = next(
+        a
+        for a in catalog.active_artifacts()
+        if len(asset_metric_ids(a, catalog)) == 1 and not set(a.kpi_ids) & set(canonical)
+    )
+    metric = next(iter(asset_metric_ids(asset, catalog)))
+    spec.change_type, spec.base_asset_ids, spec.filters, spec.measures = "create", [], dict(asset.filters), []
+    spec.kpi_ids = [next(k for k, m in canonical.items() if m == metric)]
+    assert asset.id in result(spec, catalog, "RULE-001").record_ids
 
 
 def test_rule_001_create_passes_on_a_scope_nobody_covers(spec, catalog):

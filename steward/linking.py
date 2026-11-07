@@ -120,3 +120,19 @@ def artifact_variants(artifact: Artifact, catalog: Catalog) -> list[tuple[str, s
     """(variant kpi_id, canonical metric id, definition_status) for each non-canonical KPI the asset uses."""
     _, variants = kpi_index(catalog)
     return [(k, *variants[k]) for k in artifact.kpi_ids if k in variants]
+
+
+def asset_metric_ids(artifact: Artifact, catalog: Catalog) -> set[str]:
+    """Metrics the asset is about: a variant KPI counts as its canonical metric (the data pack's own duplicate notion:
+    46 same-product asset pairs share >= 60% of canonical metrics). Use for duplicates; use `canonical_kpis` for coverage."""
+    canonical, variants = kpi_index(catalog)
+    return {canonical[k] for k in artifact.kpi_ids if k in canonical} | {variants[k][0] for k in artifact.kpi_ids if k in variants}
+
+
+def canonical_kpis(artifact: Artifact, catalog: Catalog) -> set[str]:
+    """The asset's approved (canonical) KPI ids; variants are not counted."""
+    return set(artifact.kpi_ids) & set(kpi_index(catalog)[0])
+
+
+def kpi_jaccard(a: set[str], b: set[str]) -> float:
+    return len(a & b) / len(a | b) if a | b else 0.0
