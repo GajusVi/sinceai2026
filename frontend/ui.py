@@ -53,6 +53,28 @@ def inject() -> None:
         st.toggle("Day theme", key="bs_day")
 
 
+# Table cells per theme (st.dataframe draws on a canvas: CSS cannot reach it, a pandas Styler can).
+TABLE = {
+    "night": {"background-color": "#111114", "color": "#fafafa", "border-color": "#27272a"},
+    "day": {"background-color": "#ffffff", "color": "#09090b", "border-color": "#e4e4e7"},
+}
+
+
+def table(data, **kwargs):
+    """st.dataframe in the current theme. Cells take our tokens through a pandas Styler; sorting, search and download
+    still work (they act on the underlying data). Header row and toolbar keep Streamlit's own (config.toml) theme:
+    a Styler cannot reach them. Floats are shown as plain numbers (Styler would print 6 decimals); column_config
+    formatting still wins. Every other st.dataframe argument passes through."""
+    import pandas as pd
+
+    df = data if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
+    styler = df.style.set_properties(**TABLE[theme()])
+    floats = [c for c in df.columns if pd.api.types.is_float_dtype(df[c])]
+    if floats:
+        styler = styler.format(lambda v: "" if pd.isna(v) else f"{v:,.10g}", subset=floats)
+    return st.dataframe(styler, **kwargs)
+
+
 def html(markup: str) -> None:
     st.markdown(markup, unsafe_allow_html=True)
 
