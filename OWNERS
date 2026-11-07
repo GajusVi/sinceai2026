@@ -23,13 +23,13 @@ steward/search/         margiris
 steward/health.py       margiris
 prompts/interview.yaml  gajus
 prompts/                margiris
-prompts/layout.yaml     margiris
+prompts/layout.yaml     gajus
 steward/catalog.py      martynas
 steward/semantic.py     gajus
 steward/pbip.py         gajus
 templates/pbip/         martynas
-steward/specbuild.py    margiris   (TEMP, Gajus OK 1107-164853: only the _page hook + layouter threading; the rest stays Gajus's, hand back after the layout work)
-steward/layout.py       margiris
+steward/specbuild.py    gajus
+steward/layout.py       gajus
 steward/investigate.py  gajus
 prompts/investigate.yaml gajus
 steward/takeaway.py     gajus
