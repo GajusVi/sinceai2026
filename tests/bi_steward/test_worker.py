@@ -51,6 +51,7 @@ def test_other_plants_are_refused_for_workers_and_management():
 def test_floor_words():
     assert words_to_metrics("how many weeks of stock do we have?")[0] == ["inventory_coverage"]
     assert words_to_metrics("downtime on line 3") == ([], "line downtime")
+    assert words_to_metrics("did we ship more than last month?")[0] == ["units_shipped"]
     assert words_to_metrics("anything related to this") == ([], "")  # "late" is not inside "related"
 
 

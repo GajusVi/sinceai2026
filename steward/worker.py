@@ -71,7 +71,7 @@ NEEDS: dict[str, list[str]] = {
 WORDS: dict[str, tuple[str, ...]] = {
     "stock": ("inventory_coverage",), "inventory": ("inventory_coverage",), "cover": ("inventory_coverage",),
     "on time": ("on_time_in_full",), "deliver": ("on_time_in_full",), "otif": ("on_time_in_full",),
-    "late": ("on_time_in_full",), "forecast": ("demand_forecast_accuracy",), "shipped": ("units_shipped",),
+    "late": ("on_time_in_full",), "forecast": ("demand_forecast_accuracy",), "ship": ("units_shipped",),
     "units": ("units_shipped",), "volume": ("units_shipped",), "supply": tuple(SUPPLY),
 }
 NOT_GOVERNED_WORDS = {
