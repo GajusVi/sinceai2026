@@ -417,7 +417,7 @@ def render_dashboard(result: StewardResult, governance: bool = True, takeaway: b
     figures = dash.figures if governance else dash.figures[:2]
     fig_cols = st.columns(2)
     for i, (_title, fig) in enumerate(figures):
-        fig_cols[i % 2].plotly_chart(fig, use_container_width=True, key=f"fig_{key}_{i}")
+        fig_cols[i % 2].plotly_chart(fig, use_container_width=True, key=f"fig_{key}_{i}", theme=None)
     if dash.tables:
         if governance:
             render_tables(dash.tables)
@@ -464,7 +464,7 @@ def render_tables(tables) -> None:
         if table.empty:
             st.caption("No rows past the threshold for this selection.")
         else:
-            st.dataframe(table, hide_index=True, width="stretch")
+            ui.table(table, hide_index=True, width="stretch")
 
 
 def _in_expander(label: str, draw):
@@ -721,7 +721,7 @@ def render_details(result: StewardResult, dashboard: bool) -> None:
             f"{'certified' if best.artifact.certified else 'not certified'} · "
             f"refreshed {best.artifact.last_refreshed}"
         )
-        st.dataframe(
+        ui.table(
             [
                 {
                     "lifecycle label (claimed)": best.artifact.status.value,
@@ -738,7 +738,7 @@ def render_details(result: StewardResult, dashboard: bool) -> None:
 
     if decision.alternatives:
         with st.expander(f"Other candidates ({len(decision.alternatives)})"):
-            st.dataframe(
+            ui.table(
                 [
                     {
                         "report": c.artifact.title,
@@ -998,7 +998,7 @@ def render_orphan_rescue() -> None:
     st.markdown(" ".join(chips) if chips else "None.")
 
     st.markdown("#### Claimed vs observed")
-    st.dataframe(
+    ui.table(
         [{"lifecycle (claimed in data pack)": a.lifecycle_claimed, "usage (observed)": usage_tier(a)}],
         width="stretch",
         hide_index=True,
@@ -1173,7 +1173,7 @@ def render_health() -> None:
         f"{len(health.duplicates)} likely duplicate pairs, {len(health.retire)} retirement candidates. "
         "Sort any column by clicking its header."
     )
-    st.dataframe(rows, width="stretch", hide_index=True, height=520)
+    ui.table(rows, width="stretch", hide_index=True, height=520)
 
 
 def render_department_map() -> None:
@@ -1216,7 +1216,7 @@ def render_department_map() -> None:
         st.rerun()
     if state.get("log"):
         with st.expander("Change log"):
-            st.dataframe(list(reversed(state["log"])), width="stretch", hide_index=True)
+            ui.table(list(reversed(state["log"])), width="stretch", hide_index=True)
 
 
 if tab_health is not None:
@@ -1239,7 +1239,7 @@ def render_journal() -> None:
             ]
         )
         with st.expander("All journal fields (spec hash, lint, ids)"):
-            st.dataframe(
+            ui.table(
                 [
                     {
                         "when": e.timestamp.strftime("%Y-%m-%d %H:%M"),
@@ -1268,7 +1268,7 @@ if tab_journal is not None:
         floor_log = read_log(steward.data_dir)
         if floor_log:
             with st.expander(f"Requests from the floor ({len(floor_log)} log lines)"):
-                st.dataframe(
+                ui.table(
                     [
                         {
                             k: r.get(k)
@@ -1314,4 +1314,4 @@ with tab_catalog:
     if term:
         catalog_rows = [r for r in catalog_rows if any(term in str(v).lower() for v in r.values())]
     st.caption(f"{len(catalog_rows):,} reports")
-    st.dataframe(catalog_rows, width="stretch", hide_index=True, height=560)
+    ui.table(catalog_rows, width="stretch", hide_index=True, height=560)
