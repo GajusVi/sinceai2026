@@ -17,16 +17,17 @@ import plotly.graph_objects as go
 from . import semantic
 from .spec import DashboardSpec, Measure, Visual
 
-# Dark chart tokens (docs/steward/DESIGN.md, mirrored in frontend/ui.py): actual in the focus blue (#3b6bff, 4.5:1 on the
-# ground, a graphic so 3:1 suffices), forecast dashed grey, #27272a gridlines, #a1a1aa axis text, transparent ground so
-# the chart sits on its panel. Fixed values only: the same spec gives the same figure.
-BLUE, GREY, GOOD, BAD = "#3b6bff", "#a1a1aa", "#4ade80", "#f87171"
-GRID, AXIS, TITLE = "#27272a", "#a1a1aa", "#fafafa"
+# Chart templates (docs/steward/DESIGN.md, same tokens as frontend/ui.py and steward.css). Night: actual in the focus
+# blue on the dark panel; day: the accent blue on white. Transparent ground so a chart sits on its panel. Fixed values
+# only: the same spec + the same theme gives the same figure.
+TEMPLATES = {
+    "night": dict(actual="#3b6bff", forecast="#a1a1aa", grid="#27272a", axis="#a1a1aa", title="#fafafa"),
+    "day": dict(actual="#1a4be0", forecast="#71717a", grid="#e4e4e7", axis="#52525b", title="#09090b"),
+}
+BLUE, GREY = TEMPLATES["night"]["actual"], TEMPLATES["night"]["forecast"]
+GOOD, BAD = "#4ade80", "#f87171"
 MONO = "Geist Mono, ui-monospace, SF Mono, Menlo, Consolas, monospace"
 SANS = "Instrument Sans, -apple-system, Segoe UI, sans-serif"
-# Day template (docs/steward/DESIGN.md): the same chart on the light panel. Night figures are built directly; a day
-# figure is the night figure recoloured by _day(), so both stay deterministic per (spec, filters, theme).
-DAY = dict(actual="#1a4be0", forecast="#71717a", grid="#e4e4e7", axis="#52525b", title="#09090b")
 DIM_LABEL_COLUMN = {"market": "market_id", "product": "product_name", "region": "region"}
 
 
@@ -64,7 +65,8 @@ def render(
     spec: DashboardSpec, frames: dict[str, pd.DataFrame], filters: dict[str, str] | None = None, theme: str = "night"
 ) -> RenderedDashboard:
     """`filters` (product / market / region / month_from / month_to) override the spec's own filters.
-    `theme` ('night' default, or 'day') only recolours the charts; the numbers never depend on it."""
+    `theme` ('night' default, or 'day') picks the chart template; the numbers never depend on it."""
+    pal = TEMPLATES.get(theme, TEMPLATES["night"])
     effective = {**spec.filters, **(filters or {})}
     out = RenderedDashboard(title=spec.name, filters=effective)
     measures = {m.name: m for m in spec.measures}
@@ -77,14 +79,11 @@ def render(
             if v.type == "card":
                 _card(out, v, ms[0], frames, effective, dq)
             elif v.type == "line" and ms[0].feasible:
-                _line(out, v, ms[0], frames, effective, dq)
+                _line(out, v, ms[0], frames, effective, dq, pal)
             elif v.type == "bar" and ms[0].feasible:
-                _bar(out, v, ms[0], frames, effective, dq)
+                _bar(out, v, ms[0], frames, effective, dq, pal)
             elif v.type == "table" and ms[0].feasible:
                 _table(out, v, ms[0], frames, effective, dq)
-    if theme == "day":
-        for _, fig in out.figures:
-            _day(fig)
     out.dq = list(dict.fromkeys(dq))
     out.footer = _footer(spec)
     return out
@@ -147,24 +146,24 @@ def _series(m: Measure, frames, filters, dq) -> pd.Series:
 # -- figures and tables --------------------------------------------------------------------------------------------
 
 
-def _line(out, v: Visual, m: Measure, frames, filters, dq) -> None:
+def _line(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLATES["night"]) -> None:
     try:
         series = _series(m, frames, filters, dq)
     except ValueError:
         return
     fig = go.Figure(
-        go.Scatter(x=series.index, y=series.values, mode="lines+markers", name=m.name, line=dict(color=BLUE))
+        go.Scatter(x=series.index, y=series.values, mode="lines+markers", name=m.name, line=dict(color=pal["actual"]))
     )
     if v.comparison == "forecast":
         fc = semantic.forecast(frames, filters, by="month").sort_values("month")
         fig.add_trace(
-            go.Scatter(x=fc["month"], y=fc["value"], mode="lines", name="Forecast", line=dict(color=GREY, dash="dash"))
+            go.Scatter(x=fc["month"], y=fc["value"], mode="lines", name="Forecast", line=dict(color=pal["forecast"], dash="dash"))
         )
-    fig.update_layout(**_layout(v.title, m))
+    fig.update_layout(**_layout(v.title, m, pal))
     out.figures.append((v.title, fig))
 
 
-def _bar(out, v: Visual, m: Measure, frames, filters, dq) -> None:
+def _bar(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLATES["night"]) -> None:
     dim = v.dimension or "market"
     if m.kpi_id in semantic.ASSET_LEVEL_KPIS:
         return
@@ -174,8 +173,8 @@ def _bar(out, v: Visual, m: Measure, frames, filters, dq) -> None:
         return
     dq += frame.attrs.get("dq", [])
     frame = _labelled(frame, dim, frames).sort_values("value", ascending=True).tail(15)
-    fig = go.Figure(go.Bar(x=frame["value"], y=frame["label"], orientation="h", marker_color=BLUE, name=m.name))
-    fig.update_layout(**_layout(v.title, m, xaxis_title=m.unit))
+    fig = go.Figure(go.Bar(x=frame["value"], y=frame["label"], orientation="h", marker_color=pal["actual"], name=m.name))
+    fig.update_layout(**_layout(v.title, m, pal, xaxis_title=m.unit))
     out.figures.append((v.title, fig))
 
 
@@ -224,35 +223,23 @@ def _dim_title(dim: str) -> str:
     return {"market": "Country", "product": "Product", "region": "Region"}[dim]
 
 
-def _layout(title: str, m: Measure, **extra) -> dict:
-    axis = dict(gridcolor=GRID, zerolinecolor=GRID, linecolor=GRID, tickfont=dict(family=MONO, size=11, color=AXIS),
-                title=dict(font=dict(family=MONO, size=11, color=AXIS)))
+def _layout(title: str, m: Measure, pal: dict, **extra) -> dict:
+    grid, ax = pal["grid"], pal["axis"]
+    axis = dict(gridcolor=grid, zerolinecolor=grid, linecolor=grid, tickfont=dict(family=MONO, size=11, color=ax),
+                title=dict(font=dict(family=MONO, size=11, color=ax)))
     return dict(
-        title=dict(text=title, x=0, font=dict(family=SANS, size=14, color=TITLE)),
+        title=dict(text=title, x=0, font=dict(family=SANS, size=14, color=pal["title"])),
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family=SANS, size=12, color=AXIS),
+        font=dict(family=SANS, size=12, color=ax),
         height=300,
         margin=dict(l=10, r=10, t=44, b=22),
-        legend=dict(orientation="h", y=-0.15, font=dict(family=MONO, size=11, color=AXIS)),
+        legend=dict(orientation="h", y=-0.15, font=dict(family=MONO, size=11, color=ax)),
         xaxis=axis,
-        yaxis={**axis, "title": dict(text=extra.pop("yaxis_title", m.unit), font=dict(family=MONO, size=11, color=AXIS))},
+        yaxis={**axis, "title": dict(text=extra.pop("yaxis_title", m.unit), font=dict(family=MONO, size=11, color=ax))},
         **extra,
     )
-
-
-def _day(fig: go.Figure) -> None:
-    axis = dict(gridcolor=DAY["grid"], zerolinecolor=DAY["grid"], linecolor=DAY["grid"],
-                tickfont=dict(color=DAY["axis"]), title=dict(font=dict(color=DAY["axis"])))
-    fig.update_layout(title_font_color=DAY["title"], font_color=DAY["axis"], legend_font_color=DAY["axis"],
-                      xaxis=axis, yaxis=axis)
-    for trace in fig.data:
-        colour = DAY["forecast"] if trace.name == "Forecast" else DAY["actual"]
-        if isinstance(trace, go.Bar):
-            trace.marker.color = colour
-        else:
-            trace.line.color = colour
 
 
 # -- governance footer -----------------------------------------------------------------------------------------------
