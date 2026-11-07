@@ -33,6 +33,10 @@ DUPLICATE_JACCARD = CONSOLIDATE_JACCARD  # RULE-006: canonical-metric overlap th
 MAX_VISUALS_PER_PAGE = 7
 MAX_PAGES = 2
 MAX_CARDS = 4
+# OVERVIEW (spec.archetype): the KPI strip counts as one visual (up to MAX_TILES tiles), at most MAX_CHARTS charts a page
+MAX_TILES = 8
+MAX_CHARTS = 6
+CHART_TYPES = {"line", "bar", "bullet", "diverging_bar", "stacked_100", "matrix"}
 LOW_USE_USERS = 10  # RULE-006: average monthly unique users below this = low use
 HIGH_REACH_USERS = 50
 HIGH_REACH_WORDS = ("executive", "leadership", "board", "all ", "global", "company")
@@ -345,6 +349,8 @@ def _rule_008(spec: DashboardSpec, catalog: Catalog) -> LintResult:
 
 
 def _focus(spec: DashboardSpec, catalog: Catalog) -> LintResult:
+    if getattr(spec, "archetype", "") == "OVERVIEW":
+        return _focus_overview(spec)
     problems = []
     if len(spec.pages) > MAX_PAGES:
         problems.append(("warn", f"{len(spec.pages)} pages; the limit is {MAX_PAGES}.", []))
@@ -363,6 +369,24 @@ def _focus(spec: DashboardSpec, catalog: Catalog) -> LintResult:
     return _result("FOCUS", problems, "At most 2 pages, 7 visuals per page and 4 KPI cards.")
 
 
+def _focus_overview(spec: DashboardSpec) -> LintResult:
+    """OVERVIEW: the KPI strip is one visual of up to 8 tiles; at most 6 charts per page; at most 2 pages."""
+    problems = []
+    if len(spec.pages) > MAX_PAGES:
+        problems.append(("warn", f"{len(spec.pages)} pages; the limit is {MAX_PAGES}.", []))
+    for page in spec.pages:
+        strips = [v for v in page.visuals if v.type == "kpi_strip"]
+        for strip in strips:
+            if len(strip.measures) > MAX_TILES:
+                problems.append(("warn", f'"{strip.title}" has {len(strip.measures)} tiles; the limit is {MAX_TILES}.', []))
+        if len(strips) > 1:
+            problems.append(("warn", f'Page "{page.name}" has {len(strips)} KPI strips; one is the limit.', []))
+        charts = sum(v.type in CHART_TYPES for v in page.visuals)
+        if charts > MAX_CHARTS:
+            problems.append(("warn", f'Page "{page.name}" has {charts} charts; the limit is {MAX_CHARTS}.', []))
+    return _result("FOCUS", problems, f"Overview: one KPI strip of at most {MAX_TILES} tiles, {MAX_CHARTS} charts a page, 2 pages.")
+
+
 def _data(spec: DashboardSpec, catalog: Catalog) -> LintResult:
     """An infeasible measure is only ever a labelled gap: no expression, a reason, and no chart that would draw numbers."""
     gaps: dict[str, Measure] = {m.name: m for m in spec.measures if not m.feasible}
@@ -376,7 +400,7 @@ def _data(spec: DashboardSpec, catalog: Catalog) -> LintResult:
             )
     for page in spec.pages:
         for v in page.visuals:
-            if v.type != "card":
+            if v.type not in ("card", "kpi_strip"):  # a strip shows a gap as a labelled tile, like a card
                 used = [n for n in v.measures if n in gaps]
                 if used:
                     problems.append(

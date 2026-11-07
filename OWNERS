@@ -50,7 +50,7 @@ steward/worker.py       gajus
 steward/departments.py  gajus
 prompts/departments.yaml gajus
 tools/make_large_pack.py gajus
-steward/lint.py         margiris
+steward/lint.py         donatas   (TEMP until submission, owner margiris: OVERVIEW FOCUS/DATA, OK 1108-011108)
 steward/render.py       donatas
 steward/governance.py   donatas   (T1.6, Gajus OK 1107-194200)
 tests/bi_steward/test_governance.py donatas
@@ -68,3 +68,4 @@ setup_mac.sh            gajus
 setup_windows.ps1       gajus
 data/build_bayer_dictionaries.py martynas
 catalog/bayer/dimensions.json martynas
+tests/bi_steward/test_overview.py donatas
