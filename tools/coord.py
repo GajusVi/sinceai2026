@@ -39,8 +39,10 @@ SHOW_CHARS = 400
 
 def git(*args: str, timeout: float = 10) -> str:
     try:
-        out = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=timeout)
-        return out.stdout.strip() if out.returncode == 0 else ""
+        # utf-8 explicitly: Windows defaults to cp1252 and crashed on an emoji in a message
+        out = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True,
+                             encoding="utf-8", errors="replace", timeout=timeout)
+        return (out.stdout or "").strip() if out.returncode == 0 else ""
     except (subprocess.SubprocessError, OSError):
         return ""
 
@@ -476,6 +478,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    for stream in (sys.stdout, sys.stderr):  # cp1252 consoles cannot print emoji
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     try:
         main()
     except subprocess.CalledProcessError as e:
