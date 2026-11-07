@@ -11,7 +11,7 @@ backend/models.py       martynas
 data/                   martynas
 frontend/               gajus   (design + AI blocks; Donatas OK 1107-094359, he keeps demo/, submission/, render.py, pitch)
 steward/models.py       martynas
-steward/spec.py         martynas
+steward/spec.py         gajus
 steward/intent.py       gajus
 steward/datapack.py     gajus
 steward/requests.py     gajus
@@ -25,8 +25,8 @@ prompts/interview.yaml  gajus
 prompts/                margiris
 prompts/layout.yaml     margiris
 steward/catalog.py      martynas
-steward/semantic.py     martynas
-steward/pbip.py         martynas
+steward/semantic.py     gajus
+steward/pbip.py         gajus
 templates/pbip/         martynas
 steward/specbuild.py    margiris   (TEMP, Gajus OK 1107-164853: only the _page hook + layouter threading; the rest stays Gajus's, hand back after the layout work)
 steward/layout.py       margiris
