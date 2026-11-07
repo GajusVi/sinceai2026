@@ -1,6 +1,6 @@
 # donatas
-updated: 2026-11-07 01:24
-now: logged off
-done: 73a61dd Governance.propose uses JournalAction.PROPOSED; e7de3ed health tab direct; make test 78 passed, 1 xfailed; nothing uncommitted
-next: Sat: 09:00 Q&A with Gajus, then wire screen to real evidence + A3 KPI card
+updated: 2026-11-07 09:06
+now: D1: reviewing the night draft (make bayer, REQ-0001 end to end)
+done: took back render.py and frontend (d0068c5)
+next: 09:00 Panu Q&A with Gajus, then A2/A3 evidence cards + KPI card
 blocked: -
