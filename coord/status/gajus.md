@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-07 18:43
-now: AUDIT DONE: docs/audit/gajus.md (6428f24)
-done: audit phase 1
-next: attack the other three audits once pushed
+updated: 2026-11-07 19:11
+now: ATTACK DONE: docs/audit/gajus-attack.md (b87d913)
+done: audit + attack
+next: draft DECISION.md once all four attacks are in
 blocked: T6 conventions decision (mine, below)
