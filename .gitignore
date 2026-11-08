@@ -23,3 +23,4 @@ data/bayer_large/
 # desktop app build output (tools/build_app.py): ship the .app/.exe, never commit it
 build/
 dist/
+eval/mega/out/
