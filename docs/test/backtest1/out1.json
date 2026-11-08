@@ -1,0 +1,550 @@
+[
+ {
+  "tag": "1a",
+  "user": "Manager07",
+  "role": "management",
+  "text": "How is Plant-B doing?",
+  "verdict": "CREATE",
+  "intent": {
+   "theme": "plant_efficiency",
+   "metrics": [
+    "on_time_in_full",
+    "inventory_coverage",
+    "demand_forecast_accuracy",
+    "units_shipped"
+   ],
+   "sites": [
+    "Plant-B"
+   ],
+   "products": [],
+   "markets": []
+  },
+  "archetype": "OVERVIEW",
+  "layout_source": "overview",
+  "hash": "b205b94cbb4bb804",
+  "visuals": [
+   [
+    "kpi_strip",
+    "Plant-B: the numbers that matter",
+    12,
+    1
+   ],
+   [
+    "bullet",
+    "Plant-B on-time in-full by product vs target",
+    4,
+    2
+   ],
+   [
+    "line",
+    "Plant-B on-time in-full by month",
+    4,
+    2
+   ],
+   [
+    "bullet",
+    "Plant-B inventory coverage by product vs target",
+    4,
+    2
+   ],
+   [
+    "line",
+    "Plant-B inventory coverage by month",
+    4,
+    3
+   ],
+   [
+    "line",
+    "Plant-B units shipped by month",
+    4,
+    3
+   ],
+   [
+    "stacked_100",
+    "Plant-B units shipped: share by region",
+    4,
+    3
+   ],
+   [
+    "table",
+    "Products below 90% on-time in-full",
+    12,
+    4
+   ]
+  ],
+  "lint_nonpass": [],
+  "filters": {
+   "site": "Plant-B"
+  },
+  "owner": "OWN-045",
+  "gaps": [],
+  "render": {
+   "tiles": [
+    [
+     "On-Time In-Full",
+     "78.3%",
+     "breach",
+     null
+    ],
+    [
+     "Inventory Coverage",
+     "5.5 weeks",
+     "ok",
+     null
+    ],
+    [
+     "Demand Forecast Accuracy",
+     "83.7%",
+     "neutral",
+     null
+    ],
+    [
+     "Units Shipped",
+     "1,628,277",
+     "neutral",
+     null
+    ]
+   ],
+   "cards": [],
+   "gaps": [],
+   "figures": [
+    "Plant-B on-time in-full by product vs target",
+    "Plant-B on-time in-full by month",
+    "Plant-B inventory coverage by product vs target",
+    "Plant-B inventory coverage by month",
+    "Plant-B units shipped by month",
+    "Plant-B units shipped: share by region"
+   ],
+   "tables": [
+    [
+     "Products below 90% on-time in-full",
+     7
+    ]
+   ],
+   "dq": [
+    "10 zero-sales rows with no forecast variance were left out of this figure (trap 14)",
+    "123 of 240 rows are labelled forecast_like in the data pack; they are used as actuals because the pack has no actuals-only field",
+    "123 of 250 rows are labelled forecast_like in the data pack; they are used as actuals because the pack has no actuals-only field"
+   ],
+   "grid": 8
+  },
+  "secs": 2.14
+ },
+ {
+  "tag": "1b",
+  "user": "Builder12",
+  "role": "builder",
+  "text": "How are we doing in LATAM this quarter?",
+  "verdict": "CREATE",
+  "intent": {
+   "theme": "business_performance",
+   "metrics": [
+    "net_sales",
+    "net_sales_growth",
+    "forecast_variance",
+    "on_time_in_full"
+   ],
+   "sites": [],
+   "products": [
+    "All Pharma"
+   ],
+   "markets": []
+  },
+  "archetype": "OVERVIEW",
+  "layout_source": "overview",
+  "hash": "6b03ff57141a41ec",
+  "visuals": [
+   [
+    "kpi_strip",
+    "Bayer Pharma in Latin America: the numbers that matter",
+    12,
+    1
+   ],
+   [
+    "line",
+    "Bayer Pharma in Latin America net sales by month vs forecast",
+    6,
+    2
+   ],
+   [
+    "line",
+    "Bayer Pharma in Latin America net sales growth by month",
+    6,
+    2
+   ],
+   [
+    "line",
+    "Bayer Pharma in Latin America on-time in-full by month",
+    12,
+    3
+   ],
+   [
+    "table",
+    "Countries more than 10% off forecast",
+    12,
+    4
+   ]
+  ],
+  "lint_nonpass": [],
+  "filters": {
+   "region": "Latin America"
+  },
+  "owner": "OWN-045",
+  "gaps": [],
+  "render": {
+   "tiles": [
+    [
+     "Net Sales",
+     "EUR 2,431.4 M",
+     "neutral",
+     null
+    ],
+    [
+     "Net Sales Growth",
+     "11.9%",
+     "neutral",
+     null
+    ],
+    [
+     "Forecast Variance",
+     "EUR -32.7 M",
+     "ok",
+     null
+    ],
+    [
+     "On-Time In-Full",
+     "85.9%",
+     "breach",
+     null
+    ]
+   ],
+   "cards": [],
+   "gaps": [],
+   "figures": [
+    "Bayer Pharma in Latin America net sales by month vs forecast",
+    "Bayer Pharma in Latin America net sales growth by month",
+    "Bayer Pharma in Latin America on-time in-full by month"
+   ],
+   "tables": [
+    [
+     "Countries more than 10% off forecast",
+     0
+    ]
+   ],
+   "dq": [
+    "62 of 140 rows are labelled forecast_like in the data pack; they are used as actuals because the pack has no actuals-only field",
+    "20 zero-sales rows with no forecast variance were left out of this figure (trap 14)",
+    "62 of 120 rows are labelled forecast_like in the data pack; they are used as actuals because the pack has no actuals-only field"
+   ],
+   "grid": 5
+  },
+  "secs": 0.78
+ },
+ {
+  "tag": "1c",
+  "user": "Manager07",
+  "role": "management",
+  "text": "Is supply safe for Plant-B?",
+  "verdict": "CREATE",
+  "intent": {
+   "theme": "supply_health",
+   "metrics": [
+    "on_time_in_full",
+    "inventory_coverage",
+    "demand_forecast_accuracy"
+   ],
+   "sites": [
+    "Plant-B"
+   ],
+   "products": [],
+   "markets": []
+  },
+  "archetype": "OVERVIEW",
+  "layout_source": "overview",
+  "hash": "57ca02130ce00c55",
+  "visuals": [
+   [
+    "kpi_strip",
+    "Plant-B: the numbers that matter",
+    12,
+    1
+   ],
+   [
+    "bullet",
+    "Plant-B on-time in-full by product vs target",
+    6,
+    2
+   ],
+   [
+    "line",
+    "Plant-B on-time in-full by month",
+    6,
+    2
+   ],
+   [
+    "bullet",
+    "Plant-B inventory coverage by product vs target",
+    6,
+    3
+   ],
+   [
+    "line",
+    "Plant-B inventory coverage by month",
+    6,
+    3
+   ],
+   [
+    "table",
+    "Products below 90% on-time in-full",
+    12,
+    4
+   ]
+  ],
+  "lint_nonpass": [],
+  "filters": {
+   "site": "Plant-B"
+  },
+  "owner": "OWN-045",
+  "gaps": [],
+  "render": {
+   "tiles": [
+    [
+     "On-Time In-Full",
+     "78.3%",
+     "breach",
+     null
+    ],
+    [
+     "Inventory Coverage",
+     "5.5 weeks",
+     "ok",
+     null
+    ],
+    [
+     "Demand Forecast Accuracy",
+     "83.7%",
+     "neutral",
+     null
+    ]
+   ],
+   "cards": [],
+   "gaps": [],
+   "figures": [
+    "Plant-B on-time in-full by product vs target",
+    "Plant-B on-time in-full by month",
+    "Plant-B inventory coverage by product vs target",
+    "Plant-B inventory coverage by month"
+   ],
+   "tables": [
+    [
+     "Products below 90% on-time in-full",
+     7
+    ]
+   ],
+   "dq": [
+    "10 zero-sales rows with no forecast variance were left out of this figure (trap 14)",
+    "123 of 240 rows are labelled forecast_like in the data pack; they are used as actuals because the pack has no actuals-only field"
+   ],
+   "grid": 6
+  },
+  "secs": 0.86
+ },
+ {
+  "tag": "1d",
+  "user": "Worker21",
+  "role": "worker",
+  "text": "How is Plant-B doing?",
+  "verdict": "REFUSED",
+  "note": "You are signed in for Plant-A. Plant-B's numbers come through your manager.",
+  "secs": 0.0
+ },
+ {
+  "tag": "2a",
+  "user": "Builder12",
+  "role": "builder",
+  "text": "Xarelto net sales in Germany",
+  "verdict": "REUSE",
+  "intent": {
+   "theme": "",
+   "metrics": [
+    "net_sales"
+   ],
+   "sites": [],
+   "products": [
+    "Xarelto"
+   ],
+   "markets": [
+    "DE"
+   ]
+  },
+  "crash": "Traceback (most recent call last):\n  File \"/private/tmp/claude-501/-Users-macbook-SinceAI2026/8a97a21a-35fd-4b35-bb0b-be9b23248ba1/scratchpad/run_iter.py\", line 37, in run\n    out[\"archetype\"] = sp.archetype or \"template\"; out[\"layout_source\"] = sp.provenance.get(\"layout_source\"); out[\"hash\"] = sp.provenance.get(\"spec_hash\")\n                       ^^^^^^^^^^^^\n  File \"/Users/macbook/SinceAI2026/.venv/lib/python3.11/site-packages/pydantic/main.py\", line 1110, in __getattr__\n    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')\nAttributeError: 'DashboardSpec' object has no attribute 'archetype'\n",
+  "secs": 0.06
+ },
+ {
+  "tag": "2b",
+  "user": "Builder12",
+  "role": "builder",
+  "text": "Create a global Nubeqa dashboard showing sales growth, forecast variance and market access by country.",
+  "verdict": "CREATE",
+  "intent": {
+   "theme": "",
+   "metrics": [
+    "net_sales_growth",
+    "forecast_variance",
+    "market_access_coverage"
+   ],
+   "sites": [],
+   "products": [
+    "Nubeqa"
+   ],
+   "markets": [
+    "Global"
+   ]
+  },
+  "crash": "Traceback (most recent call last):\n  File \"/private/tmp/claude-501/-Users-macbook-SinceAI2026/8a97a21a-35fd-4b35-bb0b-be9b23248ba1/scratchpad/run_iter.py\", line 37, in run\n    out[\"archetype\"] = sp.archetype or \"template\"; out[\"layout_source\"] = sp.provenance.get(\"layout_source\"); out[\"hash\"] = sp.provenance.get(\"spec_hash\")\n                       ^^^^^^^^^^^^\n  File \"/Users/macbook/SinceAI2026/.venv/lib/python3.11/site-packages/pydantic/main.py\", line 1110, in __getattr__\n    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')\nAttributeError: 'DashboardSpec' object has no attribute 'archetype'\n",
+  "secs": 0.19
+ },
+ {
+  "tag": "2c",
+  "user": "Manager07",
+  "role": "management",
+  "text": "How efficiently is this plant running?",
+  "verdict": "CREATE",
+  "intent": {
+   "theme": "plant_efficiency",
+   "metrics": [
+    "on_time_in_full",
+    "inventory_coverage",
+    "demand_forecast_accuracy",
+    "units_shipped"
+   ],
+   "sites": [
+    "Plant-B"
+   ],
+   "products": [],
+   "markets": []
+  },
+  "archetype": "OVERVIEW",
+  "layout_source": "overview",
+  "hash": "b205b94cbb4bb804",
+  "visuals": [
+   [
+    "kpi_strip",
+    "Plant-B: the numbers that matter",
+    12,
+    1
+   ],
+   [
+    "bullet",
+    "Plant-B on-time in-full by product vs target",
+    4,
+    2
+   ],
+   [
+    "line",
+    "Plant-B on-time in-full by month",
+    4,
+    2
+   ],
+   [
+    "bullet",
+    "Plant-B inventory coverage by product vs target",
+    4,
+    2
+   ],
+   [
+    "line",
+    "Plant-B inventory coverage by month",
+    4,
+    3
+   ],
+   [
+    "line",
+    "Plant-B units shipped by month",
+    4,
+    3
+   ],
+   [
+    "stacked_100",
+    "Plant-B units shipped: share by region",
+    4,
+    3
+   ],
+   [
+    "table",
+    "Products below 90% on-time in-full",
+    12,
+    4
+   ]
+  ],
+  "lint_nonpass": [],
+  "filters": {
+   "site": "Plant-B"
+  },
+  "owner": "OWN-045",
+  "gaps": [],
+  "render": {
+   "tiles": [
+    [
+     "On-Time In-Full",
+     "78.3%",
+     "breach",
+     null
+    ],
+    [
+     "Inventory Coverage",
+     "5.5 weeks",
+     "ok",
+     null
+    ],
+    [
+     "Demand Forecast Accuracy",
+     "83.7%",
+     "neutral",
+     null
+    ],
+    [
+     "Units Shipped",
+     "1,628,277",
+     "neutral",
+     null
+    ]
+   ],
+   "cards": [],
+   "gaps": [],
+   "figures": [
+    "Plant-B on-time in-full by product vs target",
+    "Plant-B on-time in-full by month",
+    "Plant-B inventory coverage by product vs target",
+    "Plant-B inventory coverage by month",
+    "Plant-B units shipped by month",
+    "Plant-B units shipped: share by region"
+   ],
+   "tables": [
+    [
+     "Products below 90% on-time in-full",
+     7
+    ]
+   ],
+   "dq": [
+    "10 zero-sales rows with no forecast variance were left out of this figure (trap 14)",
+    "123 of 240 rows are labelled forecast_like in the data pack; they are used as actuals because the pack has no actuals-only field",
+    "123 of 250 rows are labelled forecast_like in the data pack; they are used as actuals because the pack has no actuals-only field"
+   ],
+   "grid": 8
+  },
+  "secs": 1.24
+ },
+ {
+  "tag": "2d",
+  "user": "Manager07",
+  "role": "management",
+  "text": "How is Plant-A doing?",
+  "verdict": "REFUSED",
+  "note": "Plant-A is not in your access yet. Ask the BI team for it (a builder grants access).",
+  "sites": [
+   "Plant-A"
+  ],
+  "secs": 0.0
+ }
+]
