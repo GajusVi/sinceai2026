@@ -248,7 +248,7 @@ def tiles(items) -> str:
 # rail, unequal panels. One page per dashboard, drawn in an iframe and scaled to the column width. STEWARD_LAYOUT=equal
 # (or any error) falls back to the equal 12-column grid below. Display only: same figures, tiles and table.
 LAYOUT_SWEEP = Path(__file__).resolve().parent.parent / "tools" / "layout_sweep"
-WEIGHTED = {"management": ("hero_left_stack", dict(hero=0.62, kpi_band=1.0, flip=False, gap=12)),
+WEIGHTED = {"management": ("hero_left_stack", dict(hero=0.62, kpi_band=1.4, flip=False, gap=12)),
             "builder": ("triptych", dict(hero=0.62, kpi_band=1.0, flip=False, gap=12))}
 _FIT = """<style>html,body{background:transparent}</style><script>(function(){
 const fit=()=>{const f=window.frameElement;

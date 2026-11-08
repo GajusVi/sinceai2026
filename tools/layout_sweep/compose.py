@@ -290,18 +290,21 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:
 .canvas{position:relative;width:1920px;height:1080px}
 .head{position:absolute;left:24px;right:24px;top:18px;height:44px;display:flex;align-items:flex-end;justify-content:space-between}
 .head h1{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.head>div{min-width:0;flex:1;overflow:hidden}
+.head h1,.head .sub{white-space:nowrap;overflow:hidden}
 .head .sub{font:400 12px 'Geist Mono',monospace;color:var(--muted);margin-top:2px}
 .head .tag{font:400 11px 'Geist Mono',monospace;color:var(--muted);text-align:right}
 .panel{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 10px 8px;overflow:hidden}
-.panel h3{font-size:13.5px;font-weight:700;color:var(--text);height:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel h3{font-size:13.5px;font-weight:700;color:var(--text);min-height:24px;line-height:1.25;white-space:nowrap}
 .plot{position:absolute;left:10px;top:34px;right:10px;bottom:10px}
 .kpis{position:absolute;display:grid;gap:12px}
-.tile{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 14px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;min-width:0}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 14px;display:flex;flex-direction:column;justify-content:center;gap:3px;overflow:hidden;min-width:0}
+.tile>*{flex:none}
 .tile.gap{background:repeating-linear-gradient(135deg,var(--panel),var(--panel) 6px,var(--line) 6px,var(--line) 7px)}
-.tt{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.badge{font:500 9.5px 'Geist Mono',monospace;margin-left:8px;letter-spacing:.04em}
-.tv{font-family:'Geist Mono',monospace;font-weight:500;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
-.td{font-family:'Geist Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt{color:var(--muted);line-height:1.2;overflow-wrap:break-word}
+.badge{font:500 9.5px 'Geist Mono',monospace;margin-left:8px;letter-spacing:.04em;white-space:nowrap}
+.tv{font-family:'Geist Mono',monospace;font-weight:500;letter-spacing:-.03em;white-space:nowrap;line-height:1.32}
+.td{font-family:'Geist Mono',monospace;line-height:1.2;overflow-wrap:break-word}
 .tbl{position:absolute;left:10px;right:10px;top:34px;bottom:8px;overflow:hidden}
 table{width:100%;border-collapse:collapse}
 th{font:500 .8em 'Geist Mono',monospace;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.04em}
@@ -312,6 +315,29 @@ th:not(:first-child){text-align:right}
 .foot{position:absolute;left:24px;right:24px;bottom:12px;display:flex;gap:28px;font:400 11px 'Geist Mono',monospace;color:var(--muted);white-space:nowrap;overflow:hidden}
 .foot b{color:var(--text);font-weight:500;margin-right:6px}
 """
+
+
+# Text never collides: before the charts are drawn, every tile shrinks its fonts until label, value and delta fit
+# (labels wrap at word boundaries); a chart title shrinks to one line, else wraps and pushes its chart down; the
+# table, heading and footer shrink to their width. Floors keep text legible.
+FIT_JS = """(function(){
+const over=(e,wOnly)=>e.scrollWidth>e.clientWidth+1||(!wOnly&&e.scrollHeight>e.clientHeight+1);
+const fs=e=>parseFloat(getComputedStyle(e).fontSize);
+function shrink(box,els,min,wOnly){for(let i=0;i<60;i++){
+ if(!over(box,wOnly)&&!els.some(e=>e.clientWidth&&e.scrollWidth>e.clientWidth+1))return;
+ let moved=false;for(const e of els){const f=fs(e);if(f>min){e.style.fontSize=Math.max(min,f*0.95)+'px';moved=true}}
+ if(!moved)return;}}
+for(const t of document.querySelectorAll('.tile')){const els=[...t.querySelectorAll('.tt,.tv,.td,.badge')];shrink(t,els,9,false);}
+for(const s of document.querySelectorAll('section.panel')){const h=s.querySelector('h3');if(!h)continue;
+ shrink(h,[h],11,true);
+ if(over(h,true)){h.style.whiteSpace='normal';h.style.overflowWrap='break-word';}
+ const extra=Math.max(0,h.offsetHeight-24);const body=s.querySelector('.plot,.tbl');
+ if(extra&&body){body.style.top=(34+extra)+'px';const p=P.find(x=>x[0]===body.id);
+  if(p)p[1].layout.height=Math.max(80,p[1].layout.height-extra);}}
+for(const t of document.querySelectorAll('.tbl'))shrink(t,[t],9,true);
+for(const e of document.querySelectorAll('.head h1,.head .sub'))shrink(e,[e],10,true);
+const f=document.querySelector('.foot');if(f)shrink(f,[f],9,true);
+})();"""
 
 
 def build(dash, preset: str, params: dict, role: str, theme: str, meta: dict) -> tuple[str, dict]:
@@ -349,7 +375,7 @@ def build(dash, preset: str, params: dict, role: str, theme: str, meta: dict) ->
         f"--text:{th['text']};--muted:{th['muted']}}}{CSS}</style><script src='../assets/plotly.min.js'></script></head><body>"
         f"<div class=canvas><div class=head><div><h1 data-fit>{_esc(dash.title)}</h1><div class=sub>{_esc(scope)} · {_esc(meta.get('as_of', ''))}</div></div>"
         f"<div class=tag>{tag}</div></div>{''.join(parts)}<div class=foot>{footer}</div></div>"
-        f"<script>const P={json.dumps(payloads)};Promise.all(P.map(([id,f])=>Plotly.newPlot(id,f.data,f.layout,{{staticPlot:true,displayModeBar:false}}))).then(()=>{{window.__done=true}});"
+        f"<script>const P={json.dumps(payloads)};{FIT_JS}Promise.all(P.map(([id,f])=>Plotly.newPlot(id,f.data,f.layout,{{staticPlot:true,displayModeBar:false}}))).then(()=>{{window.__done=true}});"
         f"if(!P.length)window.__done=true;</script></body></html>"
     )
     return page, metrics(placed, leaves, dropped, len(charts))
