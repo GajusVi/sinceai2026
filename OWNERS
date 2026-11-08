@@ -35,6 +35,7 @@ steward/semantic.py     donatas   (from Gajus, handoff 1108)
 steward/pbip.py         martynas
 steward/pbip_server.py  martynas
 steward/estate_view.py  martynas
+frontend/estate_panel.py martynas
 templates/pbip/         martynas
 steward/specbuild.py    donatas   (from Gajus, handoff 1108)
 steward/layout.py       donatas   (from Gajus, handoff 1108)
