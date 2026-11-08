@@ -82,8 +82,37 @@ correctly (3c), day/night toggling is safe, the export builds, and nothing I ran
 question, the dormant grid in the export) fail the same way or more mildly than the old template, and the switch keeps old hashes. **Conditions I would set:** do suggestion 1 (period line) before the demo if there is time, and do not
 show the .pbip of an *approved* OVERVIEW on stage until M-B is fixed and reopened in Desktop; show the hand-built overview export instead (it opened exactly as laid out).
 
+## Addendum 03:25: visual review from real screenshots (the packaged Windows .exe, build 5e74680, Manager07, 1920 px wide)
+Martynas took 3 screenshots per theme while scrolling: `C:\SinceAI\shots\night-1..3.png` and `day-1..3.png`. Request: "How is Plant-B doing?" -> Use
+recommended. This is a real window, so it covers what the headless run could not. I read all six.
+
+**What looks good (both themes)**
+- **It reads as a dashboard**: title band, then a 4-tile strip, then a 3-column chart grid, then the exceptions table. BREACH is a red left border and label,
+  OK is green. The bullet bars carry a dotted vertical "target 90" / "target 4" marker. That is clear at a glance.
+- **Day theme is complete**: page, sidebar, tiles, chart backgrounds and fonts all switch; nothing unreadable. Night is dense and legible.
+- **"How this was decided" is the best explanatory element on the page**: seven numbered steps with in/out and timings (7 ms, 253 ms, 740 ms; "10 pass, 0 warn, 0 block";
+  "every decision is written to the journal"). It is Panu's point 8 on screen, produced by the product.
+- The table title says what it is ("Products below 90% on-time in-full") and the "Data: synthetic, not Bayer performance" line is present.
+
+**Visual issues confirmed on screen (new evidence for Gajus's V-list; severity as I see it)**
+- **V1 MAJOR confirmed: the 100% share bar cannot be read.** "Plant-B units shipped: share by region" has four segments; only the first says "EMEA 38%"; no legend; the left axis says "units"
+  on a share chart. (night-2, day-2)
+- **V3 MAJOR confirmed: no period anywhere, and the date is today's.** The band says "DATA AS OF 2026-11-08" while the charts end in Oct 2026; nothing says "Jan-Oct 2026" or "latest month".
+- **V11 MAJOR confirmed, on the first screen: the explanation contradicts itself.** The Steward line says "105 existing reports already carry these numbers; I check them before building anything",
+  and directly below the ruling says "Nothing in the catalog answers this, so this is a new draft". The Why line ("Only reports that must not be the answer carry these metrics: AST-0335 (recommended for retirement)") is the real reason but reads as jargon.
+- **V4 MINOR confirmed:** "-0.0 vs last month" (inventory), "+332,608.0 vs last month" (units: a decimal on a count), "-4.1 vs last month" (no unit).
+- **V5 MINOR confirmed:** in the last chart row the share-bar card is about a third shorter than its neighbours and leaves a hole beside the table. In night-1 the middle (line) card also starts about 10 px higher than its two neighbours.
+- **V7 MINOR confirmed:** the table's value column is right-aligned at the far edge, far from the product name; values have no "%" (78.9); **in day theme the table header is a black bar** on a white page (Streamlit's dataframe header; Donatas already lists it as a known limit).
+- **V8 MINOR confirmed:** the rotated "%" label sits next to the product names on the bullet chart (it labels the bottom axis, not the products); axis titles use two different sizes.
+- **V6 MINOR confirmed:** the CREATE chip is shown twice (ruling bar and band); the page heading, the band title and "Dashboard preview" repeat the same subject.
+- **New, MINOR: the sidebar status line wraps mid-date** ("... data 2026-11-" / "08") in both themes.
+- **New, MINOR (day theme): a faint Plotly toolbar is visible at the top right of the "units shipped by month" card** (day-2); it is invisible in night.
+
+**Does it change the verdict?** No: still **OVERVIEW ON**. Nothing on screen is wrong data or broken. The three that matter for a judge looking at the first screen are
+V3 (period), V1 (unreadable share bar) and V11 (the contradictory sentence), all S.
+
 ## Not covered (needs a person with a browser, about 5 minutes)
-1. Day and night **look** of one OVERVIEW (take one screenshot each): `make ui` or the .exe, Manager07 -> "How is Plant-B doing?" -> Use recommended -> "Day theme" toggle.
+1. ~~Day and night look~~ **done by Martynas (screenshots above).**
 2. Two **real** browser windows (normal + private) on one `make ui`: the same flow as 3a/3b. My two-session test used the same shared file, so I expect it to behave the same.
 3. Open `C:\SinceAI\pbip_overview_real\unzipped\*.pbip` (this approved OVERVIEW, flow layout) in Power BI Desktop and look at it.
-4. Live LLM, phone width, the autofill dropdown (needs `streamlit-searchbox`, which is installed here; I did not exercise it), the receipts' AI-call count (LLM off = 0).
+4. Live LLM, phone width, the autofill dropdown, the receipts' AI-call count (LLM off = 0).
