@@ -1,6 +1,6 @@
 # gajus
-updated: 2026-11-08 00:18
-now: T3.7 pushed (26a0e46): data pack only, labelled goldens, legacy backend gone
-done: T3.1 f208de5; T3.7 26a0e46; Mac .app self-test PASS
-next: Owners delete eval/eval.py (Margiris), sample catalog (Martynas), demo/inputs.jsonl (Donatas); final .app rebuild before 05:00
+updated: 2026-11-08 02:03
+now: Handed off to Donatas (593b20a, docs/HANDOFF_GAJUS.md)
+done: receipts, T3.1, T3.7, autofill + dropdown + backtest; .app PASS
+next: none (out of credits)
 blocked: Margiris OK on backend/pipeline.py, eval/eval.py, Makefile warm/eval
