@@ -38,10 +38,13 @@ def _now() -> str:
 
 def demo_people() -> list[Person]:
     """The four demo accounts of auth.py as people, so the map shows them next to the generated roster."""
-    from .auth import _ACCOUNTS
+    from .auth import _ACCOUNTS, DEMO_ACCOUNTS
 
+    demo = {name for name, _, _ in DEMO_ACCOUNTS}  # auth also holds the roster logins: count each person once
     out = []
     for username, (_, u) in _ACCOUNTS.items():
+        if username not in demo:
+            continue
         out.append(
             Person(
                 username,

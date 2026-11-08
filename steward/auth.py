@@ -66,6 +66,16 @@ _ACCOUNTS: dict[str, tuple[str, User]] = {
 }
 DEMO_ACCOUNTS = [(name, pw, user.role) for name, (pw, user) in _ACCOUNTS.items()]  # shown on the login screen
 
+# Synthetic roster (steward/roster.py, Gajus 783aa3e): 100 workers, 10 managers, 5 builders can also log in. Added after
+# DEMO_ACCOUNTS, so the login screen still lists only the four demo accounts; a missing or broken roster adds nobody.
+try:
+    from .roster import accounts as _roster_accounts
+
+    for _name, _pw, _user in _roster_accounts():
+        _ACCOUNTS.setdefault(_name, (_pw, _user))
+except Exception:  # noqa: BLE001 - the roster is extra, never a reason login fails
+    pass
+
 
 def login(username: str, password: str) -> User | None:
     """The account for these credentials, or None. Username is case-insensitive, password is not."""
