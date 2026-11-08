@@ -244,9 +244,52 @@ def tiles(items) -> str:
     return '<div class="bs-tiles">' + "".join(out) + "</div>"
 
 
-def overview(dash, key: str, scope: str = "", as_of: str = "", verdict: str = "") -> None:
+# Margiris's weighted 16:9 layouts (tools/layout_sweep, escalation 1108-064111, option A): a hero chart, a KPI band or
+# rail, unequal panels. One page per dashboard, drawn in an iframe and scaled to the column width. STEWARD_LAYOUT=equal
+# (or any error) falls back to the equal 12-column grid below. Display only: same figures, tiles and table.
+LAYOUT_SWEEP = Path(__file__).resolve().parent.parent / "tools" / "layout_sweep"
+WEIGHTED = {"management": ("hero_left_stack", dict(hero=0.62, kpi_band=1.0, flip=False, gap=12)),
+            "builder": ("triptych", dict(hero=0.62, kpi_band=1.0, flip=False, gap=12))}
+_FIT = """<style>html,body{background:transparent}</style><script>(function(){
+const fit=()=>{const f=window.frameElement,w=(f&&f.parentElement?f.parentElement.clientWidth:innerWidth)||1920,z=Math.min(1,w/1920);
+document.body.style.zoom=z;if(f){f.style.height=Math.ceil(1080*z)+'px';f.style.width='100%';}};
+fit();addEventListener('resize',fit);if(window.frameElement&&window.ResizeObserver)new ResizeObserver(fit).observe(window.frameElement.parentElement);})();</script>"""
+
+
+def overview_weighted(dash, role: str, scope: str = "", as_of: str = "") -> bool:
+    """Draw the OVERVIEW as one weighted 16:9 page. False if this role has no preset or anything fails."""
+    import os
+    import re
+    import sys
+
+    if os.environ.get("STEWARD_LAYOUT", "weighted").lower() == "equal" or role not in WEIGHTED:
+        return False
+    try:
+        if str(LAYOUT_SWEEP) not in sys.path:
+            sys.path.insert(0, str(LAYOUT_SWEEP))
+        import compose  # noqa: PLC0415
+
+        preset, params = WEIGHTED[role]
+        page, _ = compose.build(dash, preset, params, role, theme(), dict(as_of=as_of))
+        page = re.sub(r"<div class=tag>.*?</div></div>", "</div>", page, count=1)  # no debug tag
+        page = page.replace("../assets/plotly.min.js", "/app/static/plotly.min.js").replace("../assets/", "/app/static/fonts/")
+        if scope:
+            page = page.replace("whole portfolio", escape(scope), 1)
+        page = page.replace("</body>", _FIT + "</body>", 1)
+        import streamlit.components.v1 as components  # noqa: PLC0415
+
+        components.html(page, height=620, scrolling=False)
+        return True
+    except Exception as exc:  # noqa: BLE001  the equal grid is always there
+        st.caption(f"Weighted layout unavailable ({type(exc).__name__}); showing the grid.")
+        return False
+
+
+def overview(dash, key: str, scope: str = "", as_of: str = "", verdict: str = "", role: str = "") -> None:
     """Draw an OVERVIEW dashboard: header band, then the grid rows in order (strip, charts, table), each cell its span
     of 12 columns. Charts keep render.py's own day/night template (theme=None)."""
+    if overview_weighted(dash, role, scope, as_of):
+        return
     header_band(dash.title, scope, as_of, "")  # the verdict chip is already in the verdict bar above (V6)
     rows: dict[int, list] = {}
     for cell in dash.grid:
