@@ -64,7 +64,7 @@ is 80.96%. Both are right for what they measure, but see m2.
   (In the UI the interview may ask first; I only tested "use recommended setup".)
 
 ## Minors
-- m1. Empty exceptions table shown for 1b, 2b, X4, X6 ("Countries more than 10% off forecast", 0 rows). Say "none" or hide it.
+- m1. (Retracted after the browser check: an empty exceptions table shows "No rows past the threshold for this selection.", which is fine.)
 - m2. Strip mixes periods: Net Sales / Forecast variance are the whole period, OTIF / inventory / growth are the latest
   month. Add "latest month" / "Jan-Oct" in the tile note.
 - m3. Data-quality notes read as jargon and repeat ("trap 14", "123 of 240 rows are labelled forecast_like"), and net-sales
@@ -86,3 +86,52 @@ For the supported questions (plant overview, supply health, company or region pe
 fast, role-gated and unchanged for everything else; the off switch keeps all hashes pinned. The risks are the M2 / M1 wording
 cases, not wrong numbers. Do M2 (period line) before 04:00 if there is time. If not, ship ON anyway: those cases already
 fail the same way on the old template. Not covered by me: browser rendering, day/night, .pbip export, the shared inbox, live LLM.
+
+---
+# Addendum: visual review in Chrome (Sun 8 Nov, ~03:05)
+The first version of this report only covered the pipeline. This part is what the screen shows. Screenshots are in
+`/var/folders/9d/nn6j72m90jvcsjp3npd1r0pm0000gn/T/claude-chrome-screenshots-yeiYZF/` (screenshot-1794098027624-0 ... -25).
+Checked: `make demo` (LLM off) at ~1200 px wide in Chrome. Manager07: 1a "How is Plant-B doing?" through the interview ("Use
+recommended"), night then day theme. Builder12: 1b "LATAM this quarter", night. **Not done:** phone width (the window
+resize did not change the page width, so I could not test it), the two-window shared inbox, 1c/1d/2a-2d/3x on screen,
+the .pbip export, live LLM.
+
+## What works
+- Header band + 4-tile strip + 3-column chart grid reads as a dashboard, not a form. BREACH is red and OK is green on the tiles, and the
+  bullet bars carry a dotted "target 90" / "target 4" marker. That is clear.
+- Trend lines show the month axis (Jan to Oct 2026) and, for net sales, a dashed forecast line with a legend.
+- Day theme is complete: tiles, charts and the sidebar all switch.
+- The "How this was decided" strip is readable and the "Why" line is present.
+- The empty exceptions table says "No rows past the threshold for this selection" (retracts m1).
+- The interview tells the user what is not measured ("OEE, batch yield, downtime, cost per unit aren't measured in official data
+  yet"), so the dropped-KPI problem (M4) is smaller through the UI than in my script. It is still silent for a KPI named inside
+  a longer sentence.
+
+## Visual issues (new, ranked)
+- **V1 MAJOR: the share bar (stacked_100) cannot be read.** "Plant-B units shipped: share by region" has four segments, but only the first is labelled
+  ("EMEA 38%"). The other three have no label and there is no legend. The y-axis says "units" on a share chart.
+- **V2 MAJOR: the net-sales-growth line has a wrong axis.** In LATAM the axis reads 0.2 / 0.1 / 0 / -0.1 / -0.2 with the title "%", while the tile says
+  11.9%. It is a fraction labelled as a percent, so it reads as 0.2%. (The tile and the table are right; only the axis is wrong.)
+- **V3 MAJOR: no period is shown, and the date that is shown is wrong for the data.** The band says "DATA AS OF 2026-11-08" (today), the data
+  ends Oct 2026, and the sidebar says "data 2026-11-08". Nothing says "Jan-Oct 2026" or "latest month = Oct". This confirms M2 on screen: "this quarter"
+  is not applied and the page never says so.
+- **V4 MINOR: tile deltas are badly formatted.** "-0.0 vs last month" (inventory), "+332,608.0 vs last month" (units, a decimal on a count),
+  "-4.1 vs last month" for OTIF with no unit (should be "pp").
+- **V5 MINOR: ragged layout.** In the last row of the Plant-B grid the share-bar card is about 100 px shorter than its two neighbours, leaving a hole.
+- **V6 MINOR: the title says the same thing 3 times.** Page heading, "Dashboard preview", the band title; the CREATE chip is shown twice (verdict bar and band).
+- **V7 MINOR: table.** The product column and the value column are far apart (value right-aligned at the far edge), the value has no "%" ("78.9"), and in day
+  theme the table header is a black bar on a white page.
+- **V8 MINOR: axis titles are inconsistent.** Rotated "%" / "weeks" / "units" on the left, bottom titles "%", "weeks", "% of total" in a different size;
+  the bullet chart's rotated "%" is next to a product list.
+- **V9 MINOR: day theme with the sidebar open clips the trend axes** (the last "Oct 2026" tick and point are missing on two charts).
+- **V10 MINOR: sidebar.** With the sidebar collapsed the "»" button overlaps the "BI Steward" title ("BI▯teward"), and the status line is cut
+  ("off, using rules and templates·data 2026-11-08").
+- **V11 MINOR: wording.** "Why: Only reports that must not be the answer carry these metrics: AST-0335 (recommended for retirement)" is hard to
+  read; "Nothing in the catalog answers this" next to "105 existing reports already carry these numbers" looks contradictory.
+
+## Updated top fixes
+1. V3 + M2: print the period (e.g. "Jan-Oct 2026, latest month Oct") in the band and tile notes, use the data's last month and not today's date. (S)
+2. V1: label every share segment (or add a legend) and fix the axis title. (S)
+3. V2: scale the growth axis to percent. (S)
+4. V4: unit-aware deltas ("pp", no decimals on counts). (S)
+Verdict unchanged: OVERVIEW ON. V1-V3 are the three things I would fix before the demo.
