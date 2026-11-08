@@ -114,7 +114,7 @@ V3 (period), V1 (unreadable share bar) and V11 (the contradictory sentence), all
 
 ## Not covered (needs a person with a browser, about 5 minutes)
 1. ~~Day and night look~~ **done by Martynas (screenshots above).**
-2. Two **real** browser windows (normal + private) on one `make ui`: the same flow as 3a/3b. My two-session test used the same shared file, so I expect it to behave the same.
+2. ~~Two real browser windows~~ **3b done by Martynas in real browsers (03:50): Manager07 and Builder12 in two windows on one run, the manager-to-builder handoff works "fine"** (his words), which matches my headless result. The only problem he hit was the reload behaviour (m-F). **3a (Worker22 -> Builder12) was NOT run in a browser**; it rests on my headless run. Not tested in a browser either: whether the builder's queue appears without any click (I expect not: Streamlit updates only on interaction).
 3. ~~Open the approved OVERVIEW .pbip in Power BI Desktop~~ **done by Martynas (03:45): it opens, and the four cards match** (OTIF about 81.0, Inventory Coverage about 5.8 weeks, Demand Forecast Accuracy 83.7, Units Shipped 15,232,436), everything looks fine. Flow layout as predicted (M-B: no grid until spec.py has span/row).
    Note for the pitch: these are WHOLE-PERIOD values; the app's tiles show the LATEST month (OTIF 78.3, inventory 5.5, units 1,628,277). Both are right for what they measure, but someone comparing the app with the Power BI file will see different numbers unless the tile says "latest month" (same fix as V3 / Gajus m2).
 4. Live LLM, phone width, the autofill dropdown, the receipts' AI-call count (LLM off = 0).
