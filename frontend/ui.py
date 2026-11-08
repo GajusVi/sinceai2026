@@ -251,9 +251,12 @@ LAYOUT_SWEEP = Path(__file__).resolve().parent.parent / "tools" / "layout_sweep"
 WEIGHTED = {"management": ("hero_left_stack", dict(hero=0.62, kpi_band=1.0, flip=False, gap=12)),
             "builder": ("triptych", dict(hero=0.62, kpi_band=1.0, flip=False, gap=12))}
 _FIT = """<style>html,body{background:transparent}</style><script>(function(){
-const fit=()=>{const f=window.frameElement,w=(f&&f.parentElement?f.parentElement.clientWidth:innerWidth)||1920,z=Math.min(1,w/1920);
+const fit=()=>{const f=window.frameElement;
+const w=(f&&f.parentElement?f.parentElement.clientWidth:innerWidth)||1920,z=Math.min(1,w/1920);
 document.body.style.zoom=z;if(f){f.style.height=Math.ceil(1080*z)+'px';f.style.width='100%';}};
-fit();addEventListener('resize',fit);if(window.frameElement&&window.ResizeObserver)new ResizeObserver(fit).observe(window.frameElement.parentElement);})();</script>"""
+fit();addEventListener('resize',fit);
+if(window.frameElement&&window.ResizeObserver)new ResizeObserver(fit).observe(window.frameElement.parentElement);
+})();</script>"""
 
 
 def overview_weighted(dash, role: str, scope: str = "", as_of: str = "") -> bool:
@@ -272,7 +275,8 @@ def overview_weighted(dash, role: str, scope: str = "", as_of: str = "") -> bool
         preset, params = WEIGHTED[role]
         page, _ = compose.build(dash, preset, params, role, theme(), dict(as_of=as_of))
         page = re.sub(r"<div class=tag>.*?</div></div>", "</div>", page, count=1)  # no debug tag
-        page = page.replace("../assets/plotly.min.js", "/app/static/plotly.min.js").replace("../assets/", "/app/static/fonts/")
+        page = page.replace("../assets/plotly.min.js", "/app/static/plotly.min.js")
+        page = page.replace("../assets/", "/app/static/fonts/")
         if scope:
             page = page.replace("whole portfolio", escape(scope), 1)
         page = page.replace("</body>", _FIT + "</body>", 1)

@@ -30,7 +30,7 @@ DATA = [
     ("prompts", "prompts"),
     ("templates/pbip", "templates/pbip"),
     ("steward/layout_cache", "layout_cache"),  # NOT under steward/: a data folder there shadows the package
-    ("tools/layout_sweep", "tools/layout_sweep"),  # weighted OVERVIEW layouts (Margiris), imported by ui.py
+    ("tools/layout_sweep", "tools/layout_sweep"),  # weighted OVERVIEW layouts (Margiris), ui.py
     ("THIRD_PARTY_NOTICES.md", "."),
 ]
 HIDDEN = ["backend.llm", "backend.config", "ui", "worker_view"]
