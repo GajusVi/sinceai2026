@@ -1,6 +1,6 @@
 # martynas
-updated: 2026-11-08 00:14
-now: T3.2 data side pushed; waiting to rebuild the .exe after freeze
-done: T3.2 3e310e5, T3.3 b36bd32, live refresh, Windows .exe, hold-out relabel
-next: rebuild the Windows .exe after the final freeze commits; dibs T2.4 still open
+updated: 2026-11-08 02:16
+now: Windows trial build PASS (cold 12.4 s, warm 5.5 s); waiting for the freeze call
+done: overview pbip 4b45a43 (verified in Desktop), trial exe 5e74680
+next: final Windows build + zip + sha256 after Donatas' freeze call
 blocked: -
