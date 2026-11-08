@@ -451,9 +451,11 @@ def render_dashboard(result: StewardResult, governance: bool = True, takeaway: b
         return
     key = spec.provenance.get("spec_hash", "spec")
     if not governance:
-        ui.section("Dashboard preview")
+        if getattr(spec, "archetype", "") != "OVERVIEW":  # an OVERVIEW names itself in its band (V6)
+            ui.section("Dashboard preview")
     else:
-        st.markdown(f"#### Dashboard: {spec.name}")
+        if getattr(spec, "archetype", "") != "OVERVIEW":  # an OVERVIEW names itself in its band (V6)
+            st.markdown(f"#### Dashboard: {spec.name}")
         st.caption(
             f"{spec.change_type.upper()} · version {spec.version} · "
             f"layout from {spec.provenance.get('layout_source', '?')} · spec {key}"

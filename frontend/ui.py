@@ -247,7 +247,7 @@ def tiles(items) -> str:
 def overview(dash, key: str, scope: str = "", as_of: str = "", verdict: str = "") -> None:
     """Draw an OVERVIEW dashboard: header band, then the grid rows in order (strip, charts, table), each cell its span
     of 12 columns. Charts keep render.py's own day/night template (theme=None)."""
-    header_band(dash.title, scope, as_of, verdict)
+    header_band(dash.title, scope, as_of, "")  # the verdict chip is already in the verdict bar above (V6)
     rows: dict[int, list] = {}
     for cell in dash.grid:
         rows.setdefault(cell.row, []).append(cell)
@@ -267,4 +267,4 @@ def overview(dash, key: str, scope: str = "", as_of: str = "", verdict: str = ""
                     if frame.empty:
                         st.caption("No rows past the threshold for this selection.")
                     else:
-                        table(frame, hide_index=True, width="stretch")
+                        table(frame, hide_index=True, width="content")  # value next to its label (V7)
