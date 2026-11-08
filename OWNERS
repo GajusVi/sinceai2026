@@ -71,3 +71,4 @@ data/build_bayer_dictionaries.py martynas
 catalog/bayer/dimensions.json martynas
 tests/bi_steward/test_overview.py donatas
 frontend/steward_app.py donatas   (from Gajus, handoff 1108)
+frontend/org_panel.py gajus   (People tab, new file like estate_panel.py; user asked 1108, Donatas to hook)
