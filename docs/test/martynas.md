@@ -66,6 +66,7 @@ question vanished, and the title contradicts the content. The "Send to the BI te
 - **m-C. Tile delta text (Gajus V4 reproduced from the tile text):** "-0.0 vs last month" (inventory), "+332,608.0 vs last month" (units, a decimal on a count),
   "-4.1 vs last month" with no unit (OTIF, should be pp).
 - **m-D. stacked_100 in Power BI is a plain clustered bar** (README says so). The "100% share" meaning is lost in the export. Power BI has a 100% stacked bar; I need a Desktop-saved example to map it (3 minutes of someone's time).
+- **m-F. A page reload logs the user out and drops the dashboard (found by Martynas in a real browser, 03:50).** Ctrl+R or the browser's refresh button returns to the sign-in screen and the interview / dashboard on screen is gone. The login and the result live only in the page's session. What was already sent (requests, approvals, journal) survives in the shared data folder. Demo risk: an accidental reload on stage costs the sign-in and the dashboard. Workaround while testing and on stage: never reload; switch Journal -> Ask to re-run the page. Possible fix (M): keep the signed login token across a reload (the desktop app already hands over a signed token), or at least warn.
 - **m-E. Months filter and tile periods:** with Jan-Jun selected the strip still says "vs last month" with no month named (Gajus m2).
 
 ## Suggestions, ranked
