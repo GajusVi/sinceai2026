@@ -39,7 +39,7 @@ def test_signed_handover_opens_the_workspace(app_mode):
     at.query_params["t"] = apptoken.sign("Manager07", "test-secret")
     at.run()
     assert not at.exception and at.session_state["user"].username == "Manager07"
-    assert at.radio(key="nav").options == ["Ask", "People", "Journal", "Catalog"]  # the rail, by role (People: draft)
+    assert at.radio(key="nav").options == ["Ask", "Journal", "Catalog"]  # the rail, by role
     assert not [t for t in at.text_input if t.label in ("Username", "Password")]  # the native window signs in
 
 

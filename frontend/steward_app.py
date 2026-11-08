@@ -176,11 +176,9 @@ ON_DATA_PACK = bool(kpi_index(steward.catalog)[0])  # data-pack catalog: example
 labels = TemplateExplainer(steward.catalog)
 
 # Workspace pages by role (steward/auth.py ACTIONS): maintenance is the BI team's, the journal is management's and up.
-PEOPLE_ON = os.environ.get("STEWARD_PEOPLE", "on").lower() != "off"  # one switch: STEWARD_PEOPLE=off hides the tab
 TABS = [
     ("Ask", "ask"),
     ("Catalog health", "maintain"),
-    *([("People", "draft")] if PEOPLE_ON else []),  # org map, tickets, role proposals (frontend/org_panel.py, Gajus)
     ("Orphan rescue", "maintain"),
     ("Journal", "view_journal"),
     ("Catalog", "view"),
@@ -1132,9 +1130,7 @@ for _notice in inbox.pop_notices(user.username):  # outcomes of this user's requ
 st.html("<style>[class*='st-key-bs-hidden-']{display:none!important}</style>")
 _tabs = {name: st.container(key=("bs-page-" if name == PAGE else "bs-hidden-") + name.lower().replace(" ", "-"))
          for name in _names}
-tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog, tab_people = (
-    _tabs.get(name) for name in ("Ask", "Catalog health", "Orphan rescue", "Journal", "Catalog", "People")
-)
+tab_ask, tab_health, tab_orphan, tab_journal, tab_catalog = (_tabs.get(name) for name, _ in TABS)
 
 SKIP_LABEL = "Use recommended"
 
@@ -1315,12 +1311,6 @@ if tab_health is not None:
     with tab_health:
         render_health()
         render_department_map()
-
-if tab_people is not None:
-    with tab_people:
-        import org_panel  # noqa: E402  (frontend/org_panel.py: managers see their plant, builders the company)
-
-        org_panel.render(user, steward.data_dir, inbox)
 
 if tab_orphan is not None:
     with tab_orphan:

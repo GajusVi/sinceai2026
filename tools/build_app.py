@@ -32,7 +32,7 @@ DATA = [
     ("steward/layout_cache", "layout_cache"),  # NOT under steward/: a data folder there shadows the package
     ("THIRD_PARTY_NOTICES.md", "."),
 ]
-HIDDEN = ["backend.llm", "backend.config", "ui", "worker_view", "org_panel"]
+HIDDEN = ["backend.llm", "backend.config", "ui", "worker_view"]
 
 
 def _modules(package: str) -> list[str]:
