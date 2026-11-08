@@ -1,6 +1,6 @@
 # donatas
-updated: 2026-11-08 01:50
-now: OVERVIEW live (fe0dd19): Plant-B overview for management/builder; template elsewhere
-done: OVERVIEW lint 4a80529; OVERVIEW build+UI fe0dd19; render 4de1699
-next: spec.py fields after Gajus OK; layout LLM ordering for OVERVIEW only if time; final warm before 05:00
-blocked: Gajus OK on steward/spec.py; Gajus .app self-test by 04:00
+updated: 2026-11-08 02:38
+now: Team lead: dashboard test running (Gajus done: no blockers, ON; Martynas: browser + two users, due 03:30)
+done: OVERVIEW fe0dd19, f2f165b; test brief 4b17386
+next: spec.py fields; .app self-test before 04:00; OVERVIEW on/off call at 04:00; final warm; freeze 05:00
+blocked: none
