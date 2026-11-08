@@ -22,10 +22,10 @@ from .spec import DashboardSpec, Measure, Visual
 # only: the same spec + the same theme gives the same figure.
 TEMPLATES = {
     "night": dict(actual="#3b6bff", forecast="#a1a1aa", grid="#27272a", axis="#a1a1aa", title="#fafafa",
-                  good="#4ade80", bad="#f87171", warn="#fbbf24",
+                  good="#4ade80", bad="#f87171", warn="#fbbf24", surface="#111114",
                   parts=["#3b6bff", "#6b8cff", "#9db4ff", "#c7d2fe", "#52525b"]),
     "day": dict(actual="#1a4be0", forecast="#71717a", grid="#e4e4e7", axis="#52525b", title="#09090b",
-                good="#15803d", bad="#b91c1c", warn="#b45309",
+                good="#15803d", bad="#b91c1c", warn="#b45309", surface="#ffffff",
                 parts=["#1a4be0", "#4f73e8", "#8aa2f0", "#c7d2fe", "#a1a1aa"]),
 }
 BLUE, GREY = TEMPLATES["night"]["actual"], TEMPLATES["night"]["forecast"]
@@ -220,7 +220,7 @@ def _bullet(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLAT
         fig.add_vline(x=target, line=dict(color=pal["title"], width=1.5, dash="dot"),
                       annotation=dict(text=f"target {target:g}", font=dict(family=MONO, size=10, color=pal["axis"])),
                       annotation_position="top")
-    fig.update_layout(**_layout(v.title, m, pal, xaxis_title=m.unit), showlegend=False)
+    fig.update_layout(**_layout(v.title, m, pal, value_axis="x"), showlegend=False)
     out.figures.append((v.title, fig))
 
 
@@ -235,7 +235,7 @@ def _diverging(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMP
     colours = [pal["good"] if x >= 0 else pal["bad"] for x in frame["value"]]
     fig = go.Figure(go.Bar(x=frame["value"], y=frame["label"], orientation="h", marker_color=colours, name=m.name))
     fig.add_vline(x=0, line=dict(color=pal["axis"], width=1))
-    fig.update_layout(**_layout(v.title, m, pal, xaxis_title=m.unit), showlegend=False)
+    fig.update_layout(**_layout(v.title, m, pal, value_axis="x"), showlegend=False)
     out.figures.append((v.title, fig))
 
 
@@ -253,13 +253,16 @@ def _stacked(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLA
     fig = go.Figure()
     for i, (label, value) in enumerate(zip(frame["label"], frame["value"], strict=True)):
         share = value / total * 100
-        label_text = f"{label} {share:.0f}%" if share >= 10 else ""  # small parts: on hover only, never squeezed
+        label_text = f"{share:.0f}%" if share >= 10 else ""  # the legend names every part; small parts: hover
         fig.add_trace(go.Bar(x=[share], y=[""], orientation="h", name=str(label), marker_color=pal["parts"][i],
+                             marker_line=dict(color=pal["surface"], width=2),
                              text=[label_text], textposition="inside", insidetextanchor="middle", textangle=0,
                              hovertemplate=f"{label}: {share:.1f}%<extra></extra>",
                              textfont=dict(family=MONO, size=11, color="#ffffff" if i < 2 else "#09090b")))
-    fig.update_layout(**{**_layout(v.title, m, pal, xaxis_title="% of total"), "height": 200}, barmode="stack",
-                      showlegend=False, uniformtext=dict(minsize=9, mode="hide"))  # a label that does not fit hides
+    fig.update_layout(**_layout(v.title, m, pal, value_axis="x"), barmode="stack", showlegend=True,
+                      legend_traceorder="normal",  # legend in the bar's order
+                      uniformtext=dict(minsize=9, mode="hide"))  # a label that does not fit hides
+    fig.update_xaxes(ticksuffix="%", tickformat="")  # "% of total", not the measure's unit (V1)
     fig.update_xaxes(range=[0, 100])
     out.figures.append((v.title, fig))
 
@@ -295,13 +298,27 @@ def _card_numbers(v: Visual, m: Measure, frames, filters, dq) -> tuple[str, str,
         if len(series) >= 2:
             last, before = float(series.iloc[-1]), float(series.iloc[-2])
             delta = last - before
-            text = (
-                f"{delta * 100:+.1f} pp vs last month"
-                if semantic.is_fraction(m.kpi_id)
-                else f"{delta:+,.1f} vs last month"
-            )
+            text = _delta_text(m, delta) + " vs last month"
             return semantic.display(m.kpi_id, last), text, "neutral"
     return semantic.display(m.kpi_id, _one(m, frames, filters, dq)), "", "neutral"
+
+
+def _delta_text(m: Measure, delta: float) -> str:
+    """Unit-aware change (V4): points for rates, no decimals on counts, never "-0.0"."""
+    if semantic.is_fraction(m.kpi_id):
+        delta, unit, fmt = delta * 100, " pp", "{:+.1f}"
+    elif m.unit == "%":
+        unit, fmt = " pp", "{:+.1f}"
+    elif m.unit in ("units", "users"):
+        unit, fmt = "", "{:+,.0f}"
+    elif m.unit == "weeks":
+        unit, fmt = " wk", "{:+.1f}"
+    else:
+        unit, fmt = "", "{:+,.1f}"
+    text = fmt.format(delta)
+    if text.lstrip("+-").strip("0.,") == "":
+        return "no change"
+    return text + unit
 
 
 def _one(m: Measure, frames, filters, dq) -> float:
@@ -349,7 +366,7 @@ def _bar(out, v: Visual, m: Measure, frames, filters, dq, pal: dict = TEMPLATES[
     dq += frame.attrs.get("dq", [])
     frame = _labelled(frame, dim, frames).sort_values("value", ascending=True).tail(15)
     fig = go.Figure(go.Bar(x=frame["value"], y=frame["label"], orientation="h", marker_color=pal["actual"], name=m.name))
-    fig.update_layout(**_layout(v.title, m, pal, xaxis_title=m.unit))
+    fig.update_layout(**_layout(v.title, m, pal, value_axis="x"))
     out.figures.append((v.title, fig))
 
 
@@ -376,7 +393,8 @@ def _table(out, v: Visual, m: Measure, frames, filters, dq) -> None:
             dq += frame.attrs.get("dq", [])
             rows = _labelled(frame, dim, frames)
             rows = rows[rows["value"] < threshold].sort_values("value")
-            table = pd.DataFrame({_dim_title(dim): rows["label"], m.name: rows["value"].round(1)})
+            header = f"{m.name} ({m.unit})" if m.unit else m.name  # the unit on the values (V7)
+            table = pd.DataFrame({_dim_title(dim): rows["label"], header: rows["value"].round(1)})
     except ValueError:
         return
     out.tables.append((v.title, table.reset_index(drop=True)))
@@ -398,10 +416,22 @@ def _dim_title(dim: str) -> str:
     return {"market": "Country", "product": "Product", "region": "Region"}[dim]
 
 
-def _layout(title: str, m: Measure, pal: dict, **extra) -> dict:
+def _ticks(m: Measure) -> dict:
+    """The unit goes in the tick labels, not in a rotated axis title (V8): one rule for every chart.
+    A fraction KPI (growth, bias) is shown as a percent so the axis matches its tile (V2: 11.9%, not 0.12)."""
+    if semantic.is_fraction(m.kpi_id):
+        return dict(tickformat=".0%")
+    return {"%": dict(ticksuffix="%"), "weeks": dict(ticksuffix=" wk"), "EUR": dict(ticksuffix=" M"),
+            "units": dict(tickformat="~s"), "users": dict(tickformat="~s")}.get(m.unit, {})
+
+
+def _layout(title: str, m: Measure, pal: dict, value_axis: str = "y", **extra) -> dict:
     grid, ax = pal["grid"], pal["axis"]
+    extra.pop("xaxis_title", None)
+    extra.pop("yaxis_title", None)
     axis = dict(gridcolor=grid, zerolinecolor=grid, linecolor=grid, tickfont=dict(family=MONO, size=11, color=ax),
-                title=dict(font=dict(family=MONO, size=11, color=ax)))
+                title=dict(text="", font=dict(family=MONO, size=11, color=ax)), automargin=True)
+    value = {**axis, **_ticks(m)}
     return dict(
         title=dict(text=title, x=0, font=dict(family=SANS, size=14, color=pal["title"])),
         template="plotly_dark",
@@ -409,10 +439,10 @@ def _layout(title: str, m: Measure, pal: dict, **extra) -> dict:
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family=SANS, size=12, color=ax),
         height=300,
-        margin=dict(l=10, r=10, t=44, b=22),
+        margin=dict(l=10, r=24, t=44, b=22),  # r: room for the last month tick (V9)
         legend=dict(orientation="h", y=-0.15, font=dict(family=MONO, size=11, color=ax)),
-        xaxis=axis,
-        yaxis={**axis, "title": dict(text=extra.pop("yaxis_title", m.unit), font=dict(family=MONO, size=11, color=ax))},
+        xaxis=value if value_axis == "x" else axis,
+        yaxis=value if value_axis == "y" else axis,
         **extra,
     )
 
